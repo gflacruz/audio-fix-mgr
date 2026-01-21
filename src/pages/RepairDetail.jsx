@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getDB, saveDB } from '@/lib/api';
-import { ArrowLeft, Save, Clock, User, CheckCircle2, MessageSquare, ThumbsUp } from 'lucide-react';
+import { printDiagnosticReceipt, printRepairInvoice } from '@/lib/printer';
+import { ArrowLeft, Save, Clock, User, CheckCircle2, MessageSquare, ThumbsUp, Printer } from 'lucide-react';
 
 const RepairDetail = () => {
   const { id } = useParams();
@@ -296,6 +297,26 @@ const RepairDetail = () => {
                  </label>
               </div>
              </div>
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+            <h3 className="text-zinc-400 font-semibold text-sm uppercase tracking-wider mb-4">Documents</h3>
+            <div className="space-y-3">
+              <button 
+                onClick={() => printDiagnosticReceipt(ticket, client)}
+                className="w-full flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 py-2.5 rounded-lg transition-colors border border-zinc-700"
+              >
+                <Printer size={18} />
+                Print Fee Receipt
+              </button>
+              <button 
+                onClick={() => printRepairInvoice(ticket, client)}
+                className="w-full flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 py-2.5 rounded-lg transition-colors border border-zinc-700"
+              >
+                <Printer size={18} />
+                Print Invoice
+              </button>
+            </div>
           </div>
         </div>
       </div>
