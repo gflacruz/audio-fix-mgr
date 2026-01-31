@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getRepair, updateRepair, addRepairNote, getTechnicians, getParts, addRepairPart, removeRepairPart, addCustomRepairPart } from '@/lib/api';
+import { getRepair, updateRepair, addRepairNote, getTechnicians, getParts, addRepairPart, removeRepairPart, addCustomRepairPart, uploadRepairPhoto, deleteRepairPhoto, sendEstimateEmail, sendPickupEmail } from '@/lib/api';
 import { printDiagnosticReceipt, printRepairInvoice } from '@/lib/printer';
-import { ArrowLeft, Save, Clock, User, CheckCircle2, MessageSquare, ThumbsUp, Printer, Package, Plus, Trash2, X, FileText, DollarSign, Truck, Edit2 } from 'lucide-react';
+import { ArrowLeft, Save, Clock, User, CheckCircle2, MessageSquare, ThumbsUp, Printer, Package, Plus, Trash2, X, FileText, DollarSign, Truck, Edit2, Camera, Image as ImageIcon, Loader2, Mail, Send } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 const RepairDetail = () => {
@@ -39,6 +39,12 @@ const RepairDetail = () => {
   
   // Close Claim Modal State
   const [showCloseModal, setShowCloseModal] = useState(false);
+
+  // Photo State
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  // Email State
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -393,6 +399,71 @@ const RepairDetail = () => {
     return match ? '(' + match[1] + ') ' + match[2] + '-' + match[3] : str;
   };
 
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const newPhoto = await uploadRepairPhoto(id, file);
+      setTicket(prev => ({
+        ...prev,
+        photos: [newPhoto, ...(prev.photos || [])]
+      }));
+    } catch (error) {
+      console.error("Failed to upload photo:", error);
+      alert("Failed to upload photo: " + error.message);
+    } finally {
+      setIsUploadingPhoto(false);
+      // Reset input
+      e.target.value = null;
+    }
+  };
+
+  const handlePhotoDelete = async (photoId) => {
+    if (!window.confirm("Delete this photo?")) return;
+    try {
+      await deleteRepairPhoto(id, photoId);
+      setTicket(prev => ({
+        ...prev,
+        photos: prev.photos.filter(p => p.id !== photoId)
+      }));
+    } catch (error) {
+      console.error("Failed to delete photo:", error);
+      alert("Failed to delete photo.");
+    }
+  };
+
+  const handleSendEstimateEmail = async () => {
+    if (!window.confirm('Send "Estimate Available" email to client?')) return;
+    setSendingEmail(true);
+    try {
+      await sendEstimateEmail(id);
+      addSystemNote('Email sent: Estimate Available');
+      alert('Estimate email sent successfully.');
+    } catch (error) {
+      console.error("Failed to send email:", error);
+      alert("Failed to send email: " + error.message);
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const handleSendPickupEmail = async () => {
+    if (!window.confirm('Send "Ready for Pickup" email to client?')) return;
+    setSendingEmail(true);
+    try {
+      await sendPickupEmail(id);
+      addSystemNote('Email sent: Ready for Pickup');
+      alert('Pickup email sent successfully.');
+    } catch (error) {
+      console.error("Failed to send email:", error);
+      alert("Failed to send email: " + error.message);
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   if (loading) return <div className="p-8 text-zinc-500">Loading...</div>;
   if (!ticket) return <div className="p-8 text-zinc-500">Ticket not found.</div>;
 
@@ -489,10 +560,31 @@ const RepairDetail = () => {
                 <option value="ready">Ready for Pickup</option>
                 <option value="closed">Closed</option>
               </select>
+
+              {/* Email Pickup Button - Only show if ready or closed */}
+              {(ticket.status === 'ready' || ticket.status === 'closed') && (
+                <button
+                  onClick={handleSendPickupEmail}
+                  disabled={sendingEmail}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                  title="Email Ready for Pickup"
+                >
+                  {sendingEmail ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                </button>
+              )}
            </div>
            
            {/* Estimate Actions */}
            <div className="flex gap-2 mt-2">
+             <button
+               onClick={handleSendEstimateEmail}
+               disabled={sendingEmail}
+               className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-500 border border-amber-600/30 text-xs font-medium rounded transition-colors disabled:opacity-50"
+               title="Email Estimate"
+             >
+               {sendingEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+               Email Estimate
+             </button>
              <button
                onClick={() => addSystemNote('Client has been notified of estimate.')}
                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium rounded transition-colors"
@@ -687,6 +779,65 @@ const RepairDetail = () => {
               </button>
             </form>
           </div>
+
+          {/* Photos Section */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-amber-500 font-semibold flex items-center gap-2">
+                <ImageIcon size={18} /> Photos
+              </h3>
+              <div className="relative">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  disabled={isUploadingPhoto}
+                />
+                <button 
+                  className={`text-xs bg-zinc-800 hover:bg-blue-600 hover:text-white text-zinc-300 px-3 py-1.5 rounded flex items-center gap-2 transition-colors ${isUploadingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {isUploadingPhoto ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                  {isUploadingPhoto ? 'Uploading...' : 'Add Photo'}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {ticket.photos?.map(photo => (
+                <div key={photo.id} className="group relative aspect-square bg-zinc-950 rounded-lg overflow-hidden border border-zinc-800">
+                  <a href={photo.url} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                    <img 
+                      src={photo.url} 
+                      alt="Repair" 
+                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                    />
+                  </a>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handlePhotoDelete(photo.id);
+                    }}
+                    className="absolute top-2 right-2 bg-black/50 hover:bg-red-600/90 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                    title="Delete Photo"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <p className="text-[10px] text-zinc-300 text-center">
+                      {new Date(photo.date).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {(!ticket.photos || ticket.photos.length === 0) && (
+                <div className="col-span-full py-8 text-center border-2 border-dashed border-zinc-800 rounded-lg text-zinc-600 text-sm">
+                  <Camera size={24} className="mx-auto mb-2 opacity-50" />
+                  No photos uploaded yet
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Right Column: Info Card */}
@@ -809,8 +960,27 @@ const RepairDetail = () => {
                 </div>
               )}
               <div>
-                <label className="text-xs text-zinc-600 block">Phone</label>
-                <div className="text-zinc-200">{formatPhoneNumber(client?.phone)}</div>
+                <label className="text-xs text-zinc-600 block">Phone Numbers</label>
+                {(client?.phones && client.phones.length > 0) ? (
+                  <div className="space-y-1 mt-1">
+                    {client.phones.map((phone, idx) => (
+                      <div key={idx} className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-zinc-200 ${phone.isPrimary ? 'font-medium' : ''}`}>
+                            {formatPhoneNumber(phone.number)}
+                          </span>
+                          {phone.extension && <span className="text-zinc-500 text-xs">x{phone.extension}</span>}
+                          <span className="text-xs text-zinc-600 px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700">
+                            {phone.type}
+                          </span>
+                          {phone.isPrimary && <span className="text-[10px] text-amber-500 font-medium">Primary</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-zinc-200">{formatPhoneNumber(client?.phone)}</div>
+                )}
               </div>
               <div>
                 <label className="text-xs text-zinc-600 block">Email</label>

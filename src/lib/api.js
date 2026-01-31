@@ -70,6 +70,7 @@ export const getRepairs = async (options = {}) => {
   const params = new URLSearchParams();
   if (options.clientId) params.append('clientId', options.clientId);
   if (options.search) params.append('search', options.search);
+  if (options.includeClosed !== undefined) params.append('includeClosed', options.includeClosed);
   
   const queryString = params.toString();
   return fetchJSON(`/repairs${queryString ? '?' + queryString : ''}`);
@@ -145,22 +146,55 @@ export const getParts = async (search = '') => {
   });
 };
 
-export const createPart = async (partData) => {
+export const getPart = async (id) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
-  return fetchJSON('/parts', {
-    method: 'POST',
-    body: JSON.stringify(partData),
+  return fetchJSON(`/parts/${id}`, {
     headers: { Authorization: `Bearer ${user?.token}` }
   });
 };
 
+export const createPart = async (partData) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  const isFormData = partData instanceof FormData;
+  
+  const headers = { Authorization: `Bearer ${user?.token}` };
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const response = await fetch(`${API_BASE}/parts`, {
+    method: 'POST',
+    headers,
+    body: isFormData ? partData : JSON.stringify(partData)
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `API Error: ${response.statusText}`);
+  }
+  return response.json();
+};
+
 export const updatePart = async (id, partData) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
-  return fetchJSON(`/parts/${id}`, {
+  const isFormData = partData instanceof FormData;
+  
+  const headers = { Authorization: `Bearer ${user?.token}` };
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const response = await fetch(`${API_BASE}/parts/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify(partData),
-    headers: { Authorization: `Bearer ${user?.token}` }
+    headers,
+    body: isFormData ? partData : JSON.stringify(partData)
   });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `API Error: ${response.statusText}`);
+  }
+  return response.json();
 };
 
 export const deletePart = async (id) => {
@@ -193,6 +227,62 @@ export const addCustomRepairPart = async (repairId, { name, price, quantity = 1 
   return fetchJSON(`/repairs/${repairId}/parts`, {
     method: 'POST',
     body: JSON.stringify({ name, price, quantity }),
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const uploadRepairPhoto = async (repairId, file) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  const formData = new FormData();
+  formData.append('photo', file);
+
+  const response = await fetch(`${API_BASE}/repairs/${repairId}/photos`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${user?.token}`
+      // Content-Type is set automatically by browser with boundary for FormData
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `API Error: ${response.statusText}`);
+  }
+
+  return response.json();
+};
+
+export const deleteRepairPhoto = async (repairId, photoId) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/repairs/${repairId}/photos/${photoId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+// Suggestions
+export const createSuggestion = async (content) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON('/suggestions', {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const getSuggestions = async () => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON('/suggestions', {
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const updateSuggestion = async (id, status) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/suggestions/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
     headers: { Authorization: `Bearer ${user?.token}` }
   });
 };

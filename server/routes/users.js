@@ -12,7 +12,8 @@ router.get('/', verifyToken, async (req, res) => {
     
     // If requesting list of technicians, allow any authenticated user
     if (role === 'technician') {
-      const result = await db.query("SELECT name FROM users WHERE role = 'technician' ORDER BY name ASC");
+      // Include admins as potential technicians
+      const result = await db.query("SELECT name FROM users WHERE role IN ('technician', 'admin') ORDER BY name ASC");
       return res.json(result.rows.map(u => u.name));
     }
 

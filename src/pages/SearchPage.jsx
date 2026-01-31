@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 const SearchPage = () => {
   const [query, setQuery] = useState('');
   const [sortOrder, setSortOrder] = useState('newest'); // newest, oldest, alpha
+  const [includeClosed, setIncludeClosed] = useState(false);
   const [results, setResults] = useState({ clients: [], repairs: [] });
   const [hasSearched, setHasSearched] = useState(false);
 
@@ -20,7 +21,7 @@ const SearchPage = () => {
       try {
         const [foundClients, foundRepairs] = await Promise.all([
           getClients(query),
-          getRepairs({ search: query })
+          getRepairs({ search: query, includeClosed })
         ]);
 
         // Apply Sorting (Client-side for now as API sorting is fixed)
@@ -45,25 +46,41 @@ const SearchPage = () => {
     // Debounce search
     const timeoutId = setTimeout(performSearch, 300);
     return () => clearTimeout(timeoutId);
-  }, [query, sortOrder]);
+  }, [query, sortOrder, includeClosed]);
 
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-white">Global Search</h2>
         
-        {/* Sort Dropdown */}
-        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
-          <ArrowUpDown size={16} className="text-zinc-500" />
-          <select 
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-            className="bg-transparent text-sm text-zinc-300 focus:outline-none cursor-pointer"
-          >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="alpha">Alphabetical (A-Z)</option>
-          </select>
+        <div className="flex items-center gap-6">
+          {/* Include Closed Toggle */}
+          <label className="flex items-center gap-2 cursor-pointer select-none group">
+            <div className={`relative w-10 h-6 rounded-full p-1 transition-colors duration-200 ${includeClosed ? 'bg-amber-600' : 'bg-zinc-700 group-hover:bg-zinc-600'}`}>
+              <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${includeClosed ? 'translate-x-4' : ''}`} />
+            </div>
+            <input 
+              type="checkbox" 
+              className="hidden" 
+              checked={includeClosed}
+              onChange={(e) => setIncludeClosed(e.target.checked)}
+            />
+            <span className="text-sm text-zinc-400 group-hover:text-zinc-300 transition-colors">Include Closed</span>
+          </label>
+
+          {/* Sort Dropdown */}
+          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
+            <ArrowUpDown size={16} className="text-zinc-500" />
+            <select 
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              className="bg-transparent text-sm text-zinc-300 focus:outline-none cursor-pointer"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="alpha">Alphabetical (A-Z)</option>
+            </select>
+          </div>
         </div>
       </div>
 

@@ -1,11 +1,25 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const cloudinary = require('cloudinary').v2;
+const multer = require('multer');
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Configure Multer (Memory Storage)
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
 
 // GET /api/repairs - List all repairs
 router.get('/', async (req, res) => {
   try {
-    const { clientId, search } = req.query;
+    const { clientId, search, includeClosed } = req.query;
     let query = `
       SELECT r.*, c.name as client_name, c.company_name as client_company, c.phone as client_phone 
       FROM repairs r 
@@ -32,6 +46,11 @@ router.get('/', async (req, res) => {
       )`);
       params.push(searchPattern);
       paramIndex++;
+    }
+
+    // Filter closed units if includeClosed is explicitly false
+    if (includeClosed === 'false') {
+        whereClauses.push(`r.status != 'closed'`);
     }
 
     if (whereClauses.length > 0) {
@@ -248,6 +267,19 @@ router.get('/:id', async (req, res) => {
 
     const row = repairResult.rows[0];
 
+    // Fetch Client Phones
+    const phonesResult = await db.query(
+      'SELECT * FROM client_phones WHERE client_id = $1 ORDER BY is_primary DESC',
+      [row.client_id]
+    );
+
+    const clientPhones = phonesResult.rows.map(p => ({
+        number: p.phone_number,
+        type: p.type,
+        extension: p.extension,
+        isPrimary: p.is_primary
+    }));
+
     // Fetch Notes
     const notesResult = await db.query(
       'SELECT * FROM repair_notes WHERE repair_id = $1 ORDER BY created_at ASC',
@@ -264,6 +296,12 @@ router.get('/:id', async (req, res) => {
       [id]
     );
 
+    // Fetch Photos
+    const photosResult = await db.query(
+      'SELECT * FROM repair_photos WHERE repair_id = $1 ORDER BY created_at DESC',
+      [id]
+    );
+
     // Format Response
     const ticket = {
       id: row.id,
@@ -277,6 +315,7 @@ router.get('/:id', async (req, res) => {
         name: row.client_name,
         companyName: row.client_company,
         phone: row.client_phone,
+        phones: clientPhones,
         email: row.client_email,
         address: row.client_address,
         city: row.client_city,
@@ -321,10 +360,17 @@ router.get('/:id', async (req, res) => {
         quantity: p.quantity,
         price: parseFloat(p.unit_price),
         total: parseFloat(p.unit_price) * p.quantity
+      })),
+      photos: photosResult.rows.map(ph => ({
+        id: ph.id,
+        url: ph.url,
+        publicId: ph.public_id,
+        date: ph.created_at
       }))
     };
 
     res.json(ticket);
+
   } catch (error) {
     console.error('Error fetching repair detail:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -570,4 +616,83 @@ router.delete('/:id/parts/:linkId', async (req, res) => {
   }
 });
 
+// POST /api/repairs/:id/photos - Upload a photo
+router.post('/:id/photos', upload.single('photo'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'No photo uploaded' });
+    }
+
+    // Upload to Cloudinary using stream
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder: 'audio_fix_repairs' },
+      async (error, result) => {
+        if (error) {
+          console.error('Cloudinary upload error:', error);
+          return res.status(500).json({ error: 'Image upload failed' });
+        }
+
+        try {
+          // Save to DB
+          const dbResult = await db.query(
+            `INSERT INTO repair_photos (repair_id, url, public_id) 
+             VALUES ($1, $2, $3) 
+             RETURNING *`,
+            [id, result.secure_url, result.public_id]
+          );
+          
+          const photo = dbResult.rows[0];
+          res.status(201).json({
+            id: photo.id,
+            url: photo.url,
+            publicId: photo.public_id,
+            date: photo.created_at
+          });
+        } catch (dbError) {
+          console.error('Database save error:', dbError);
+          res.status(500).json({ error: 'Database save failed' });
+        }
+      }
+    );
+
+    // Pipe the buffer to the upload stream
+    const bufferStream = require('stream').Readable.from(req.file.buffer);
+    bufferStream.pipe(uploadStream);
+
+  } catch (error) {
+    console.error('Error handling photo upload:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/repairs/:id/photos/:photoId - Delete a photo
+router.delete('/:id/photos/:photoId', async (req, res) => {
+  try {
+    const { photoId } = req.params;
+
+    // Get public_id from DB first
+    const photoRes = await db.query('SELECT * FROM repair_photos WHERE id = $1', [photoId]);
+    
+    if (photoRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
+
+    const photo = photoRes.rows[0];
+
+    // Delete from Cloudinary
+    await cloudinary.uploader.destroy(photo.public_id);
+
+    // Delete from DB
+    await db.query('DELETE FROM repair_photos WHERE id = $1', [photoId]);
+
+    res.json({ message: 'Photo deleted' });
+  } catch (error) {
+    console.error('Error deleting photo:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;
+

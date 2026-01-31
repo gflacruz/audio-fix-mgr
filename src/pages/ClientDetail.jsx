@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getClient, updateClient, getRepairs } from '@/lib/api';
-import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy } from 'lucide-react';
+import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy, Plus, Trash2, Building2 } from 'lucide-react';
 
 const ClientDetail = () => {
   const { id } = useParams();
@@ -24,15 +24,48 @@ const ClientDetail = () => {
       ]);
       setClient(foundClient);
       setFormData(foundClient);
-      setTickets(clientTickets);
+      
+      // Sort: Non-closed first, then by date (newest first)
+      const sortedTickets = clientTickets.sort((a, b) => {
+        const isClosedA = a.status === 'closed';
+        const isClosedB = b.status === 'closed';
+        
+        if (isClosedA !== isClosedB) {
+          return isClosedA ? 1 : -1;
+        }
+        return new Date(b.dateIn) - new Date(a.dateIn);
+      });
+      
+      setTickets(sortedTickets);
     } catch (error) {
       console.error("Failed to load client data:", error);
     }
     setLoading(false);
   };
 
-  const handleSave = async (e) => {
-    e.preventDefault();
+  const handlePhoneChange = (index, field, value) => {
+    const newPhones = [...(formData.phones || [])];
+    newPhones[index] = { ...newPhones[index], [field]: value };
+    setFormData(prev => ({ ...prev, phones: newPhones }));
+  };
+
+  const addPhone = () => {
+    setFormData(prev => ({
+      ...prev,
+      phones: [...(prev.phones || []), { number: '', type: 'Cell', extension: '' }]
+    }));
+  };
+
+  const removePhone = (index) => {
+    if ((formData.phones || []).length > 1) {
+      setFormData(prev => ({
+        ...prev,
+        phones: prev.phones.filter((_, i) => i !== index)
+      }));
+    }
+  };
+
+  const handleSave = async (e) => {    e.preventDefault();
     try {
       await updateClient(id, formData);
       // No need to update tickets manually as they link by ID
@@ -75,8 +108,21 @@ const ClientDetail = () => {
       {/* Header */}
       <div className="flex justify-between items-start mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">{client.name}</h1>
-          <p className="text-zinc-500 text-sm">Client since {new Date(client.dateAdded).toLocaleDateString()}</p>
+          {client.companyName ? (
+            <>
+              <h1 className="text-3xl font-bold text-white mb-1">{client.companyName}</h1>
+              <div className="text-xl text-amber-500 font-medium mb-2">{client.name}</div>
+            </>
+          ) : (
+            <h1 className="text-3xl font-bold text-white mb-2">{client.name}</h1>
+          )}
+          <div className="flex items-center gap-4 text-sm mt-1">
+            <p className="text-zinc-500">Client since {new Date(client.dateAdded).toLocaleDateString()}</p>
+            <div className="w-1 h-1 rounded-full bg-zinc-700"></div>
+            <p className="text-zinc-400">
+              Total Spent: <span className="text-green-500 font-medium">${(client.totalSpent || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </p>
+          </div>
         </div>
         <button
           onClick={() => isEditing ? document.getElementById('client-form').requestSubmit() : setIsEditing(true)}
@@ -103,11 +149,62 @@ const ClientDetail = () => {
                   <input name="name" value={formData.name} onChange={handleChange} 
                     className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-white text-sm focus:border-amber-500 outline-none" />
                 </div>
+
                 <div>
-                  <label className="text-xs text-zinc-500 mb-1 block">Phone</label>
-                  <input name="phone" value={formData.phone} onChange={handleChange} 
+                  <label className="text-xs text-zinc-500 mb-1 block">Company</label>
+                  <input name="companyName" value={formData.companyName || ''} onChange={handleChange} 
                     className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-white text-sm focus:border-amber-500 outline-none" />
                 </div>
+                
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-xs text-zinc-500 block">Phone Numbers</label>
+                    <button type="button" onClick={addPhone} className="text-xs text-amber-500 flex items-center gap-1 hover:text-amber-400">
+                      <Plus size={12} /> Add
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {(formData.phones || []).map((phone, index) => (
+                      <div key={index} className="flex gap-2">
+                        <div className="flex-1">
+                           <input
+                            value={phone.number}
+                            onChange={(e) => handlePhoneChange(index, 'number', e.target.value)}
+                            placeholder="Number"
+                            className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-white text-sm focus:border-amber-500 outline-none"
+                          />
+                        </div>
+                        <div className="w-20">
+                          <select
+                            value={phone.type}
+                            onChange={(e) => handlePhoneChange(index, 'type', e.target.value)}
+                            className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-white text-sm focus:border-amber-500 outline-none"
+                          >
+                            <option value="Cell">Cell</option>
+                            <option value="Work">Work</option>
+                            <option value="Home">Home</option>
+                            <option value="Fax">Fax</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </div>
+                        <div className="w-16">
+                           <input
+                            value={phone.extension || ''}
+                            onChange={(e) => handlePhoneChange(index, 'extension', e.target.value)}
+                            placeholder="Ext"
+                            className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-white text-sm focus:border-amber-500 outline-none"
+                          />
+                        </div>
+                        {(formData.phones || []).length > 1 && (
+                          <button type="button" onClick={() => removePhone(index)} className="text-zinc-600 hover:text-red-500">
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Email</label>
                   <input name="email" value={formData.email} onChange={handleChange} 
@@ -138,22 +235,56 @@ const ClientDetail = () => {
               </form>
             ) : (
               <div className="space-y-6">
-                <div className="flex items-start gap-3 group">
-                  <Phone size={18} className="text-amber-600 mt-0.5" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="text-zinc-200">{formatPhoneNumber(client.phone)}</div>
-                      <button 
-                        onClick={() => copyToClipboard(client.phone)}
-                        className="text-zinc-600 hover:text-white opacity-0 group-hover:opacity-100 transition-all"
-                        title="Copy Phone Number"
-                      >
-                        <Copy size={14} />
-                      </button>
+                <div className="space-y-4">
+                  {client.companyName && (
+                    <div className="flex items-start gap-3 group">
+                      <Building2 size={18} className="text-amber-600 mt-0.5" />
+                      <div>
+                        <div className="text-zinc-200 font-medium">{client.companyName}</div>
+                        <div className="text-xs text-zinc-600">Company</div>
+                      </div>
                     </div>
-                    <div className="text-xs text-zinc-600">Mobile</div>
-                  </div>
+                  )}
+
+                  {(client.phones && client.phones.length > 0) ? (
+                    client.phones.map((phone, idx) => (
+                      <div key={idx} className="flex items-start gap-3 group">
+                        <Phone size={18} className={`mt-0.5 ${phone.isPrimary ? 'text-amber-600' : 'text-zinc-600'}`} />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <div className={`text-zinc-200 ${phone.isPrimary ? 'font-medium' : ''}`}>
+                              {formatPhoneNumber(phone.number)}
+                              {phone.extension && <span className="text-zinc-500 ml-2 text-sm">x{phone.extension}</span>}
+                            </div>
+                            <button 
+                              onClick={() => copyToClipboard(phone.number)}
+                              className="text-zinc-600 hover:text-white opacity-0 group-hover:opacity-100 transition-all"
+                              title="Copy Phone Number"
+                            >
+                              <Copy size={14} />
+                            </button>
+                          </div>
+                          <div className="text-xs text-zinc-600 flex items-center gap-2">
+                            {phone.type}
+                            {phone.isPrimary && <span className="text-amber-500/80 bg-amber-500/10 px-1.5 rounded text-[10px]">Primary</span>}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                     /* Fallback for legacy clients if any (shouldn't be needed due to migration) */
+                     <div className="flex items-start gap-3 group">
+                       <Phone size={18} className="text-amber-600 mt-0.5" />
+                       <div>
+                         <div className="flex items-center gap-2">
+                           <div className="text-zinc-200">{formatPhoneNumber(client.phone)}</div>
+                         </div>
+                         <div className="text-xs text-zinc-600">Primary</div>
+                       </div>
+                     </div>
+                  )}
                 </div>
+
                 <div className="flex items-start gap-3 group">
                   <Mail size={18} className="text-amber-600 mt-0.5" />
                   <div className="break-all">

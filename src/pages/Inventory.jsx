@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Search, Plus, Edit, Trash2, X, Save } from 'lucide-react';
+import { Package, Search, Plus, Edit, Trash2, X, Save, Upload, Image as ImageIcon, MapPin } from 'lucide-react';
 import { getParts, createPart, updatePart, deletePart } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Inventory = () => {
   const { isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [parts, setParts] = useState([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -17,7 +19,11 @@ const Inventory = () => {
     retailPrice: '',
     wholesalePrice: '',
     quantityInStock: '',
-    aliases: ''
+    aliases: '',
+    location: '',
+    description: '',
+    image: null,
+    previewUrl: null
   });
 
   const loadParts = async () => {
@@ -44,7 +50,11 @@ const Inventory = () => {
         retailPrice: part.retailPrice,
         wholesalePrice: part.wholesalePrice,
         quantityInStock: part.quantityInStock,
-        aliases: part.aliases.join(', ')
+        aliases: part.aliases.join(', '),
+        location: part.location || '',
+        description: part.description || '',
+        image: null,
+        previewUrl: part.imageUrl || null
       });
     } else {
       setEditingPart(null);
@@ -53,7 +63,11 @@ const Inventory = () => {
         retailPrice: '',
         wholesalePrice: '',
         quantityInStock: '',
-        aliases: ''
+        aliases: '',
+        location: '',
+        description: '',
+        image: null,
+        previewUrl: null
       });
     }
     setShowModal(true);
@@ -64,21 +78,39 @@ const Inventory = () => {
     setEditingPart(null);
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFormData({
+        ...formData,
+        image: file,
+        previewUrl: URL.createObjectURL(file)
+      });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const payload = {
-        name: formData.name,
-        retailPrice: parseFloat(formData.retailPrice) || 0,
-        wholesalePrice: parseFloat(formData.wholesalePrice) || 0,
-        quantityInStock: parseInt(formData.quantityInStock) || 0,
-        aliases: formData.aliases.split(',').map(a => a.trim()).filter(a => a)
-      };
+      const data = new FormData();
+      data.append('name', formData.name);
+      data.append('retailPrice', parseFloat(formData.retailPrice) || 0);
+      data.append('wholesalePrice', parseFloat(formData.wholesalePrice) || 0);
+      data.append('quantityInStock', parseInt(formData.quantityInStock) || 0);
+      data.append('location', formData.location);
+      data.append('description', formData.description);
+      
+      const aliasArray = formData.aliases.split(',').map(a => a.trim()).filter(a => a);
+      data.append('aliases', JSON.stringify(aliasArray));
+
+      if (formData.image) {
+        data.append('image', formData.image);
+      }
 
       if (editingPart) {
-        await updatePart(editingPart.id, payload);
+        await updatePart(editingPart.id, data);
       } else {
-        await createPart(payload);
+        await createPart(data);
       }
       handleCloseModal();
       loadParts();
@@ -136,6 +168,7 @@ const Inventory = () => {
           <thead className="bg-zinc-950 text-zinc-400 uppercase text-xs tracking-wider">
             <tr>
               <th className="px-6 py-4 font-medium">Part Name</th>
+              <th className="px-6 py-4 font-medium">Location</th>
               <th className="px-6 py-4 font-medium">In Stock</th>
               <th className="px-6 py-4 font-medium">Retail Price</th>
               <th className="px-6 py-4 font-medium">Wholesale Price</th>
@@ -151,7 +184,16 @@ const Inventory = () => {
             ) : (
               parts.map((part) => (
                 <tr key={part.id} className="hover:bg-zinc-800/50 transition-colors">
-                  <td className="px-6 py-4 font-medium text-white">{part.name}</td>
+                  <td className="px-6 py-4 font-medium text-white">
+                    <div 
+                        className="cursor-pointer hover:text-amber-500 transition-colors group"
+                        onClick={() => navigate(`/inventory/${part.id}`)}
+                    >
+                        <div className="group-hover:underline">{part.name}</div>
+                        {part.description && <div className="text-xs text-zinc-500 truncate max-w-[200px]">{part.description}</div>}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-zinc-400 font-mono text-sm">{part.location || '-'}</td>
                   <td className="px-6 py-4 text-zinc-300 font-mono">
                     <span className={`px-2 py-0.5 rounded text-xs ${
                       part.quantityInStock > 0 ? 'bg-emerald-900/30 text-emerald-400' : 'bg-red-900/30 text-red-400'
@@ -214,7 +256,7 @@ const Inventory = () => {
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-zinc-400 mb-1">Part Name</label>
                 <input 
@@ -226,7 +268,20 @@ const Inventory = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                 <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1">Location / Bin</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-600" size={16} />
+                    <input 
+                      type="text" 
+                      value={formData.location}
+                      onChange={(e) => setFormData({...formData, location: e.target.value})}
+                      placeholder="e.g. Shelf A-2"
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-9 pr-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-zinc-400 mb-1">Quantity in Stock</label>
                   <input 
@@ -238,6 +293,9 @@ const Inventory = () => {
                     className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-zinc-400 mb-1">Retail Price ($)</label>
                   <input 
@@ -263,17 +321,54 @@ const Inventory = () => {
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-1">Description</label>
+                <textarea 
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  rows="3"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none resize-none"
+                />
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-zinc-400 mb-1">Aliases (comma separated)</label>
                 <textarea 
                   value={formData.aliases}
                   onChange={(e) => setFormData({...formData, aliases: e.target.value})}
                   placeholder="e.g. Cap, Capacitor 10uF, C102"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none h-24 resize-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none h-16 resize-none"
                 />
-                <p className="text-xs text-zinc-500 mt-1">Helps find this part when searching by alternative names.</p>
               </div>
 
-              <div className="pt-4 flex justify-end gap-3">
+              {/* Image Upload */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-1">Part Image</label>
+                <div className="flex items-start gap-4">
+                    <div className="flex-1">
+                        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-zinc-800 border-dashed rounded-lg cursor-pointer hover:bg-zinc-800/50 transition-colors">
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                <Upload className="w-8 h-8 mb-2 text-zinc-500" />
+                                <p className="text-sm text-zinc-500">Click to upload image</p>
+                            </div>
+                            <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
+                        </label>
+                    </div>
+                    {formData.previewUrl && (
+                        <div className="w-32 h-32 bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden flex items-center justify-center relative group">
+                             <img src={formData.previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                             <button 
+                                type="button"
+                                onClick={() => setFormData({...formData, image: null, previewUrl: null})}
+                                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
+                             >
+                                <X size={24} />
+                             </button>
+                        </div>
+                    )}
+                </div>
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3 border-t border-zinc-800 mt-2">
                 <button 
                   type="button" 
                   onClick={handleCloseModal}

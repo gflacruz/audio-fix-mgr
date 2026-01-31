@@ -30,6 +30,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/clients', require('./routes/clients'));
 app.use('/api/repairs', require('./routes/repairs'));
 app.use('/api/parts', require('./routes/parts'));
+app.use('/api/suggestions', require('./routes/suggestions'));
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on port ${port}`);

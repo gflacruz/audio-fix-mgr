@@ -13,8 +13,10 @@ import SearchPage from './pages/SearchPage';
 import Technicians from './pages/Technicians';
 import AdminUsers from './pages/AdminUsers';
 import Inventory from './pages/Inventory';
+import PartDetail from './pages/PartDetail';
 import Payroll from './pages/Payroll';
 import PayrollHistory from './pages/PayrollHistory';
+import Suggestions from './pages/Suggestions';
 
 function App() {
   return (
@@ -33,9 +35,11 @@ function App() {
             <Route path="/clients" element={<Clients />} />
             <Route path="/client/:id" element={<ClientDetail />} />
             <Route path="/inventory" element={<Inventory />} />
+            <Route path="/inventory/:id" element={<PartDetail />} />
             <Route path="/payroll" element={<Payroll />} />
             <Route path="/payroll/history" element={<PayrollHistory />} />
             <Route path="/admin" element={<AdminUsers />} />
+            <Route path="/suggestions" element={<Suggestions />} />
           </Route>
         </Routes>
       </Router>

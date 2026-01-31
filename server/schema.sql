@@ -13,21 +13,14 @@ CREATE TABLE IF NOT EXISTS clients (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS repairs (
+CREATE TABLE IF NOT EXISTS repair_photos (
   id SERIAL PRIMARY KEY,
-  claim_number INTEGER DEFAULT nextval('claim_number_seq') UNIQUE,
-  client_id INTEGER REFERENCES clients(id),
-  brand VARCHAR(100) NOT NULL,
-  model VARCHAR(100) NOT NULL,
-  serial VARCHAR(100),
-  unit_type VARCHAR(50),
-  issue TEXT,
-  priority VARCHAR(20) DEFAULT 'normal',
-  status VARCHAR(50) DEFAULT 'queued',
-  technician VARCHAR(50) DEFAULT 'Unassigned',
-  diagnostic_fee_collected BOOLEAN DEFAULT FALSE,
+  repair_id INTEGER REFERENCES repairs(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  public_id VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
 
 CREATE TABLE IF NOT EXISTS repair_notes (
   id SERIAL PRIMARY KEY,

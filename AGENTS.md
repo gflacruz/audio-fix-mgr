@@ -155,5 +155,15 @@ Organize imports in the following groups, separated by a blank line:
   - Stock is deducted upon adding to a repair and restored upon removal.
   - Prices are locked in `repair_parts` at the time of addition.
 
+## 12. Media & File Handling
+- **Service:** Cloudinary (for image hosting and CDN).
+- **Backend:** `server/routes/repairs.js` handles file uploads via `multer` (memory storage) and streams to Cloudinary.
+- **Database:** `repair_photos` table stores the `url` and `public_id` (Cloudinary ID) linked to a `repair_id`.
+- **Frontend:**
+  - `RepairDetail.jsx` displays a photo gallery.
+  - Users can upload photos (instant upload) and delete them.
+  - Images are opened in a new tab for full viewing.
+- **Environment Variables:** Requires `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` in `server/.env`.
+
 ---
 *End of Guidelines*
