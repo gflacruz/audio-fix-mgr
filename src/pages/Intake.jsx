@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getDB, saveDB } from '@/lib/api';
+import { getClients, createClient, createRepair } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { Save } from 'lucide-react';
 
@@ -7,6 +7,7 @@ const Intake = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     clientName: '',
+    companyName: '',
     phone: '',
     email: '',
     address: '',
@@ -15,14 +16,22 @@ const Intake = () => {
     zip: '',
     brand: '',
     model: '',
+    modelVersion: '',
     unitType: 'Receiver',
     serial: '',
+    accessoriesIncluded: '',
     issue: '',
-    priority: 'normal'
+    priority: 'normal',
+    isShippedIn: false,
+    shippingCarrier: '',
+    boxHeight: '',
+    boxLength: '',
+    boxWidth: ''
   });
 
   const [showFeeModal, setShowFeeModal] = useState(false);
 
+  // ... fetchZipInfo remains same ...
   const fetchZipInfo = async (zip) => {
     if (zip.length === 5) {
       try {
@@ -44,27 +53,32 @@ const Intake = () => {
   };
 
   const lookupClientByPhone = async (phone) => {
-    if (phone.length >= 7) { // Start searching after enough digits
-      const db = await getDB();
-      const client = db.clients.find(c => c.phone.replace(/\D/g, '') === phone.replace(/\D/g, ''));
-      
-      if (client) {
-        setFormData(prev => ({
-          ...prev,
-          clientName: client.name,
-          email: client.email || '',
-          address: client.address || '',
-          city: client.city || '',
-          state: client.state || '',
-          zip: client.zip || ''
-        }));
+    if (phone.length >= 10) { // Start searching after 10 digits
+      try {
+        const clients = await getClients(phone);
+        if (clients.length > 0) {
+          const client = clients[0];
+          setFormData(prev => ({
+            ...prev,
+            clientName: client.name,
+            companyName: client.companyName || '',
+            email: client.email || '',
+            address: client.address || '',
+            city: client.city || '',
+            state: client.state || '',
+            zip: client.zip || ''
+          }));
+        }
+      } catch (error) {
+        console.error("Error looking up client:", error);
       }
     }
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    const val = type === 'checkbox' ? checked : value;
+    setFormData(prev => ({ ...prev, [name]: val }));
     
     if (name === 'zip') {
       fetchZipInfo(value);
@@ -77,6 +91,12 @@ const Intake = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Skip fee modal for Shipped In units (assume false/billed later)
+    if (formData.isShippedIn) {
+      await createTicket(false);
+      return;
+    }
+
     if (formData.priority === 'normal') {
       setShowFeeModal(true);
       return;
@@ -86,56 +106,62 @@ const Intake = () => {
   };
 
   const createTicket = async (feeCollected) => {
-    const db = await getDB();
-    
-    // Create/Find Client
-    let client = db.clients.find(c => c.name === formData.clientName);
-    if (!client) {
-      client = {
-        id: Date.now().toString(),
-        name: formData.clientName,
-        phone: formData.phone,
-        email: formData.email,
-        address: formData.address,
-        city: formData.city,
-        state: formData.state,
-        zip: formData.zip,
-        dateAdded: new Date().toISOString()
+    try {
+      // 1. Find or Create Client
+      let clientId;
+      
+      // Try to find existing client by exact phone match first
+      const existingClients = await getClients(formData.phone);
+      // Basic match logic: use first one if phone matches. 
+      // In production, might want stricter matching or user selection.
+      let client = existingClients.find(c => c.phone === formData.phone) || existingClients[0];
+
+      if (client) {
+        clientId = client.id;
+      } else {
+        // Create new client
+        const newClient = await createClient({
+          name: formData.clientName,
+          companyName: formData.companyName,
+          phone: formData.phone,
+          email: formData.email,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zip: formData.zip
+        });
+        clientId = newClient.id;
+        client = newClient; // for denormalized usage if needed
+      }
+
+      // 2. Create Repair Ticket
+      const repairData = {
+        clientId: clientId,
+        clientName: client.name, // Pass for immediate UI feedback if backend supports or ignores
+        brand: formData.brand,
+        model: formData.model,
+        modelVersion: formData.modelVersion,
+        unitType: formData.unitType,
+        serial: formData.serial,
+        accessoriesIncluded: formData.accessoriesIncluded,
+        issue: formData.issue,
+        priority: formData.priority,
+        technician: 'Unassigned',
+        diagnosticFeeCollected: feeCollected,
+        isShippedIn: formData.isShippedIn,
+        shippingCarrier: formData.isShippedIn ? formData.shippingCarrier : null,
+        boxHeight: formData.isShippedIn ? formData.boxHeight : null,
+        boxLength: formData.isShippedIn ? formData.boxLength : null,
+        boxWidth: formData.isShippedIn ? formData.boxWidth : null
       };
-      db.clients.push(client);
+
+      const ticket = await createRepair(repairData);
+      
+      navigate(`/repair/${ticket.id}`);
+    } catch (error) {
+      console.error("Error creating ticket:", error);
+      alert("Failed to create ticket. See console.");
     }
-
-    // Calculate Next Claim Number
-    const lastClaim = db.repairs.reduce((max, r) => {
-      const claim = r.claimNumber || 0;
-      return claim > max ? claim : max;
-    }, 110999);
-    
-    const newClaimNumber = lastClaim + 1;
-
-    // Create Repair Ticket
-    const ticket = {
-      id: newClaimNumber.toString(),
-      claimNumber: newClaimNumber,
-      clientId: client.id,
-      clientName: client.name, // denormalized for easy display
-      brand: formData.brand,
-      model: formData.model,
-      unitType: formData.unitType,
-      serial: formData.serial,
-      issue: formData.issue,
-      priority: formData.priority,
-      status: 'queued', // queued, diagnosing, parts, repairing, ready, closed
-      technician: 'Unassigned',
-      dateIn: new Date().toISOString(),
-      diagnosticFeeCollected: feeCollected,
-      notes: []
-    };
-    
-    db.repairs.push(ticket);
-    
-    await saveDB(db);
-    navigate(`/repair/${ticket.id}`);
   };
 
   return (
@@ -153,6 +179,13 @@ const Intake = () => {
               </label>
               <input required name="phone" value={formData.phone} onChange={handleChange} placeholder="Enter phone to find client..."
                 className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-zinc-400 mb-1">
+                Company Name (Optional)
+              </label>
+              <input name="companyName" value={formData.companyName} onChange={handleChange}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" />
             </div>
             <div className="col-span-2">
               <label className="block text-sm font-medium text-zinc-400 mb-1">
@@ -201,8 +234,76 @@ const Intake = () => {
 
         {/* Unit Info Section */}
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
-          <h3 className="text-lg font-semibold text-amber-500 mb-4">Unit Details</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-amber-500">Unit Details</h3>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                name="isShippedIn"
+                checked={formData.isShippedIn}
+                onChange={handleChange}
+                className="w-5 h-5 rounded border-zinc-700 bg-zinc-800 text-amber-600 focus:ring-amber-500"
+              />
+              <span className="text-zinc-300 font-medium">Shipment</span>
+            </label>
+          </div>
+          
           <div className="grid grid-cols-2 gap-4">
+            {formData.isShippedIn && (
+              <>
+                <div className="col-span-2 p-4 bg-zinc-950/50 border border-zinc-800 rounded-lg mb-2">
+                  <h4 className="text-sm font-medium text-zinc-400 mb-3 uppercase tracking-wider">Shipment Details</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-zinc-400 mb-1">Carrier</label>
+                      <input 
+                        name="shippingCarrier" 
+                        value={formData.shippingCarrier} 
+                        onChange={handleChange} 
+                        placeholder="e.g. UPS, FedEx, USPS"
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" 
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-zinc-400 mb-1">Box Dimensions (inches)</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <input 
+                            type="number" 
+                            name="boxLength" 
+                            value={formData.boxLength} 
+                            onChange={handleChange} 
+                            placeholder="Length"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" 
+                          />
+                        </div>
+                        <div>
+                          <input 
+                            type="number" 
+                            name="boxWidth" 
+                            value={formData.boxWidth} 
+                            onChange={handleChange} 
+                            placeholder="Width"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" 
+                          />
+                        </div>
+                        <div>
+                          <input 
+                            type="number" 
+                            name="boxHeight" 
+                            value={formData.boxHeight} 
+                            onChange={handleChange} 
+                            placeholder="Height"
+                            className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+
             <div className="col-span-2">
                <label className="block text-sm font-medium text-zinc-400 mb-1">Unit Type</label>
                <select name="unitType" value={formData.unitType} onChange={handleChange}
@@ -227,20 +328,30 @@ const Intake = () => {
               <input required name="brand" value={formData.brand} onChange={handleChange} placeholder="e.g. Fender"
                 className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-1">
-                Model <span className="text-red-500">*</span>
-              </label>
-              <input required name="model" value={formData.model} onChange={handleChange} placeholder="e.g. Twin Reverb"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-zinc-400 mb-1">Serial Number</label>
-              <input name="serial" value={formData.serial} onChange={handleChange}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-zinc-400 mb-1">
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-1">
+                  Model <span className="text-red-500">*</span>
+                </label>
+                <input required name="model" value={formData.model} onChange={handleChange} placeholder="e.g. Twin Reverb"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                <label className="block text-xs font-medium text-zinc-500 mt-2 mb-1">
+                  Model Version (Optional)
+                </label>
+                <input name="modelVersion" value={formData.modelVersion} onChange={handleChange} placeholder="e.g. MKII, Reissue"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-zinc-400 mb-1">Serial Number</label>
+                <input name="serial" value={formData.serial} onChange={handleChange}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-zinc-400 mb-1">Accessories Included (Optional)</label>
+                <input name="accessoriesIncluded" value={formData.accessoriesIncluded} onChange={handleChange} placeholder="e.g. Power Cord, Remote, Case"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-zinc-400 mb-1">
                 Reported Issue <span className="text-red-500">*</span>
               </label>
               <textarea required name="issue" value={formData.issue} onChange={handleChange} rows="3"

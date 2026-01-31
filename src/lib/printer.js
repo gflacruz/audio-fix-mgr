@@ -28,7 +28,9 @@ export const printDiagnosticReceipt = (ticket, client) => {
     </head>
     <body>
       <div class="header">
-        <div class="shop-name">AudioFix Manager</div>
+        <div class="shop-name">Sound Technology Inc</div>
+        <div style="font-size: 14px; color: #666; margin-bottom: 5px;">4508 Oak Fair Blvd. Suite 104 Tampa, FL 33610</div>
+        <div style="font-size: 14px; color: #666; margin-bottom: 10px;">813-985-1120</div>
         <div class="doc-title">Diagnostic Fee Receipt</div>
       </div>
 
@@ -52,7 +54,12 @@ export const printDiagnosticReceipt = (ticket, client) => {
       <div style="margin-bottom: 40px;">
         <div class="label">Unit Details</div>
         <div class="value">${ticket.brand} ${ticket.model}</div>
-        <div style="font-size: 14px; color: #666;">Serial: ${ticket.serial || 'N/A'}</div>
+        <div style="font-size: 14px; color: #666; margin-top: 4px;">
+          <strong>Serial:</strong> ${ticket.serial || 'N/A'}<br>
+          <strong>Type:</strong> ${ticket.unitType || 'N/A'}<br>
+          <strong>Accessories:</strong> ${ticket.accessoriesIncluded || 'None'}<br>
+          <strong>Reported Issue:</strong> ${ticket.issue || 'N/A'}
+        </div>
       </div>
 
       <table class="table">
@@ -91,6 +98,8 @@ export const printDiagnosticReceipt = (ticket, client) => {
         </div>
       </div>
 
+
+
       <div class="footer">
         <p>Thank you for your business!</p>
       </div>
@@ -108,6 +117,30 @@ export const printDiagnosticReceipt = (ticket, client) => {
 export const printRepairInvoice = (ticket, client) => {
   const printWindow = window.open('', '_blank');
   
+  // Calculate totals
+  const partsTotal = ticket.parts?.reduce((sum, p) => sum + (p.total || 0), 0) || 0;
+  const laborTotal = ticket.laborCost || 0;
+  const shippingTotal = ticket.returnShippingCost || 0;
+  
+  // Tax 7.5% on parts and labor
+  const tax = (partsTotal + laborTotal) * 0.075;
+  
+  const subtotal = partsTotal + laborTotal + shippingTotal;
+  const totalWithTax = subtotal + tax;
+  const diagnosticFee = 89.00;
+  
+  const amountDue = ticket.diagnosticFeeCollected ? Math.max(0, totalWithTax - diagnosticFee) : totalWithTax;
+
+  // Generate Parts Rows
+  const partsRows = ticket.parts && ticket.parts.length > 0 
+    ? ticket.parts.map(part => `
+        <tr>
+          <td>${part.name} <span style="font-size: 12px; color: #666;">(x${part.quantity})</span></td>
+          <td style="text-align: right;">$${(part.total || 0).toFixed(2)}</td>
+        </tr>
+      `).join('')
+    : `<tr><td colspan="2" style="font-style: italic; color: #888;">No parts used</td></tr>`;
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -139,7 +172,9 @@ export const printRepairInvoice = (ticket, client) => {
     </head>
     <body>
       <div class="header">
-        <div class="shop-name">AudioFix Manager</div>
+        <div class="shop-name">Sound Technology Inc</div>
+        <div style="font-size: 14px; color: #666; margin-bottom: 5px;">4508 Oak Fair Blvd. Suite 104 Tampa, FL 33610</div>
+        <div style="font-size: 14px; color: #666; margin-bottom: 10px;">813-985-1120</div>
         <div class="doc-title">Repair Invoice</div>
       </div>
 
@@ -183,7 +218,8 @@ export const printRepairInvoice = (ticket, client) => {
         <div class="section-title">Service Notes</div>
         <div class="notes-box">
           <strong>Reported Issue:</strong> ${ticket.issue}<br><br>
-          ${ticket.notes && ticket.notes.length > 0 ? `<strong>Technician Notes:</strong> ${ticket.notes[ticket.notes.length - 1].text}` : ''}
+          <strong>Work Performed:</strong><br>
+          <div style="white-space: pre-wrap; margin-top: 5px;">${ticket.workPerformed || 'No details provided.'}</div>
         </div>
       </div>
 
@@ -195,48 +231,55 @@ export const printRepairInvoice = (ticket, client) => {
           </tr>
         </thead>
         <tbody>
+          <!-- Parts -->
           <tr>
-            <td>Diagnostic Fee ${ticket.diagnosticFeeCollected ? '(Prepaid)' : ''}</td>
-            <td style="text-align: right;">$89.00</td>
+            <td colspan="2" style="background: #f0f0f0; font-weight: bold; font-size: 12px; padding: 8px 12px;">PARTS & MATERIALS</td>
+          </tr>
+          ${partsRows}
+          
+          <!-- Labor -->
+          <tr>
+            <td colspan="2" style="background: #f0f0f0; font-weight: bold; font-size: 12px; padding: 8px 12px;">LABOR & SERVICES</td>
           </tr>
           <tr>
-            <td>Labor</td>
-            <td style="text-align: right; border-bottom: 1px solid #ccc;">&nbsp;</td>
+            <td>Labor Charges</td>
+            <td style="text-align: right;">$${laborTotal.toFixed(2)}</td>
           </tr>
+          ${ticket.returnShippingCost ? `
           <tr>
-            <td>Parts / Materials</td>
-            <td style="text-align: right; border-bottom: 1px solid #ccc;">&nbsp;</td>
+            <td>Return Shipping (${ticket.returnShippingCarrier || 'Standard'})</td>
+            <td style="text-align: right;">$${shippingTotal.toFixed(2)}</td>
           </tr>
-          <tr>
-            <td>Other</td>
-            <td style="text-align: right; border-bottom: 1px solid #ccc;">&nbsp;</td>
-          </tr>
+          ` : ''}
         </tbody>
       </table>
 
       <div class="total-section">
         <div class="total-row">
           <div class="total-label">Subtotal</div>
-          <div class="total-value" style="border-bottom: 1px solid #ccc;">&nbsp;</div>
+          <div class="total-value">$${subtotal.toFixed(2)}</div>
         </div>
         <div class="total-row">
-          <div class="total-label">Tax</div>
-          <div class="total-value" style="border-bottom: 1px solid #ccc;">&nbsp;</div>
+          <div class="total-label">Sales Tax (7.5%)</div>
+          <div class="total-value">$${tax.toFixed(2)}</div>
         </div>
+        ${ticket.diagnosticFeeCollected ? `
+        <div class="total-row" style="color: #166534;">
+          <div class="total-label">Less Prepaid Fee</div>
+          <div class="total-value">-$${diagnosticFee.toFixed(2)}</div>
+        </div>
+        ` : ''}
         <div class="total-row grand-total">
           <div class="total-label" style="color: #000;">Total Due</div>
-          <div class="total-value" style="border-bottom: 1px solid #000;">&nbsp;</div>
+          <div class="total-value">$${amountDue.toFixed(2)}</div>
         </div>
       </div>
 
-      <div class="signature-line">
-        <div class="sig-box">Technician Signature</div>
-        <div class="sig-box">Customer Signature</div>
-      </div>
+
 
       <div class="footer">
         <p>All repairs guaranteed for 90 days. Warranty covers labor and replaced parts only.</p>
-        <p>AudioFix Manager • 1-800-FIX-AUDIO • www.audiofixmanager.com</p>
+        <p>Sound Technology Inc • 813-985-1120 • www.audiofixmanager.com</p>
       </div>
       <script>
         window.onload = function() { window.print(); }

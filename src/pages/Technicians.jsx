@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getDB } from '@/lib/api';
+import { getRepairs, getTechnicians } from '@/lib/api';
 import { Link } from 'react-router-dom';
 import { Clock, AlertTriangle, CheckCircle, UserCog } from 'lucide-react';
 
@@ -23,34 +23,48 @@ const StatusBadge = ({ status }) => {
 };
 
 const Technicians = () => {
-  const [selectedTech, setSelectedTech] = useState('Willy');
+  const [selectedTech, setSelectedTech] = useState('');
   const [tickets, setTickets] = useState([]);
-  const [counts, setCounts] = useState({ Willy: 0, Sergei: 0, Tyler: 0 });
-
-  const technicians = ['Willy', 'Sergei', 'Tyler'];
+  const [counts, setCounts] = useState({});
+  const [technicians, setTechnicians] = useState([]);
 
   useEffect(() => {
+    // Load technicians first
+    getTechnicians().then(techs => {
+      setTechnicians(techs);
+      if (techs.length > 0) setSelectedTech(techs[0]);
+    }).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedTech) return;
     loadData();
   }, [selectedTech]);
 
   const loadData = async () => {
-    const db = await getDB();
-    const allRepairs = db.repairs || [];
-    
-    // Calculate counts
-    const newCounts = { Willy: 0, Sergei: 0, Tyler: 0 };
-    allRepairs.forEach(r => {
-      if (technicians.includes(r.technician)) {
-        newCounts[r.technician] = (newCounts[r.technician] || 0) + 1;
-      }
-    });
-    setCounts(newCounts);
+    try {
+      const allRepairs = await getRepairs();
+      
+      // Calculate counts
+      const newCounts = {};
+      technicians.forEach(t => newCounts[t] = 0);
+      
+      allRepairs.forEach(r => {
+        if (technicians.includes(r.technician)) {
+          newCounts[r.technician] = (newCounts[r.technician] || 0) + 1;
+        }
+      });
+      setCounts(newCounts);
 
-    // Filter for current view
-    const techTickets = allRepairs.filter(r => r.technician === selectedTech);
-    // Sort by date descending
-    setTickets(techTickets.sort((a, b) => new Date(b.dateIn) - new Date(a.dateIn)));
+      // Filter for current view
+      const techTickets = allRepairs.filter(r => r.technician === selectedTech);
+      setTickets(techTickets);
+    } catch (error) {
+      console.error("Error loading technician data:", error);
+    }
   };
+
+  if (technicians.length === 0) return <div className="p-8 text-zinc-500">Loading technicians...</div>;
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -65,12 +79,12 @@ const Technicians = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-zinc-800 mb-8 gap-8">
+      <div className="flex border-b border-zinc-800 mb-8 gap-8 overflow-x-auto">
         {technicians.map(tech => (
           <button
             key={tech}
             onClick={() => setSelectedTech(tech)}
-            className={`pb-4 px-2 text-sm font-medium transition-all relative ${
+            className={`pb-4 px-2 text-sm font-medium transition-all relative whitespace-nowrap ${
               selectedTech === tech 
                 ? 'text-white' 
                 : 'text-zinc-500 hover:text-zinc-300'
@@ -82,7 +96,7 @@ const Technicians = () => {
                 ? 'bg-amber-500 text-zinc-900' 
                 : 'bg-zinc-800 text-zinc-400'
             }`}>
-              {counts[tech]}
+              {counts[tech] || 0}
             </span>
             {selectedTech === tech && (
               <div className="absolute bottom-0 left-0 w-full h-0.5 bg-amber-500 rounded-t-full" />

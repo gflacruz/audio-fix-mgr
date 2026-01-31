@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getDB } from '@/lib/api';
+import { getRepairs } from '@/lib/api';
 import { Activity, Clock, CheckCircle2, AlertCircle, Wrench } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -25,9 +25,7 @@ const Dashboard = () => {
   const [recentRepairs, setRecentRepairs] = useState([]);
 
   useEffect(() => {
-    getDB().then(db => {
-      const repairs = db.repairs || [];
-      
+    getRepairs().then(repairs => {
       // Calculate Stats
       setStats({
         total: repairs.length,
@@ -36,10 +34,9 @@ const Dashboard = () => {
         ready: repairs.filter(r => r.status === 'ready').length
       });
 
-      // Get Recent Activity (Top 3 by Date In)
-      const sorted = [...repairs].sort((a, b) => new Date(b.dateIn) - new Date(a.dateIn));
-      setRecentRepairs(sorted.slice(0, 3));
-    });
+      // Get Recent Activity (Already sorted by backend)
+      setRecentRepairs(repairs.slice(0, 3));
+    }).catch(console.error);
   }, []);
 
   return (

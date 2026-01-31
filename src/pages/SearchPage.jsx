@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getDB } from '@/lib/api';
+import { getClients, getRepairs } from '@/lib/api';
 import { Search, User, Wrench, ArrowRight, ArrowUpDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -17,40 +17,29 @@ const SearchPage = () => {
         return;
       }
 
-      const db = await getDB();
-      const lowerQuery = query.toLowerCase();
+      try {
+        const [foundClients, foundRepairs] = await Promise.all([
+          getClients(query),
+          getRepairs({ search: query })
+        ]);
 
-      // Search Clients
-      let foundClients = db.clients.filter(c => 
-        c.name.toLowerCase().includes(lowerQuery) ||
-        c.phone.includes(lowerQuery) ||
-        (c.email && c.email.toLowerCase().includes(lowerQuery)) ||
-        (c.address && c.address.toLowerCase().includes(lowerQuery))
-      );
+        // Apply Sorting (Client-side for now as API sorting is fixed)
+        if (sortOrder === 'newest') {
+          foundClients.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+          foundRepairs.sort((a, b) => new Date(b.dateIn) - new Date(a.dateIn));
+        } else if (sortOrder === 'oldest') {
+          foundClients.sort((a, b) => new Date(a.dateAdded) - new Date(b.dateAdded));
+          foundRepairs.sort((a, b) => new Date(a.dateIn) - new Date(b.dateIn));
+        } else if (sortOrder === 'alpha') {
+          foundClients.sort((a, b) => a.name.localeCompare(b.name));
+          foundRepairs.sort((a, b) => a.brand.localeCompare(b.brand));
+        }
 
-      // Search Repairs (Units)
-      let foundRepairs = db.repairs.filter(r => 
-        (r.claimNumber && r.claimNumber.toString().includes(lowerQuery)) ||
-        r.brand.toLowerCase().includes(lowerQuery) ||
-        r.model.toLowerCase().includes(lowerQuery) ||
-        (r.serial && r.serial.toLowerCase().includes(lowerQuery)) ||
-        r.clientName.toLowerCase().includes(lowerQuery)
-      );
-
-      // Apply Sorting
-      if (sortOrder === 'newest') {
-        foundClients.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
-        foundRepairs.sort((a, b) => new Date(b.dateIn) - new Date(a.dateIn));
-      } else if (sortOrder === 'oldest') {
-        foundClients.sort((a, b) => new Date(a.dateAdded) - new Date(b.dateAdded));
-        foundRepairs.sort((a, b) => new Date(a.dateIn) - new Date(b.dateIn));
-      } else if (sortOrder === 'alpha') {
-        foundClients.sort((a, b) => a.name.localeCompare(b.name));
-        foundRepairs.sort((a, b) => a.brand.localeCompare(b.brand));
+        setResults({ clients: foundClients, repairs: foundRepairs });
+        setHasSearched(true);
+      } catch (error) {
+        console.error("Search error:", error);
       }
-
-      setResults({ clients: foundClients, repairs: foundRepairs });
-      setHasSearched(true);
     };
 
     // Debounce search

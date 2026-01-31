@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { getDB } from '@/lib/api';
+import { getClients } from '@/lib/api';
 import { Link } from 'react-router-dom';
 
 const Clients = () => {
   const [clients, setClients] = useState([]);
 
   useEffect(() => {
-    getDB().then(db => setClients(db.clients || []));
+    getClients().then(data => setClients(data)).catch(console.error);
   }, []);
 
   const formatPhoneNumber = (str) => {

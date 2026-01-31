@@ -1,0 +1,300 @@
+import React, { useState, useEffect } from 'react';
+import { Package, Search, Plus, Edit, Trash2, X, Save } from 'lucide-react';
+import { getParts, createPart, updatePart, deletePart } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
+
+const Inventory = () => {
+  const { isAdmin } = useAuth();
+  const [parts, setParts] = useState([]);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingPart, setEditingPart] = useState(null);
+
+  // Form State
+  const [formData, setFormData] = useState({
+    name: '',
+    retailPrice: '',
+    wholesalePrice: '',
+    quantityInStock: '',
+    aliases: ''
+  });
+
+  const loadParts = async () => {
+    try {
+      setLoading(true);
+      const data = await getParts(search);
+      setParts(data);
+    } catch (error) {
+      console.error('Failed to load parts:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadParts();
+  }, [search]);
+
+  const handleOpenModal = (part = null) => {
+    if (part) {
+      setEditingPart(part);
+      setFormData({
+        name: part.name,
+        retailPrice: part.retailPrice,
+        wholesalePrice: part.wholesalePrice,
+        quantityInStock: part.quantityInStock,
+        aliases: part.aliases.join(', ')
+      });
+    } else {
+      setEditingPart(null);
+      setFormData({
+        name: '',
+        retailPrice: '',
+        wholesalePrice: '',
+        quantityInStock: '',
+        aliases: ''
+      });
+    }
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingPart(null);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        name: formData.name,
+        retailPrice: parseFloat(formData.retailPrice) || 0,
+        wholesalePrice: parseFloat(formData.wholesalePrice) || 0,
+        quantityInStock: parseInt(formData.quantityInStock) || 0,
+        aliases: formData.aliases.split(',').map(a => a.trim()).filter(a => a)
+      };
+
+      if (editingPart) {
+        await updatePart(editingPart.id, payload);
+      } else {
+        await createPart(payload);
+      }
+      handleCloseModal();
+      loadParts();
+    } catch (error) {
+      alert('Failed to save part: ' + error.message);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this part?')) return;
+    try {
+      await deletePart(id);
+      loadParts();
+    } catch (error) {
+      alert('Failed to delete part: ' + error.message);
+    }
+  };
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto text-zinc-100">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <Package className="text-amber-500" size={32} />
+            Inventory Manager
+          </h1>
+          <p className="text-zinc-400 mt-1">Manage parts, pricing, and aliases</p>
+        </div>
+        {isAdmin && (
+          <button 
+            onClick={() => handleOpenModal()}
+            className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            <Plus size={18} />
+            Add New Part
+          </button>
+        )}
+      </div>
+
+      {/* Search Bar */}
+      <div className="mb-6 relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400" size={20} />
+        <input 
+          type="text"
+          placeholder="Search parts by name or alias..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full bg-zinc-900 border border-zinc-700 text-white pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:border-amber-500 transition-colors"
+        />
+      </div>
+
+      {/* Parts Table */}
+      <div className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden shadow-xl">
+        <table className="w-full text-left">
+          <thead className="bg-zinc-950 text-zinc-400 uppercase text-xs tracking-wider">
+            <tr>
+              <th className="px-6 py-4 font-medium">Part Name</th>
+              <th className="px-6 py-4 font-medium">In Stock</th>
+              <th className="px-6 py-4 font-medium">Retail Price</th>
+              <th className="px-6 py-4 font-medium">Wholesale Price</th>
+              <th className="px-6 py-4 font-medium">Aliases</th>
+              {isAdmin && <th className="px-6 py-4 font-medium text-right">Actions</th>}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-800">
+            {loading ? (
+              <tr><td colSpan="6" className="px-6 py-8 text-center text-zinc-500">Loading inventory...</td></tr>
+            ) : parts.length === 0 ? (
+              <tr><td colSpan="6" className="px-6 py-8 text-center text-zinc-500">No parts found matching your search.</td></tr>
+            ) : (
+              parts.map((part) => (
+                <tr key={part.id} className="hover:bg-zinc-800/50 transition-colors">
+                  <td className="px-6 py-4 font-medium text-white">{part.name}</td>
+                  <td className="px-6 py-4 text-zinc-300 font-mono">
+                    <span className={`px-2 py-0.5 rounded text-xs ${
+                      part.quantityInStock > 0 ? 'bg-emerald-900/30 text-emerald-400' : 'bg-red-900/30 text-red-400'
+                    }`}>
+                      {part.quantityInStock}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-emerald-400 font-mono">${part.retailPrice.toFixed(2)}</td>
+                  <td className="px-6 py-4 text-zinc-400 font-mono">${part.wholesalePrice.toFixed(2)}</td>
+                  <td className="px-6 py-4 text-zinc-400 text-sm">
+                    {part.aliases && part.aliases.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {part.aliases.map((alias, i) => (
+                          <span key={i} className="bg-zinc-800 px-2 py-0.5 rounded text-xs border border-zinc-700">
+                            {alias}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-zinc-600 italic">None</span>
+                    )}
+                  </td>
+                  {isAdmin && (
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => handleOpenModal(part)}
+                          className="p-1.5 hover:bg-zinc-700 rounded-md text-zinc-400 hover:text-amber-400 transition-colors"
+                          title="Edit"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(part.id)}
+                          className="p-1.5 hover:bg-zinc-700 rounded-md text-zinc-400 hover:text-red-400 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Edit/Add Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-zinc-900 rounded-xl border border-zinc-700 shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="px-6 py-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-950">
+              <h2 className="text-lg font-bold text-white">
+                {editingPart ? 'Edit Part' : 'Add New Part'}
+              </h2>
+              <button onClick={handleCloseModal} className="text-zinc-500 hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-1">Part Name</label>
+                <input 
+                  type="text" 
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1">Quantity in Stock</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    required
+                    value={formData.quantityInStock}
+                    onChange={(e) => setFormData({...formData, quantityInStock: e.target.value})}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1">Retail Price ($)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    value={formData.retailPrice}
+                    onChange={(e) => setFormData({...formData, retailPrice: e.target.value})}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1">Wholesale Price ($)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    value={formData.wholesalePrice}
+                    onChange={(e) => setFormData({...formData, wholesalePrice: e.target.value})}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-1">Aliases (comma separated)</label>
+                <textarea 
+                  value={formData.aliases}
+                  onChange={(e) => setFormData({...formData, aliases: e.target.value})}
+                  placeholder="e.g. Cap, Capacitor 10uF, C102"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none h-24 resize-none"
+                />
+                <p className="text-xs text-zinc-500 mt-1">Helps find this part when searching by alternative names.</p>
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3">
+                <button 
+                  type="button" 
+                  onClick={handleCloseModal}
+                  className="px-4 py-2 text-zinc-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 font-medium"
+                >
+                  <Save size={18} />
+                  Save Part
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Inventory;

@@ -1,0 +1,527 @@
+const express = require('express');
+const router = express.Router();
+const db = require('../db');
+
+// GET /api/repairs - List all repairs
+router.get('/', async (req, res) => {
+  try {
+    const { clientId, search } = req.query;
+    let query = `
+      SELECT r.*, c.name as client_name, c.company_name as client_company, c.phone as client_phone 
+      FROM repairs r 
+      JOIN clients c ON r.client_id = c.id 
+    `;
+    const params = [];
+    let whereClauses = [];
+    let paramIndex = 1;
+
+    if (clientId) {
+      whereClauses.push(`r.client_id = $${paramIndex}`);
+      params.push(clientId);
+      paramIndex++;
+    }
+
+    if (search) {
+      const searchPattern = `%${search}%`;
+      whereClauses.push(`(
+        r.brand ILIKE $${paramIndex} OR 
+        r.model ILIKE $${paramIndex} OR 
+        r.serial ILIKE $${paramIndex} OR 
+        CAST(r.claim_number AS TEXT) ILIKE $${paramIndex} OR
+        c.name ILIKE $${paramIndex}
+      )`);
+      params.push(searchPattern);
+      paramIndex++;
+    }
+
+    if (whereClauses.length > 0) {
+      query += ` WHERE ${whereClauses.join(' AND ')}`;
+    }
+
+    query += ' ORDER BY r.created_at DESC';
+
+    const result = await db.query(query, params);
+    
+    // Map snake_case DB fields to camelCase for frontend compatibility if needed
+    // But for now, let's stick to what the DB returns and we'll adjust the frontend adapter later.
+    // Actually, to make Phase 3 easier, let's map keys here or use "AS" in SQL.
+    // Current frontend expects camelCase (e.g. clientName, claimNumber).
+    
+    const formatted = result.rows.map(row => ({
+      id: row.id,
+      claimNumber: row.claim_number,
+      clientId: row.client_id,
+      clientName: row.client_name,
+      clientCompany: row.client_company,
+      brand: row.brand,
+      model: row.model,
+      serial: row.serial,
+      unitType: row.unit_type,
+      issue: row.issue,
+      priority: row.priority,
+      status: row.status,
+      technician: row.technician,
+      dateIn: row.created_at, // Map created_at to dateIn
+      diagnosticFeeCollected: row.diagnostic_fee_collected,
+      isShippedIn: row.is_shipped_in,
+      shippingCarrier: row.shipping_carrier,
+      boxHeight: row.box_height,
+      boxLength: row.box_length,
+      boxWidth: row.box_width,
+      modelVersion: row.model_version,
+      accessoriesIncluded: row.accessories_included
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    console.error('Error fetching repairs:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/repairs/payroll - List unpaid closed repairs
+router.get('/payroll', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        r.id, r.claim_number, r.brand, r.model, r.technician, 
+        r.labor_cost, r.diagnostic_fee_collected, r.created_at,
+        COALESCE(SUM(rp.quantity * rp.unit_price), 0) as parts_cost
+      FROM repairs r
+      LEFT JOIN repair_parts rp ON r.id = rp.repair_id
+      WHERE r.status = 'closed' AND (r.paid_out IS FALSE OR r.paid_out IS NULL)
+      GROUP BY r.id
+      ORDER BY r.technician, r.created_at DESC
+    `;
+    
+    const result = await db.query(query);
+    
+    const formatted = result.rows.map(row => {
+      const labor = parseFloat(row.labor_cost) || 0;
+      const parts = parseFloat(row.parts_cost) || 0;
+      const diagFee = row.diagnostic_fee_collected ? 89.00 : 0;
+      const total = labor + parts + diagFee;
+      
+      return {
+        id: row.id,
+        claimNumber: row.claim_number,
+        brand: row.brand,
+        model: row.model,
+        technician: row.technician,
+        laborCost: labor,
+        partsCost: parts,
+        diagnosticFee: diagFee,
+        totalCost: total,
+        commission: total * 0.5,
+        date: row.created_at
+      };
+    });
+
+    res.json(formatted);
+  } catch (error) {
+    console.error('Error fetching payroll:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/repairs/payroll-history - List paid out repairs with filters
+router.get('/payroll-history', async (req, res) => {
+  try {
+    const { technician, startDate, endDate } = req.query;
+    
+    // We prefer paid_to if available (for historical accuracy), otherwise fallback to technician
+    let query = `
+      SELECT 
+        r.id, r.claim_number, r.brand, r.model, 
+        COALESCE(r.paid_to, r.technician) as technician_paid,
+        r.labor_cost, r.diagnostic_fee_collected, r.created_at, r.paid_out_date,
+        COALESCE(SUM(rp.quantity * rp.unit_price), 0) as parts_cost
+      FROM repairs r
+      LEFT JOIN repair_parts rp ON r.id = rp.repair_id
+      WHERE r.paid_out = TRUE
+    `;
+    
+    const params = [];
+    let paramIndex = 1;
+
+    if (technician && technician !== 'all') {
+      // Check against paid_to if set, otherwise technician
+      query += ` AND COALESCE(r.paid_to, r.technician) = $${paramIndex}`;
+      params.push(technician);
+      paramIndex++;
+    }
+
+    if (startDate) {
+      query += ` AND r.paid_out_date >= $${paramIndex}`;
+      params.push(startDate);
+      paramIndex++;
+    }
+
+    if (endDate) {
+      query += ` AND r.paid_out_date < ($${paramIndex}::date + INTERVAL '1 day')`;
+      params.push(endDate);
+      paramIndex++;
+    }
+
+    query += ` GROUP BY r.id ORDER BY r.paid_out_date DESC`;
+
+    const result = await db.query(query, params);
+    
+    const formatted = result.rows.map(row => {
+      const labor = parseFloat(row.labor_cost) || 0;
+      const parts = parseFloat(row.parts_cost) || 0;
+      const diagFee = row.diagnostic_fee_collected ? 89.00 : 0;
+      const total = labor + parts + diagFee;
+      
+      return {
+        id: row.id,
+        claimNumber: row.claim_number,
+        brand: row.brand,
+        model: row.model,
+        technician: row.technician_paid, // Use the resolved name
+        laborCost: labor,
+        partsCost: parts,
+        diagnosticFee: diagFee,
+        totalCost: total,
+        commission: total * 0.5,
+        date: row.created_at,
+        paidOutDate: row.paid_out_date
+      };
+    });
+
+    res.json(formatted);
+  } catch (error) {
+    console.error('Error fetching payroll history:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/repairs/payout - Mark repairs as paid
+router.post('/payout', async (req, res) => {
+  try {
+    const { repairIds } = req.body;
+    if (!repairIds || !Array.isArray(repairIds) || repairIds.length === 0) {
+      return res.status(400).json({ error: 'No repair IDs provided' });
+    }
+
+    // Set paid_out, paid_out_date, and copy technician to paid_to
+    const query = `
+      UPDATE repairs 
+      SET paid_out = TRUE, 
+          paid_out_date = NOW(),
+          paid_to = technician
+      WHERE id = ANY($1)
+    `;
+    
+    await db.query(query, [repairIds]);
+    res.json({ message: 'Repairs marked as paid' });
+  } catch (error) {
+    console.error('Error processing payout:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/repairs/:id - Get single repair with details and notes
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch Repair + Client info
+    const repairQuery = `
+      SELECT r.*, 
+             c.name as client_name, c.company_name as client_company, c.phone as client_phone, c.email as client_email,
+             c.address as client_address, c.city as client_city, c.state as client_state, c.zip as client_zip
+      FROM repairs r 
+      JOIN clients c ON r.client_id = c.id 
+      WHERE r.id = $1
+    `;
+    
+    const repairResult = await db.query(repairQuery, [id]);
+    
+    if (repairResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Repair not found' });
+    }
+
+    const row = repairResult.rows[0];
+
+    // Fetch Notes
+    const notesResult = await db.query(
+      'SELECT * FROM repair_notes WHERE repair_id = $1 ORDER BY created_at ASC',
+      [id]
+    );
+
+    // Fetch Parts
+    const partsResult = await db.query(
+      `SELECT rp.*, p.name, p.retail_price as current_retail
+       FROM repair_parts rp
+       JOIN parts p ON rp.part_id = p.id
+       WHERE rp.repair_id = $1
+       ORDER BY rp.created_at ASC`,
+      [id]
+    );
+
+    // Format Response
+    const ticket = {
+      id: row.id,
+
+      claimNumber: row.claim_number,
+      clientId: row.client_id,
+      clientName: row.client_name,
+      // Include full client object for the Detail View
+      client: {
+        id: row.client_id,
+        name: row.client_name,
+        companyName: row.client_company,
+        phone: row.client_phone,
+        email: row.client_email,
+        address: row.client_address,
+        city: row.client_city,
+        state: row.client_state,
+        zip: row.client_zip
+      },
+      brand: row.brand,
+      model: row.model,
+      serial: row.serial,
+      unitType: row.unit_type,
+      issue: row.issue,
+      priority: row.priority,
+      status: row.status,
+      technician: row.technician,
+      dateIn: row.created_at,
+      diagnosticFeeCollected: row.diagnostic_fee_collected,
+      isShippedIn: row.is_shipped_in,
+      shippingCarrier: row.shipping_carrier,
+      boxHeight: row.box_height,
+      boxLength: row.box_length,
+      boxWidth: row.box_width,
+      modelVersion: row.model_version,
+      accessoriesIncluded: row.accessories_included,
+      workPerformed: row.work_performed,
+      laborCost: parseFloat(row.labor_cost) || 0,
+      returnShippingCost: parseFloat(row.return_shipping_cost) || 0,
+      returnShippingCarrier: row.return_shipping_carrier,
+      notes: notesResult.rows.map(n => ({
+        id: n.id,
+        text: n.text,
+        author: n.author,
+        date: n.created_at
+      })),
+      parts: partsResult.rows.map(p => ({
+        id: p.id, // repair_part link id
+        partId: p.part_id,
+        name: p.name,
+        quantity: p.quantity,
+        price: parseFloat(p.unit_price),
+        total: parseFloat(p.unit_price) * p.quantity
+      }))
+    };
+
+    res.json(ticket);
+  } catch (error) {
+    console.error('Error fetching repair detail:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/repairs - Create new repair ticket
+router.post('/', async (req, res) => {
+  try {
+    const { 
+      clientId, brand, model, serial, unitType, issue, priority, 
+      technician, diagnosticFeeCollected,
+      isShippedIn, shippingCarrier, boxHeight, boxLength, boxWidth,
+      modelVersion, accessoriesIncluded
+    } = req.body;
+
+    if (!clientId || !brand || !model || !issue) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const result = await db.query(
+      `INSERT INTO repairs 
+       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, is_shipped_in, shipping_carrier, box_height, box_length, box_width, model_version, accessories_included) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) 
+       RETURNING *`,
+      [
+        clientId, brand, model, serial, unitType, issue, 
+        priority || 'normal', 
+        technician || 'Unassigned', 
+        diagnosticFeeCollected || false,
+        isShippedIn || false,
+        shippingCarrier || null,
+        boxHeight || null,
+        boxLength || null,
+        boxWidth || null,
+        modelVersion || null,
+        accessoriesIncluded || null
+      ]
+    );
+
+    const row = result.rows[0];
+    
+    // Return frontend-friendly format
+    res.status(201).json({
+      id: row.id,
+      claimNumber: row.claim_number,
+      status: row.status,
+      // ... include other fields if immediate feedback is needed
+    });
+  } catch (error) {
+    console.error('Error creating repair:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /api/repairs/:id - Update repair details
+router.patch('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    
+    // Whitelist allowed fields to prevent arbitrary updates
+    const allowedFields = ['status', 'technician', 'priority', 'diagnosticFeeCollected', 'issue', 'modelVersion', 'accessoriesIncluded', 'isShippedIn', 'shippingCarrier', 'boxHeight', 'boxLength', 'boxWidth', 'workPerformed', 'laborCost', 'returnShippingCost', 'returnShippingCarrier'];
+    const fieldsToUpdate = [];
+    const values = [];
+    let paramIndex = 1;
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (allowedFields.includes(key)) {
+        // Map camelCase to snake_case
+        const dbField = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+        fieldsToUpdate.push(`${dbField} = $${paramIndex}`);
+        values.push(value);
+        paramIndex++;
+      }
+    }
+
+    if (fieldsToUpdate.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    values.push(id);
+    const query = `UPDATE repairs SET ${fieldsToUpdate.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+
+    const result = await db.query(query, values);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Repair not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating repair:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/repairs/:id/notes - Add a note
+router.post('/:id/notes', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text, author } = req.body;
+
+    if (!text) {
+      return res.status(400).json({ error: 'Note text is required' });
+    }
+
+    const result = await db.query(
+      `INSERT INTO repair_notes (repair_id, text, author) 
+       VALUES ($1, $2, $3) 
+       RETURNING *`,
+      [id, text, author || 'System']
+    );
+
+    const note = result.rows[0];
+    res.status(201).json({
+      id: note.id,
+      text: note.text,
+      author: note.author,
+      date: note.created_at
+    });
+  } catch (error) {
+    console.error('Error adding note:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/repairs/:id/parts - Add part to repair
+router.post('/:id/parts', async (req, res) => {
+  const client = await db.pool.connect();
+  try {
+    const { id } = req.params;
+    const { partId, quantity } = req.body;
+    const qty = quantity || 1;
+
+    await client.query('BEGIN');
+
+    // Check part existence and stock
+    const partRes = await client.query('SELECT retail_price, quantity_in_stock FROM parts WHERE id = $1', [partId]);
+    if (partRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Part not found' });
+    }
+    
+    const part = partRes.rows[0];
+    if (part.quantity_in_stock < qty) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Not enough stock. Available: ${part.quantity_in_stock}` });
+    }
+
+    // Deduct stock
+    await client.query('UPDATE parts SET quantity_in_stock = quantity_in_stock - $1 WHERE id = $2', [qty, partId]);
+
+    // Add to repair
+    const result = await client.query(
+      `INSERT INTO repair_parts (repair_id, part_id, quantity, unit_price)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [id, partId, qty, part.retail_price]
+    );
+    
+    await client.query('COMMIT');
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error adding part to repair:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// DELETE /api/repairs/:id/parts/:linkId - Remove part from repair
+router.delete('/:id/parts/:linkId', async (req, res) => {
+  const client = await db.pool.connect();
+  try {
+    const { linkId } = req.params;
+
+    await client.query('BEGIN');
+
+    // Get the part link to know what to restore
+    const linkRes = await client.query('SELECT part_id, quantity FROM repair_parts WHERE id = $1', [linkId]);
+    
+    if (linkRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Repair part link not found' });
+    }
+
+    const { part_id, quantity } = linkRes.rows[0];
+
+    // Restore stock
+    await client.query('UPDATE parts SET quantity_in_stock = quantity_in_stock + $1 WHERE id = $2', [quantity, part_id]);
+
+    // Remove link
+    await client.query('DELETE FROM repair_parts WHERE id = $1', [linkId]);
+
+    await client.query('COMMIT');
+    res.json({ message: 'Part removed and stock restored' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error removing part:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+module.exports = router;

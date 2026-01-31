@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getDB, saveDB } from '@/lib/api';
+import { getClient, updateClient, getRepairs } from '@/lib/api';
 import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy } from 'lucide-react';
 
 const ClientDetail = () => {
@@ -17,37 +17,30 @@ const ClientDetail = () => {
   }, [id]);
 
   const loadData = async () => {
-    const db = await getDB();
-    const foundClient = db.clients.find(c => c.id === id);
-    if (foundClient) {
+    try {
+      const [foundClient, clientTickets] = await Promise.all([
+        getClient(id),
+        getRepairs({ clientId: id })
+      ]);
       setClient(foundClient);
       setFormData(foundClient);
-      // Find all tickets for this client
-      const clientTickets = db.repairs.filter(r => r.clientId === id);
-      // Sort by newest first
-      setTickets(clientTickets.sort((a, b) => new Date(b.dateIn) - new Date(a.dateIn)));
+      setTickets(clientTickets);
+    } catch (error) {
+      console.error("Failed to load client data:", error);
     }
     setLoading(false);
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
-    const db = await getDB();
-    const index = db.clients.findIndex(c => c.id === id);
-    if (index !== -1) {
-      db.clients[index] = { ...db.clients[index], ...formData };
-      
-      // Also update denormalized clientName in all their tickets
-      db.repairs.forEach(r => {
-        if (r.clientId === id) {
-          r.clientName = formData.name;
-        }
-      });
-
-      await saveDB(db);
-      setClient(db.clients[index]);
+    try {
+      await updateClient(id, formData);
+      // No need to update tickets manually as they link by ID
+      setClient(prev => ({ ...prev, ...formData }));
       setIsEditing(false);
-      loadData(); // Reload to refresh any derived state
+      loadData();
+    } catch (error) {
+      console.error("Failed to update client:", error);
     }
   };
 

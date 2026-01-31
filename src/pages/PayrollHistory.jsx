@@ -1,0 +1,201 @@
+import React, { useEffect, useState } from 'react';
+import { getPayrollHistory, getTechnicians } from '@/lib/api';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { History, Calendar, Filter, ArrowLeft, DollarSign, Download } from 'lucide-react';
+
+const PayrollHistory = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [repairs, setRepairs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [technicians, setTechnicians] = useState([]);
+  
+  // Filters
+  const [filters, setFilters] = useState({
+    technician: 'all',
+    startDate: '',
+    endDate: ''
+  });
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const techs = await getTechnicians();
+        setTechnicians(techs);
+        
+        // Set default dates (current month)
+        const now = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        
+        setFilters(prev => ({
+          ...prev,
+          startDate: firstDay,
+          endDate: lastDay
+        }));
+      } catch (error) {
+        console.error("Failed to load initial data:", error);
+      }
+    };
+    init();
+  }, []);
+
+  useEffect(() => {
+    if (filters.startDate && filters.endDate) {
+      loadData();
+    }
+  }, [filters]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const data = await getPayrollHistory(filters);
+      setRepairs(data);
+    } catch (error) {
+      console.error("Failed to load history:", error);
+    }
+    setLoading(false);
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const totalPaid = repairs.reduce((sum, r) => sum + r.commission, 0);
+
+  return (
+    <div className="max-w-6xl mx-auto pb-10">
+      <button 
+        onClick={() => navigate('/payroll')} 
+        className="flex items-center gap-2 text-zinc-500 hover:text-white mb-6 transition-colors"
+      >
+        <ArrowLeft size={20} /> Back to Payroll
+      </button>
+
+      <div className="flex justify-between items-start mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+            <History className="text-blue-500" size={32} />
+            Payroll History
+          </h1>
+          <p className="text-zinc-400 mt-1">View past commission payouts.</p>
+        </div>
+      </div>
+
+      {/* Filters Bar */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 mb-8 flex flex-wrap gap-4 items-end">
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-xs font-medium text-zinc-500 mb-1.5 ml-1">Technician</label>
+          <div className="relative">
+            <Filter className="absolute left-3 top-2.5 text-zinc-500" size={16} />
+            <select
+              name="technician"
+              value={filters.technician}
+              onChange={handleFilterChange}
+              className="w-full bg-zinc-950 border border-zinc-700 text-white pl-10 pr-4 py-2 rounded-lg focus:border-blue-500 outline-none appearance-none"
+            >
+              <option value="all">All Technicians</option>
+              {technicians.map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-zinc-500 mb-1.5 ml-1">Start Date</label>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-2.5 text-zinc-500 pointer-events-none" size={16} />
+            <input
+              type="date"
+              name="startDate"
+              value={filters.startDate}
+              onChange={handleFilterChange}
+              onClick={(e) => e.target.showPicker?.()}
+              className="w-full bg-zinc-950 border border-zinc-700 text-white pl-10 pr-4 py-2 rounded-lg focus:border-blue-500 outline-none cursor-pointer"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-zinc-500 mb-1.5 ml-1">End Date</label>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-2.5 text-zinc-500 pointer-events-none" size={16} />
+            <input
+              type="date"
+              name="endDate"
+              value={filters.endDate}
+              onChange={handleFilterChange}
+              onClick={(e) => e.target.showPicker?.()}
+              className="w-full bg-zinc-950 border border-zinc-700 text-white pl-10 pr-4 py-2 rounded-lg focus:border-blue-500 outline-none cursor-pointer"
+            />
+          </div>
+        </div>
+        
+        <div className="ml-auto flex items-center gap-4 bg-zinc-950 px-4 py-2 rounded-lg border border-zinc-800">
+           <span className="text-sm text-zinc-400">Total Paid Out</span>
+           <span className="text-xl font-mono font-bold text-white">${totalPaid.toFixed(2)}</span>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12 text-zinc-500">Loading history...</div>
+      ) : repairs.length === 0 ? (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center text-zinc-500">
+          No records found for the selected period.
+        </div>
+      ) : (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-zinc-950 text-zinc-500 font-medium border-b border-zinc-800">
+                <tr>
+                  <th className="px-6 py-3">Paid Date</th>
+                  <th className="px-6 py-3">Technician</th>
+                  <th className="px-6 py-3">Claim #</th>
+                  <th className="px-6 py-3">Unit</th>
+                  <th className="px-6 py-3 text-right">Labor</th>
+                  <th className="px-6 py-3 text-right">Parts</th>
+                  <th className="px-6 py-3 text-right">Diag</th>
+                  <th className="px-6 py-3 text-right">Total Ticket</th>
+                  <th className="px-6 py-3 text-right text-emerald-500">Commission Paid</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800/50">
+                {repairs.map(repair => (
+                  <tr key={repair.id} className="hover:bg-zinc-800/30 transition-colors">
+                    <td className="px-6 py-4 text-zinc-400">
+                      {new Date(repair.paidOutDate).toLocaleDateString()}
+                      <div className="text-xs text-zinc-600">{new Date(repair.paidOutDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                    </td>
+                    <td className="px-6 py-4 text-white font-medium">{repair.technician}</td>
+                    <td className="px-6 py-4 text-zinc-400 font-mono">
+                      <button 
+                        onClick={() => navigate(`/repair/${repair.id}`)}
+                        className="hover:text-blue-400 hover:underline"
+                      >
+                        #{repair.claimNumber}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 text-zinc-300">{repair.brand} {repair.model}</td>
+                    <td className="px-6 py-4 text-right text-zinc-500">${repair.laborCost.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-right text-zinc-500">${repair.partsCost.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-right text-zinc-500">${repair.diagnosticFee.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-right text-zinc-400">${repair.totalCost.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-right text-emerald-400 font-bold font-mono">
+                      ${repair.commission.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default PayrollHistory;

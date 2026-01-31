@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getDB, saveDB } from '@/lib/api';
+import { getRepairs, updateRepair } from '@/lib/api';
 import { Clock, AlertTriangle, CheckCircle, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -27,9 +27,12 @@ const Workbench = () => {
   const [filter, setFilter] = useState('');
 
   const loadData = async () => {
-    const db = await getDB();
-    // Sort by date descending
-    setTickets(db.repairs.sort((a, b) => new Date(b.dateIn) - new Date(a.dateIn)));
+    try {
+      const data = await getRepairs();
+      setTickets(data);
+    } catch (error) {
+      console.error("Error loading repairs:", error);
+    }
   };
 
   useEffect(() => {
@@ -37,19 +40,21 @@ const Workbench = () => {
   }, []);
 
   const updateStatus = async (id, newStatus) => {
-    const db = await getDB();
-    const index = db.repairs.findIndex(r => r.id === id);
-    if (index !== -1) {
-      db.repairs[index].status = newStatus;
-      await saveDB(db);
+    try {
+      await updateRepair(id, { status: newStatus });
+      // Update local state to reflect change immediately or reload
+      // Reloading ensures we are in sync
       loadData();
+    } catch (error) {
+      console.error("Error updating status:", error);
     }
   };
 
   const filteredTickets = tickets.filter(t => 
-    t.clientName.toLowerCase().includes(filter.toLowerCase()) ||
-    t.brand.toLowerCase().includes(filter.toLowerCase()) ||
-    t.model.toLowerCase().includes(filter.toLowerCase())
+    t.status !== 'closed' &&
+    ((t.clientName || '').toLowerCase().includes(filter.toLowerCase()) ||
+    (t.brand || '').toLowerCase().includes(filter.toLowerCase()) ||
+    (t.model || '').toLowerCase().includes(filter.toLowerCase()))
   );
 
   return (
