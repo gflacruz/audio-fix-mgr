@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getRepair, updateRepair, addRepairNote, getTechnicians, getParts, addRepairPart, removeRepairPart } from '@/lib/api';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { getRepair, updateRepair, addRepairNote, getTechnicians, getParts, addRepairPart, removeRepairPart, addCustomRepairPart } from '@/lib/api';
 import { printDiagnosticReceipt, printRepairInvoice } from '@/lib/printer';
 import { ArrowLeft, Save, Clock, User, CheckCircle2, MessageSquare, ThumbsUp, Printer, Package, Plus, Trash2, X, FileText, DollarSign, Truck, Edit2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -21,6 +21,10 @@ const RepairDetail = () => {
   const [isAddingPart, setIsAddingPart] = useState(false);
   const [selectedPartForAdd, setSelectedPartForAdd] = useState(null);
   const [addQuantity, setAddQuantity] = useState(1);
+  
+  // Custom Part State
+  const [showCustomPartModal, setShowCustomPartModal] = useState(false);
+  const [customPartData, setCustomPartData] = useState({ name: '', price: '', quantity: 1 });
 
   // Invoice Wizard State
   const [showInvoiceWizard, setShowInvoiceWizard] = useState(false);
@@ -79,8 +83,29 @@ const RepairDetail = () => {
 
   const handleStatusChange = async (newStatus) => {
     try {
-      await updateRepair(id, { status: newStatus });
-      setTicket(prev => ({ ...prev, status: newStatus }));
+      const updatedTicket = await updateRepair(id, { status: newStatus });
+      
+      setTicket(prev => {
+        const newState = {
+          ...prev,
+          ...updatedTicket,
+          // Preserve complex objects
+          client: prev.client,
+          parts: prev.parts,
+          notes: prev.notes
+        };
+
+        // Map snake_case dates from backend if present
+        if (updatedTicket.completed_date) {
+           newState.completedDate = updatedTicket.completed_date;
+        }
+        if (updatedTicket.closed_date) {
+           newState.closedDate = updatedTicket.closed_date;
+        }
+        
+        return newState;
+      });
+      
     } catch (error) {
       console.error("Failed to update status:", error);
     }
@@ -115,6 +140,36 @@ const RepairDetail = () => {
       setTicket(prev => ({ ...prev, diagnosticFeeCollected: newStatus }));
     } catch (error) {
       console.error("Failed to toggle fee:", error);
+    }
+  };
+
+  const handleOnSiteToggle = async () => {
+    try {
+      const newStatus = !ticket.isOnSite;
+      await updateRepair(id, { isOnSite: newStatus });
+      setTicket(prev => ({ ...prev, isOnSite: newStatus }));
+    } catch (error) {
+      console.error("Failed to toggle on site:", error);
+    }
+  };
+
+  const handleTaxExemptToggle = async () => {
+    try {
+      const newStatus = !ticket.isTaxExempt;
+      await updateRepair(id, { isTaxExempt: newStatus });
+      setTicket(prev => ({ ...prev, isTaxExempt: newStatus }));
+    } catch (error) {
+      console.error("Failed to toggle tax exempt:", error);
+    }
+  };
+
+  const handleRushToggle = async () => {
+    try {
+      const newPriority = ticket.priority === 'rush' ? 'normal' : 'rush';
+      await updateRepair(id, { priority: newPriority });
+      setTicket(prev => ({ ...prev, priority: newPriority }));
+    } catch (error) {
+      console.error("Failed to toggle rush priority:", error);
     }
   };
 
@@ -159,6 +214,32 @@ const RepairDetail = () => {
   const cancelAddPart = () => {
     setSelectedPartForAdd(null);
     setAddQuantity(1);
+  };
+
+  const handleCustomPartSubmit = async (e) => {
+    e.preventDefault();
+    if (!customPartData.name || !customPartData.price) {
+      alert("Name and Price are required.");
+      return;
+    }
+    
+    try {
+      await addCustomRepairPart(id, {
+        name: customPartData.name,
+        price: parseFloat(customPartData.price),
+        quantity: parseInt(customPartData.quantity, 10) || 1
+      });
+      
+      const updatedTicket = await getRepair(id);
+      setTicket(updatedTicket);
+      
+      setShowCustomPartModal(false);
+      setCustomPartData({ name: '', price: '', quantity: 1 });
+      setIsAddingPart(false);
+    } catch (error) {
+      console.error("Failed to add custom part:", error);
+      alert("Failed to add custom part: " + error.message);
+    }
   };
 
   const handleRemovePart = async (linkId) => {
@@ -258,6 +339,13 @@ const RepairDetail = () => {
     setInvoiceData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleWizardKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleInvoiceNext();
+    }
+  };
+
   const saveWorkPerformed = async () => {
     try {
       await updateRepair(id, { workPerformed: invoiceData.workPerformed });
@@ -277,13 +365,32 @@ const RepairDetail = () => {
 
   const confirmCloseClaim = async () => {
     try {
-      await updateRepair(id, { status: 'closed' });
-      setTicket(prev => ({ ...prev, status: 'closed' }));
+      // Ensure completedDate is set to now if it's not already set, or just sync it
+      const now = new Date().toISOString();
+      const updatedTicket = await updateRepair(id, { 
+        status: 'closed',
+        completedDate: now 
+      });
+      
+      setTicket(prev => ({ 
+        ...prev, 
+        status: 'closed',
+        // Map the closed_date if returned from backend
+        closedDate: updatedTicket.closed_date || updatedTicket.closedDate || now,
+        completedDate: updatedTicket.completed_date || updatedTicket.completedDate || now
+      }));
+      
       setShowCloseModal(false);
-      addSystemNote('Ticket closed after printing invoice.');
+      addSystemNote(`Ticket closed by ${user?.name || 'Technician'}.`);
     } catch (error) {
       console.error("Failed to close ticket:", error);
     }
+  };
+
+  const formatPhoneNumber = (str) => {
+    const cleaned = ('' + str).replace(/\D/g, '');
+    const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+    return match ? '(' + match[1] + ') ' + match[2] + '-' + match[3] : str;
   };
 
   if (loading) return <div className="p-8 text-zinc-500">Loading...</div>;
@@ -292,9 +399,11 @@ const RepairDetail = () => {
   const partsTotal = ticket.parts?.reduce((sum, p) => sum + p.total, 0) || 0;
   const laborTotal = ticket.laborCost || 0;
   const shippingTotal = ticket.returnShippingCost || 0;
+  const onSiteFee = ticket.isOnSite ? 125.00 : 0;
+  const rushFee = ticket.priority === 'rush' ? 100.00 : 0;
   
-  const tax = (partsTotal + laborTotal) * 0.075;
-  const total = partsTotal + laborTotal + shippingTotal + tax;
+  const tax = ticket.isTaxExempt ? 0 : (partsTotal + laborTotal) * 0.075;
+  const total = partsTotal + laborTotal + shippingTotal + onSiteFee + rushFee + tax;
   
   const diagnosticFee = 89.00;
   const amountDue = ticket.diagnosticFeeCollected ? Math.max(0, total - diagnosticFee) : total;
@@ -316,24 +425,41 @@ const RepairDetail = () => {
               <span className="text-amber-500 mr-3">#{ticket.claimNumber || ticket.id}</span>
               {ticket.brand} {ticket.model}
             </span>
-            {ticket.isShippedIn && (
-              <span className="bg-purple-900/50 text-purple-300 text-sm px-3 py-1 rounded-full border border-purple-800/50 font-medium">
-                Shipped In
-              </span>
-            )}
           </h1>
           <div className="flex items-center gap-4 text-zinc-400">
             <span className="flex items-center gap-1"><User size={16} /> {client?.name}</span>
             <span className="flex items-center gap-1"><Clock size={16} /> In: {new Date(ticket.dateIn).toLocaleDateString()}</span>
+            {ticket.completedDate && <span className="flex items-center gap-1 text-emerald-500" title="Completed Date"><CheckCircle2 size={16} /> Done: {new Date(ticket.completedDate).toLocaleDateString()}</span>}
+            {ticket.closedDate && <span className="flex items-center gap-1 text-zinc-500" title="Closed Date"><Clock size={16} /> Closed: {new Date(ticket.closedDate).toLocaleDateString()}</span>}
             {ticket.unitType && <span className="px-2 py-0.5 bg-zinc-800 rounded text-xs">{ticket.unitType}</span>}
           </div>
         </div>
 
         <div className="flex flex-col items-end gap-2">
            <div className="flex items-center gap-2">
+             {ticket.isShippedIn && (
+               <span className="inline-flex items-center justify-center w-28 bg-purple-900/50 text-purple-300 text-sm py-1 rounded-full border border-purple-800/50 font-medium">
+                 Shipped In
+               </span>
+             )}
+             {ticket.isOnSite && (
+               <span className="inline-flex items-center justify-center w-28 bg-blue-900/50 text-blue-300 text-sm py-1 rounded-full border border-blue-800/50 font-medium">
+                 On Site
+               </span>
+             )}
+             {ticket.priority === 'rush' && (
+               <span className="inline-flex items-center justify-center w-28 bg-red-900/50 text-red-300 text-sm py-1 rounded-full border border-red-800/50 font-medium">
+                 Rush
+               </span>
+             )}
+             {ticket.priority === 'warranty' && (
+               <span className="inline-flex items-center justify-center w-28 bg-emerald-900/50 text-emerald-300 text-sm py-1 rounded-full border border-emerald-800/50 font-medium">
+                 Warranty
+               </span>
+             )}
              <button
                onClick={startInvoiceWizard}
-               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors mr-2"
+               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors"
              >
                <FileText size={18} /> Invoice
              </button>
@@ -447,14 +573,23 @@ const RepairDetail = () => {
 
             {isAddingPart && (
               <div className="mb-4 bg-zinc-950 p-3 rounded-lg border border-zinc-800">
-                <input 
-                  type="text" 
-                  autoFocus
-                  placeholder="Search parts inventory..."
-                  value={partsSearch}
-                  onChange={(e) => setPartsSearch(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-white mb-2 focus:border-amber-500 outline-none"
-                />
+                <div className="flex gap-2 mb-2">
+                  <input 
+                    type="text" 
+                    autoFocus
+                    placeholder="Search parts inventory..."
+                    value={partsSearch}
+                    onChange={(e) => setPartsSearch(e.target.value)}
+                    className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-white focus:border-amber-500 outline-none"
+                  />
+                  <button
+                    onClick={() => setShowCustomPartModal(true)}
+                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 rounded border border-zinc-700 transition-colors flex items-center gap-2 text-xs font-medium"
+                    title="Add Custom Item"
+                  >
+                    <Plus size={14} /> Custom Item
+                  </button>
+                </div>
                 <div className="max-h-40 overflow-y-auto space-y-1">
                   {partsList.map(part => (
                     <div 
@@ -516,7 +651,7 @@ const RepairDetail = () => {
             </h3>
 
             <div className="space-y-4 mb-6 max-h-[400px] overflow-y-auto pr-2">
-              {ticket.notes && ticket.notes.map((note) => (
+              {ticket.notes && [...ticket.notes].sort((a, b) => new Date(b.date) - new Date(a.date)).map((note) => (
                 <div key={note.id} className="bg-zinc-950/50 border border-zinc-800/50 p-4 rounded-lg">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs font-bold text-zinc-500 uppercase">{note.author}</span>
@@ -557,6 +692,57 @@ const RepairDetail = () => {
         {/* Right Column: Info Card */}
         <div className="col-span-1 space-y-6">
           
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                 <input 
+                   type="checkbox" 
+                   id="feeCollected"
+                   checked={ticket.diagnosticFeeCollected || false}
+                   onChange={handleFeeToggle}
+                   className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-amber-600 focus:ring-amber-500 focus:ring-offset-zinc-900"
+                 />
+                 <label htmlFor="feeCollected" className="text-xs text-zinc-400 select-none cursor-pointer">
+                   Diagnostic Fee Collected ($89)
+                 </label>
+              </div>
+               <div className="flex items-center gap-2">
+                 <input 
+                   type="checkbox" 
+                   id="isOnSite"
+                   checked={ticket.isOnSite || false}
+                   onChange={handleOnSiteToggle}
+                   className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-amber-600 focus:ring-amber-500 focus:ring-offset-zinc-900"
+                 />
+                 <label htmlFor="isOnSite" className="text-xs text-zinc-400 select-none cursor-pointer">
+                   On Site Service ($125)
+                 </label>
+              </div>
+              <div className="flex items-center gap-2">
+                 <input 
+                   type="checkbox" 
+                   id="isRush"
+                   checked={ticket.priority === 'rush'}
+                   onChange={handleRushToggle}
+                   className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-amber-600 focus:ring-amber-500 focus:ring-offset-zinc-900"
+                 />
+                 <label htmlFor="isRush" className="text-xs text-zinc-400 select-none cursor-pointer">
+                   Rush Fee ($100)
+                 </label>
+              </div>
+              <div className="flex items-center gap-2">
+                 <input 
+                   type="checkbox" 
+                   id="isTaxExempt"
+                   checked={ticket.isTaxExempt || false}
+                   onChange={handleTaxExemptToggle}
+                   className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-amber-600 focus:ring-amber-500 focus:ring-offset-zinc-900"
+                 />
+                 <label htmlFor="isTaxExempt" className="text-xs text-zinc-400 select-none cursor-pointer">
+                   Tax Exempt
+                 </label>
+              </div>
+          </div>
+
           {/* Cost Breakdown */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
             <h3 className="text-zinc-400 font-semibold text-sm uppercase tracking-wider mb-4">Cost Summary</h3>
@@ -573,6 +759,18 @@ const RepairDetail = () => {
                 <span className="text-zinc-400">Sales Tax (7.5%)</span>
                 <span className="text-zinc-200 font-mono">${tax.toFixed(2)}</span>
               </div>
+              {ticket.isOnSite && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-zinc-400">On Site Service Fee</span>
+                  <span className="text-zinc-200 font-mono">${onSiteFee.toFixed(2)}</span>
+                </div>
+              )}
+              {ticket.priority === 'rush' && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-zinc-400">Rush Service Fee</span>
+                  <span className="text-zinc-200 font-mono">${rushFee.toFixed(2)}</span>
+                </div>
+              )}
               {ticket.isShippedIn && (
                 <div className="flex justify-between text-sm">
                   <span className="text-zinc-400">Return Shipping</span>
@@ -600,7 +798,9 @@ const RepairDetail = () => {
             <div className="space-y-4">
               <div>
                 <label className="text-xs text-zinc-600 block">Name</label>
-                <div className="text-zinc-200">{client?.name}</div>
+                <Link to={`/client/${client?.id}`} className="text-blue-400 hover:text-blue-300 hover:underline">
+                  {client?.name}
+                </Link>
               </div>
               {client?.companyName && (
                 <div>
@@ -610,7 +810,7 @@ const RepairDetail = () => {
               )}
               <div>
                 <label className="text-xs text-zinc-600 block">Phone</label>
-                <div className="text-zinc-200">{client?.phone}</div>
+                <div className="text-zinc-200">{formatPhoneNumber(client?.phone)}</div>
               </div>
               <div>
                 <label className="text-xs text-zinc-600 block">Email</label>
@@ -618,7 +818,16 @@ const RepairDetail = () => {
               </div>
               <div>
                 <label className="text-xs text-zinc-600 block">Address</label>
-                <div className="text-zinc-200 text-sm">{client?.address || '-'}</div>
+                <div className="text-zinc-200 text-sm">
+                  {client?.address && <div>{client.address}</div>}
+                  {(client?.city || client?.state || client?.zip) && (
+                    <div>
+                      {client.city}{client.city && client.state && ', '}
+                      {client.state} {client.zip}
+                    </div>
+                  )}
+                  {!client?.address && !client?.city && '-'}
+                </div>
               </div>
             </div>
           </div>
@@ -645,22 +854,11 @@ const RepairDetail = () => {
               <div>
                  <label className="text-xs text-zinc-600 block">Priority</label>
                  <div className={`inline-block px-2 py-1 rounded text-xs font-bold uppercase ${
-                   ticket.priority === 'rush' ? 'bg-red-900/30 text-red-500' : 'bg-zinc-800 text-zinc-400'
+                   ticket.priority === 'rush' ? 'bg-red-900/30 text-red-500' : 
+                   ticket.priority === 'warranty' ? 'bg-emerald-900/30 text-emerald-500' : 'bg-zinc-800 text-zinc-400'
                  }`}>
                    {ticket.priority}
                  </div>
-              </div>
-              <div className="flex items-center gap-2">
-                 <input 
-                   type="checkbox" 
-                   id="feeCollected"
-                   checked={ticket.diagnosticFeeCollected || false}
-                   onChange={handleFeeToggle}
-                   className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-amber-600 focus:ring-amber-500 focus:ring-offset-zinc-900"
-                 />
-                 <label htmlFor="feeCollected" className="text-xs text-zinc-400 select-none cursor-pointer">
-                   Diagnostic Fee Collected ($89)
-                 </label>
               </div>
              </div>
           </div>
@@ -765,6 +963,77 @@ const RepairDetail = () => {
         </div>
       )}
 
+      {/* Custom Part Modal */}
+      {showCustomPartModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[80]">
+          <div className="bg-zinc-900 rounded-xl border border-zinc-700 shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-zinc-800 flex justify-between items-center bg-zinc-950">
+              <h3 className="text-lg font-bold text-white">Add Custom Item</h3>
+              <button onClick={() => setShowCustomPartModal(false)} className="text-zinc-500 hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleCustomPartSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-1">Item Name / Description</label>
+                <input 
+                  type="text" 
+                  value={customPartData.name}
+                  onChange={(e) => setCustomPartData(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+                  autoFocus
+                  placeholder="e.g. Vintage Capacitor Kit"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1">Price ($)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    value={customPartData.price}
+                    onChange={(e) => setCustomPartData(prev => ({ ...prev, price: e.target.value }))}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-1">Quantity</label>
+                  <input 
+                    type="number" 
+                    min="1"
+                    value={customPartData.quantity}
+                    onChange={(e) => setCustomPartData(prev => ({ ...prev, quantity: e.target.value }))}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => setShowCustomPartModal(false)}
+                  className="px-4 py-2 text-zinc-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg font-medium"
+                >
+                  Add Item
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Invoice Wizard Modal */}
       {showInvoiceWizard && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
@@ -794,6 +1063,7 @@ const RepairDetail = () => {
                       placeholder="Search parts inventory to add..."
                       value={partsSearch}
                       onChange={(e) => setPartsSearch(e.target.value)}
+                      onKeyDown={handleWizardKeyDown}
                       className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-sm text-white mb-2 focus:border-amber-500 outline-none"
                     />
                     {partsSearch && (
@@ -842,6 +1112,17 @@ const RepairDetail = () => {
                     name="workPerformed"
                     value={invoiceData.workPerformed}
                     onChange={handleInvoiceChange}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        if (e.shiftKey || e.ctrlKey) {
+                          // Allow new line
+                          return;
+                        }
+                        e.preventDefault();
+                        handleInvoiceNext();
+                      }
+                    }}
+                    autoFocus
                     placeholder="e.g. Replaced capacitors in power supply, cleaned controls, calibrated bias..."
                     className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-4 text-white focus:border-amber-500 outline-none h-40"
                   />
@@ -860,6 +1141,7 @@ const RepairDetail = () => {
                         name="returnShippingCarrier"
                         value={invoiceData.returnShippingCarrier}
                         onChange={handleInvoiceChange}
+                        onKeyDown={handleWizardKeyDown}
                         placeholder="e.g. UPS Ground"
                         className="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-white focus:border-amber-500 outline-none"
                       />
@@ -873,6 +1155,7 @@ const RepairDetail = () => {
                           name="returnShippingCost"
                           value={invoiceData.returnShippingCost}
                           onChange={handleInvoiceChange}
+                          onKeyDown={handleWizardKeyDown}
                           placeholder="0.00"
                           className="w-full bg-zinc-950 border border-zinc-700 rounded pl-7 pr-3 py-2 text-white focus:border-amber-500 outline-none"
                         />
@@ -896,6 +1179,7 @@ const RepairDetail = () => {
                         name="laborCost"
                         value={invoiceData.laborCost}
                         onChange={handleInvoiceChange}
+                        onKeyDown={handleWizardKeyDown}
                         placeholder="0.00"
                         className="w-full bg-zinc-950 border border-zinc-700 rounded pl-7 pr-3 py-2 text-white focus:border-amber-500 outline-none text-lg"
                         autoFocus

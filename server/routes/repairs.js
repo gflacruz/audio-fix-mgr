@@ -62,7 +62,11 @@ router.get('/', async (req, res) => {
       status: row.status,
       technician: row.technician,
       dateIn: row.created_at, // Map created_at to dateIn
+      completedDate: row.completed_date,
+      closedDate: row.closed_date,
       diagnosticFeeCollected: row.diagnostic_fee_collected,
+      isOnSite: row.is_on_site,
+      isTaxExempt: row.is_tax_exempt,
       isShippedIn: row.is_shipped_in,
       shippingCarrier: row.shipping_carrier,
       boxHeight: row.box_height,
@@ -252,9 +256,9 @@ router.get('/:id', async (req, res) => {
 
     // Fetch Parts
     const partsResult = await db.query(
-      `SELECT rp.*, p.name, p.retail_price as current_retail
+      `SELECT rp.*, p.name as inventory_name, p.retail_price as current_retail
        FROM repair_parts rp
-       JOIN parts p ON rp.part_id = p.id
+       LEFT JOIN parts p ON rp.part_id = p.id
        WHERE rp.repair_id = $1
        ORDER BY rp.created_at ASC`,
       [id]
@@ -288,7 +292,11 @@ router.get('/:id', async (req, res) => {
       status: row.status,
       technician: row.technician,
       dateIn: row.created_at,
+      completedDate: row.completed_date,
+      closedDate: row.closed_date,
       diagnosticFeeCollected: row.diagnostic_fee_collected,
+      isOnSite: row.is_on_site,
+      isTaxExempt: row.is_tax_exempt,
       isShippedIn: row.is_shipped_in,
       shippingCarrier: row.shipping_carrier,
       boxHeight: row.box_height,
@@ -309,7 +317,7 @@ router.get('/:id', async (req, res) => {
       parts: partsResult.rows.map(p => ({
         id: p.id, // repair_part link id
         partId: p.part_id,
-        name: p.name,
+        name: p.name || p.inventory_name,
         quantity: p.quantity,
         price: parseFloat(p.unit_price),
         total: parseFloat(p.unit_price) * p.quantity
@@ -328,7 +336,7 @@ router.post('/', async (req, res) => {
   try {
     const { 
       clientId, brand, model, serial, unitType, issue, priority, 
-      technician, diagnosticFeeCollected,
+      technician, diagnosticFeeCollected, isOnSite,
       isShippedIn, shippingCarrier, boxHeight, boxLength, boxWidth,
       modelVersion, accessoriesIncluded
     } = req.body;
@@ -339,8 +347,8 @@ router.post('/', async (req, res) => {
 
     const result = await db.query(
       `INSERT INTO repairs 
-       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, is_shipped_in, shipping_carrier, box_height, box_length, box_width, model_version, accessories_included) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) 
+       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, is_shipped_in, shipping_carrier, box_height, box_length, box_width, model_version, accessories_included, is_on_site) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) 
        RETURNING *`,
       [
         clientId, brand, model, serial, unitType, issue, 
@@ -353,7 +361,8 @@ router.post('/', async (req, res) => {
         boxLength || null,
         boxWidth || null,
         modelVersion || null,
-        accessoriesIncluded || null
+        accessoriesIncluded || null,
+        isOnSite || false
       ]
     );
 
@@ -379,7 +388,25 @@ router.patch('/:id', async (req, res) => {
     const updates = req.body;
     
     // Whitelist allowed fields to prevent arbitrary updates
-    const allowedFields = ['status', 'technician', 'priority', 'diagnosticFeeCollected', 'issue', 'modelVersion', 'accessoriesIncluded', 'isShippedIn', 'shippingCarrier', 'boxHeight', 'boxLength', 'boxWidth', 'workPerformed', 'laborCost', 'returnShippingCost', 'returnShippingCarrier'];
+    const allowedFields = ['status', 'technician', 'priority', 'diagnosticFeeCollected', 'isOnSite', 'issue', 'modelVersion', 'accessoriesIncluded', 'isShippedIn', 'shippingCarrier', 'boxHeight', 'boxLength', 'boxWidth', 'workPerformed', 'laborCost', 'returnShippingCost', 'returnShippingCarrier', 'isTaxExempt'];
+    
+    // Auto-update dates based on status changes
+    if (updates.status === 'ready') {
+       updates.completedDate = new Date().toISOString();
+       allowedFields.push('completedDate');
+    } else if (updates.status === 'closed') {
+       updates.closedDate = new Date().toISOString();
+       allowedFields.push('closedDate');
+    } else if (updates.status && updates.status !== 'ready' && updates.status !== 'closed') {
+        // Only clear them if explicitly desired? 
+        // Usually moving back from Closed -> Ready might keep closed date? 
+        // Let's assume moving backwards clears the future dates.
+        if (updates.status === 'repairing' || updates.status === 'diagnosing') {
+            // We could clear them, but standard SQL updates would need NULL.
+            // For now, let's just track the timestamp when it *becomes* that status.
+        }
+    }
+
     const fieldsToUpdate = [];
     const values = [];
     let paramIndex = 1;
@@ -449,33 +476,52 @@ router.post('/:id/parts', async (req, res) => {
   const client = await db.pool.connect();
   try {
     const { id } = req.params;
-    const { partId, quantity } = req.body;
+    const { partId, quantity, name, price } = req.body;
     const qty = quantity || 1;
 
     await client.query('BEGIN');
 
-    // Check part existence and stock
-    const partRes = await client.query('SELECT retail_price, quantity_in_stock FROM parts WHERE id = $1', [partId]);
-    if (partRes.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Part not found' });
-    }
-    
-    const part = partRes.rows[0];
-    if (part.quantity_in_stock < qty) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: `Not enough stock. Available: ${part.quantity_in_stock}` });
-    }
+    let finalPrice = 0;
+    let finalName = '';
+    let finalPartId = null;
 
-    // Deduct stock
-    await client.query('UPDATE parts SET quantity_in_stock = quantity_in_stock - $1 WHERE id = $2', [qty, partId]);
+    if (partId) {
+      // Check part existence and stock
+      const partRes = await client.query('SELECT name, retail_price, quantity_in_stock FROM parts WHERE id = $1', [partId]);
+      if (partRes.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Part not found' });
+      }
+      
+      const part = partRes.rows[0];
+      if (part.quantity_in_stock < qty) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `Not enough stock. Available: ${part.quantity_in_stock}` });
+      }
+
+      // Deduct stock
+      await client.query('UPDATE parts SET quantity_in_stock = quantity_in_stock - $1 WHERE id = $2', [qty, partId]);
+      
+      finalPrice = part.retail_price;
+      finalName = part.name;
+      finalPartId = partId;
+    } else {
+      // Custom Part Logic
+      if (!name || !price) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Name and Price are required for custom parts.' });
+      }
+      finalName = name;
+      finalPrice = price;
+      finalPartId = null;
+    }
 
     // Add to repair
     const result = await client.query(
-      `INSERT INTO repair_parts (repair_id, part_id, quantity, unit_price)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO repair_parts (repair_id, part_id, quantity, unit_price, name)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [id, partId, qty, part.retail_price]
+      [id, finalPartId, qty, finalPrice, finalName]
     );
     
     await client.query('COMMIT');

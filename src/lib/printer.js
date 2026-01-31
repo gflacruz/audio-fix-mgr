@@ -1,6 +1,16 @@
+const formatPhone = (phone) => {
+  if (!phone) return "";
+  const cleaned = ('' + phone).replace(/\D/g, '');
+  const match = cleaned.match(/^(\d{3})(\d{3})(\d{4})$/);
+  if (match) {
+    return '(' + match[1] + ') ' + match[2] + '-' + match[3];
+  }
+  return phone;
+};
+
 export const printDiagnosticReceipt = (ticket, client) => {
-  const printWindow = window.open('', '_blank');
-  
+  const printWindow = window.open("", "_blank");
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -30,17 +40,17 @@ export const printDiagnosticReceipt = (ticket, client) => {
       <div class="header">
         <div class="shop-name">Sound Technology Inc</div>
         <div style="font-size: 14px; color: #666; margin-bottom: 5px;">4508 Oak Fair Blvd. Suite 104 Tampa, FL 33610</div>
-        <div style="font-size: 14px; color: #666; margin-bottom: 10px;">813-985-1120</div>
+        <div style="font-size: 14px; color: #666; margin-bottom: 10px;">(813) 985-1120</div>
         <div class="doc-title">Diagnostic Fee Receipt</div>
       </div>
 
       <div class="info-grid">
         <div>
           <div class="label">Client</div>
-          <div class="value">${client?.name || 'N/A'}</div>
+          <div class="value">${client?.name || "N/A"}</div>
           <div style="font-size: 14px; color: #666; margin-top: 4px;">
-            ${client?.phone || ''}<br>
-            ${client?.email || ''}
+            ${formatPhone(client?.phone) || ""}<br>
+            ${client?.email || ""}
           </div>
         </div>
         <div style="text-align: right;">
@@ -55,10 +65,10 @@ export const printDiagnosticReceipt = (ticket, client) => {
         <div class="label">Unit Details</div>
         <div class="value">${ticket.brand} ${ticket.model}</div>
         <div style="font-size: 14px; color: #666; margin-top: 4px;">
-          <strong>Serial:</strong> ${ticket.serial || 'N/A'}<br>
-          <strong>Type:</strong> ${ticket.unitType || 'N/A'}<br>
-          <strong>Accessories:</strong> ${ticket.accessoriesIncluded || 'None'}<br>
-          <strong>Reported Issue:</strong> ${ticket.issue || 'N/A'}
+          <strong>Serial:</strong> ${ticket.serial || "N/A"}<br>
+          <strong>Type:</strong> ${ticket.unitType || "N/A"}<br>
+          <strong>Accessories:</strong> ${ticket.accessoriesIncluded || "None"}<br>
+          <strong>Reported Issue:</strong> ${ticket.issue || "N/A"}
         </div>
       </div>
 
@@ -91,8 +101,8 @@ export const printDiagnosticReceipt = (ticket, client) => {
             <span>$89.00</span>
           </div>
           <div style="margin-top: 20px; text-align: right;">
-            <span class="status-badge ${ticket.diagnosticFeeCollected ? 'paid' : 'unpaid'}">
-              ${ticket.diagnosticFeeCollected ? 'PAID IN FULL' : 'PAYMENT DUE'}
+            <span class="status-badge ${ticket.diagnosticFeeCollected ? "paid" : "unpaid"}">
+              ${ticket.diagnosticFeeCollected ? "PAID IN FULL" : "PAYMENT DUE"}
             </span>
           </div>
         </div>
@@ -115,31 +125,41 @@ export const printDiagnosticReceipt = (ticket, client) => {
 };
 
 export const printRepairInvoice = (ticket, client) => {
-  const printWindow = window.open('', '_blank');
-  
+  const printWindow = window.open("", "_blank");
+
   // Calculate totals
-  const partsTotal = ticket.parts?.reduce((sum, p) => sum + (p.total || 0), 0) || 0;
+  const partsTotal =
+    ticket.parts?.reduce((sum, p) => sum + (p.total || 0), 0) || 0;
   const laborTotal = ticket.laborCost || 0;
   const shippingTotal = ticket.returnShippingCost || 0;
-  
+  const onSiteFee = ticket.isOnSite ? 125.00 : 0;
+  const rushFee = ticket.priority === 'rush' ? 100.00 : 0;
+
   // Tax 7.5% on parts and labor
-  const tax = (partsTotal + laborTotal) * 0.075;
-  
-  const subtotal = partsTotal + laborTotal + shippingTotal;
+  const tax = ticket.isTaxExempt ? 0 : (partsTotal + laborTotal) * 0.075;
+
+  const subtotal = partsTotal + laborTotal + shippingTotal + onSiteFee + rushFee;
   const totalWithTax = subtotal + tax;
-  const diagnosticFee = 89.00;
-  
-  const amountDue = ticket.diagnosticFeeCollected ? Math.max(0, totalWithTax - diagnosticFee) : totalWithTax;
+  const diagnosticFee = 89.0;
+
+  const amountDue = ticket.diagnosticFeeCollected
+    ? Math.max(0, totalWithTax - diagnosticFee)
+    : totalWithTax;
 
   // Generate Parts Rows
-  const partsRows = ticket.parts && ticket.parts.length > 0 
-    ? ticket.parts.map(part => `
+  const partsRows =
+    ticket.parts && ticket.parts.length > 0
+      ? ticket.parts
+          .map(
+            (part) => `
         <tr>
           <td>${part.name} <span style="font-size: 12px; color: #666;">(x${part.quantity})</span></td>
           <td style="text-align: right;">$${(part.total || 0).toFixed(2)}</td>
         </tr>
-      `).join('')
-    : `<tr><td colspan="2" style="font-style: italic; color: #888;">No parts used</td></tr>`;
+      `,
+          )
+          .join("")
+      : `<tr><td colspan="2" style="font-style: italic; color: #888;">No parts used</td></tr>`;
 
   const html = `
     <!DOCTYPE html>
@@ -174,18 +194,18 @@ export const printRepairInvoice = (ticket, client) => {
       <div class="header">
         <div class="shop-name">Sound Technology Inc</div>
         <div style="font-size: 14px; color: #666; margin-bottom: 5px;">4508 Oak Fair Blvd. Suite 104 Tampa, FL 33610</div>
-        <div style="font-size: 14px; color: #666; margin-bottom: 10px;">813-985-1120</div>
+        <div style="font-size: 14px; color: #666; margin-bottom: 10px;">(813) 985-1120</div>
         <div class="doc-title">Repair Invoice</div>
       </div>
 
       <div class="info-grid">
         <div>
           <div class="label">Bill To</div>
-          <div class="value">${client?.name || 'N/A'}</div>
+          <div class="value">${client?.name || "N/A"}</div>
           <div style="font-size: 14px; color: #666; margin-top: 4px;">
-            ${client?.address || ''}<br>
-            ${client?.city ? client.city + ', ' : ''} ${client?.state || ''} ${client?.zip || ''}<br>
-            ${client?.phone || ''}
+            ${client?.address || ""}<br>
+            ${client?.city ? client.city + ", " : ""} ${client?.state || ""} ${client?.zip || ""}<br>
+            ${formatPhone(client?.phone) || ""}
           </div>
         </div>
         <div style="text-align: right;">
@@ -205,11 +225,11 @@ export const printRepairInvoice = (ticket, client) => {
           </div>
           <div>
             <div class="label">Serial Number</div>
-            <div class="value">${ticket.serial || 'N/A'}</div>
+            <div class="value">${ticket.serial || "N/A"}</div>
           </div>
           <div>
             <div class="label">Type</div>
-            <div class="value">${ticket.unitType || 'Unit'}</div>
+            <div class="value">${ticket.unitType || "Unit"}</div>
           </div>
         </div>
       </div>
@@ -219,7 +239,7 @@ export const printRepairInvoice = (ticket, client) => {
         <div class="notes-box">
           <strong>Reported Issue:</strong> ${ticket.issue}<br><br>
           <strong>Work Performed:</strong><br>
-          <div style="white-space: pre-wrap; margin-top: 5px;">${ticket.workPerformed || 'No details provided.'}</div>
+          <div style="white-space: pre-wrap; margin-top: 5px;">${ticket.workPerformed || "No details provided."}</div>
         </div>
       </div>
 
@@ -245,12 +265,36 @@ export const printRepairInvoice = (ticket, client) => {
             <td>Labor Charges</td>
             <td style="text-align: right;">$${laborTotal.toFixed(2)}</td>
           </tr>
-          ${ticket.returnShippingCost ? `
+          ${
+            ticket.isOnSite
+              ? `
           <tr>
-            <td>Return Shipping (${ticket.returnShippingCarrier || 'Standard'})</td>
+            <td>On Site Service Fee</td>
+            <td style="text-align: right;">$${onSiteFee.toFixed(2)}</td>
+          </tr>
+          `
+              : ""
+          }
+          ${
+            ticket.priority === 'rush'
+              ? `
+          <tr>
+            <td>Rush Service Fee</td>
+            <td style="text-align: right;">$${rushFee.toFixed(2)}</td>
+          </tr>
+          `
+              : ""
+          }
+          ${
+            ticket.returnShippingCost
+              ? `
+          <tr>
+            <td>Return Shipping (${ticket.returnShippingCarrier || "Standard"})</td>
             <td style="text-align: right;">$${shippingTotal.toFixed(2)}</td>
           </tr>
-          ` : ''}
+          `
+              : ""
+          }
         </tbody>
       </table>
 
@@ -261,14 +305,18 @@ export const printRepairInvoice = (ticket, client) => {
         </div>
         <div class="total-row">
           <div class="total-label">Sales Tax (7.5%)</div>
-          <div class="total-value">$${tax.toFixed(2)}</div>
+          <div class="total-value">${ticket.isTaxExempt ? 'EXEMPT' : '$' + tax.toFixed(2)}</div>
         </div>
-        ${ticket.diagnosticFeeCollected ? `
+        ${
+          ticket.diagnosticFeeCollected
+            ? `
         <div class="total-row" style="color: #166534;">
           <div class="total-label">Less Prepaid Fee</div>
           <div class="total-value">-$${diagnosticFee.toFixed(2)}</div>
         </div>
-        ` : ''}
+        `
+            : ""
+        }
         <div class="total-row grand-total">
           <div class="total-label" style="color: #000;">Total Due</div>
           <div class="total-value">$${amountDue.toFixed(2)}</div>
@@ -279,7 +327,7 @@ export const printRepairInvoice = (ticket, client) => {
 
       <div class="footer">
         <p>All repairs guaranteed for 90 days. Warranty covers labor and replaced parts only.</p>
-        <p>Sound Technology Inc • 813-985-1120 • www.audiofixmanager.com</p>
+        <p>Sound Technology Inc • (813) 985-1120 • www.soundtechnologyinc.com</p>
       </div>
       <script>
         window.onload = function() { window.print(); }

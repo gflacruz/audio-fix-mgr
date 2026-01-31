@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getClients, createClient, createRepair } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { Save } from 'lucide-react';
 
 const Intake = () => {
   const navigate = useNavigate();
+  const phoneInputRef = useRef(null);
+
+  useEffect(() => {
+    if (phoneInputRef.current) {
+      phoneInputRef.current.focus();
+    }
+  }, []);
+
   const [formData, setFormData] = useState({
     clientName: '',
     companyName: '',
@@ -22,6 +30,7 @@ const Intake = () => {
     accessoriesIncluded: '',
     issue: '',
     priority: 'normal',
+    isOnSite: false,
     isShippedIn: false,
     shippingCarrier: '',
     boxHeight: '',
@@ -91,8 +100,8 @@ const Intake = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Skip fee modal for Shipped In units (assume false/billed later)
-    if (formData.isShippedIn) {
+    // Skip fee modal for Shipped In units (assume false/billed later) or On Site
+    if (formData.isShippedIn || formData.isOnSite) {
       await createTicket(false);
       return;
     }
@@ -148,6 +157,7 @@ const Intake = () => {
         priority: formData.priority,
         technician: 'Unassigned',
         diagnosticFeeCollected: feeCollected,
+        isOnSite: formData.isOnSite,
         isShippedIn: formData.isShippedIn,
         shippingCarrier: formData.isShippedIn ? formData.shippingCarrier : null,
         boxHeight: formData.isShippedIn ? formData.boxHeight : null,
@@ -177,7 +187,7 @@ const Intake = () => {
               <label className="block text-sm font-medium text-zinc-400 mb-1">
                 Phone Number (Auto-lookup) <span className="text-red-500">*</span>
               </label>
-              <input required name="phone" value={formData.phone} onChange={handleChange} placeholder="Enter phone to find client..."
+              <input required ref={phoneInputRef} name="phone" value={formData.phone} onChange={handleChange} placeholder="Enter phone to find client..."
                 className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
             </div>
             <div className="col-span-2">
@@ -236,16 +246,28 @@ const Intake = () => {
         <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-amber-500">Unit Details</h3>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                name="isShippedIn"
-                checked={formData.isShippedIn}
-                onChange={handleChange}
-                className="w-5 h-5 rounded border-zinc-700 bg-zinc-800 text-amber-600 focus:ring-amber-500"
-              />
-              <span className="text-zinc-300 font-medium">Shipment</span>
-            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="isOnSite"
+                  checked={formData.isOnSite}
+                  onChange={handleChange}
+                  className="w-5 h-5 rounded border-zinc-700 bg-zinc-800 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="text-zinc-300 font-medium">On Site</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="isShippedIn"
+                  checked={formData.isShippedIn}
+                  onChange={handleChange}
+                  className="w-5 h-5 rounded border-zinc-700 bg-zinc-800 text-amber-600 focus:ring-amber-500"
+                />
+                <span className="text-zinc-300 font-medium">Shipment</span>
+              </label>
+            </div>
           </div>
           
           <div className="grid grid-cols-2 gap-4">

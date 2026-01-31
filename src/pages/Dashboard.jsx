@@ -27,8 +27,10 @@ const Dashboard = () => {
   useEffect(() => {
     getRepairs().then(repairs => {
       // Calculate Stats
+      const activeRepairs = repairs.filter(r => r.status !== 'closed');
+      
       setStats({
-        total: repairs.length,
+        total: activeRepairs.length,
         inProgress: repairs.filter(r => ['diagnosing', 'repairing'].includes(r.status)).length,
         waiting: repairs.filter(r => ['queued', 'parts', 'estimate'].includes(r.status)).length,
         ready: repairs.filter(r => r.status === 'ready').length

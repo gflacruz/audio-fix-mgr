@@ -43,7 +43,9 @@ const Technicians = () => {
 
   const loadData = async () => {
     try {
-      const allRepairs = await getRepairs();
+      const rawRepairs = await getRepairs();
+      // Filter out closed repairs
+      const allRepairs = rawRepairs.filter(r => r.status !== 'closed');
       
       // Calculate counts
       const newCounts = {};

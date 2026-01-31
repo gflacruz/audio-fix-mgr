@@ -188,6 +188,15 @@ export const removeRepairPart = async (repairId, linkId) => {
   });
 };
 
+export const addCustomRepairPart = async (repairId, { name, price, quantity = 1 }) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/repairs/${repairId}/parts`, {
+    method: 'POST',
+    body: JSON.stringify({ name, price, quantity }),
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
 // Legacy Fallback (To fail loud if used)
 export const getDB = async () => {
   console.error("Deprecated: getDB() called. Please use granular API functions.");
