@@ -17,20 +17,24 @@ export const printDiagnosticReceipt = (ticket, client) => {
     <head>
       <title>Receipt #${ticket.claimNumber || ticket.id}</title>
       <style>
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; color: #333; }
-        .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
+        @media print { 
+          @page { margin: 0.5cm; } 
+          body { -webkit-print-color-adjust: exact; }
+        }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #333; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
         .shop-name { font-size: 24px; font-weight: bold; color: #000; margin-bottom: 5px; }
         .doc-title { font-size: 18px; text-transform: uppercase; letter-spacing: 2px; color: #666; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-        .label { font-size: 12px; text-transform: uppercase; color: #888; margin-bottom: 4px; }
-        .value { font-size: 16px; font-weight: 500; }
-        .table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-        .table th { text-align: left; padding: 12px; border-bottom: 2px solid #000; font-size: 14px; text-transform: uppercase; }
-        .table td { padding: 12px; border-bottom: 1px solid #eee; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .label { font-size: 11px; text-transform: uppercase; color: #888; margin-bottom: 2px; }
+        .value { font-size: 14px; font-weight: 500; }
+        .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .table th { text-align: left; padding: 8px; border-bottom: 2px solid #000; font-size: 12px; text-transform: uppercase; }
+        .table td { padding: 8px; border-bottom: 1px solid #eee; font-size: 14px; }
         .total-section { text-align: right; }
         .total-row { display: inline-block; min-width: 200px; }
-        .grand-total { font-size: 20px; font-weight: bold; border-top: 2px solid #000; padding-top: 10px; margin-top: 10px; }
-        .footer { margin-top: 60px; text-align: center; font-size: 12px; color: #888; }
+        .grand-total { font-size: 18px; font-weight: bold; border-top: 2px solid #000; padding-top: 10px; margin-top: 10px; }
+        .footer { margin-top: 30px; text-align: center; font-size: 11px; color: #888; }
         .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; text-transform: uppercase; }
         .paid { background: #dcfce7; color: #166534; }
         .unpaid { background: #fee2e2; color: #991b1b; }
@@ -167,27 +171,31 @@ export const printRepairInvoice = (ticket, client) => {
     <head>
       <title>Invoice #${ticket.claimNumber || ticket.id}</title>
       <style>
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; color: #333; }
-        .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
-        .shop-name { font-size: 24px; font-weight: bold; color: #000; margin-bottom: 5px; }
-        .doc-title { font-size: 18px; text-transform: uppercase; letter-spacing: 2px; color: #666; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-        .label { font-size: 12px; text-transform: uppercase; color: #888; margin-bottom: 4px; }
-        .value { font-size: 16px; font-weight: 500; }
-        .section-title { font-size: 14px; font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 15px; text-transform: uppercase; }
-        .table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-        .table th { text-align: left; padding: 12px; border-bottom: 2px solid #000; font-size: 14px; text-transform: uppercase; }
-        .table td { padding: 12px; border-bottom: 1px solid #eee; }
+        @media print { 
+          @page { margin: 0.5cm; } 
+          body { -webkit-print-color-adjust: exact; }
+        }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 25px; max-width: 800px; margin: 0 auto; color: #333; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .shop-name { font-size: 22px; font-weight: bold; color: #000; margin-bottom: 5px; }
+        .doc-title { font-size: 16px; text-transform: uppercase; letter-spacing: 2px; color: #666; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .label { font-size: 11px; text-transform: uppercase; color: #888; margin-bottom: 2px; }
+        .value { font-size: 14px; font-weight: 500; }
+        .section-title { font-size: 13px; font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin-bottom: 10px; text-transform: uppercase; }
+        .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .table th { text-align: left; padding: 8px; border-bottom: 2px solid #000; font-size: 12px; text-transform: uppercase; }
+        .table td { padding: 8px; border-bottom: 1px solid #eee; font-size: 13px; }
         .line-input { border-bottom: 1px solid #ccc; display: inline-block; width: 100px; }
-        .total-section { text-align: right; margin-top: 40px; }
-        .total-row { display: flex; justify-content: flex-end; margin-bottom: 10px; font-size: 14px; }
+        .total-section { text-align: right; margin-top: 20px; }
+        .total-row { display: flex; justify-content: flex-end; margin-bottom: 5px; font-size: 13px; }
         .total-label { width: 150px; text-align: right; padding-right: 20px; color: #666; }
         .total-value { width: 120px; text-align: right; font-weight: 500; }
-        .grand-total { font-size: 18px; font-weight: bold; border-top: 2px solid #000; padding-top: 15px; margin-top: 15px; }
-        .notes-box { background: #f9f9f9; padding: 15px; border-radius: 4px; font-size: 14px; line-height: 1.5; margin-bottom: 30px; }
-        .footer { margin-top: 60px; border-top: 1px solid #eee; padding-top: 20px; font-size: 12px; color: #888; }
-        .signature-line { margin-top: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
-        .sig-box { border-top: 1px solid #333; padding-top: 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .grand-total { font-size: 16px; font-weight: bold; border-top: 2px solid #000; padding-top: 10px; margin-top: 10px; }
+        .notes-box { background: #f9f9f9; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.4; margin-bottom: 20px; }
+        .footer { margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px; font-size: 11px; color: #888; }
+        .signature-line { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
+        .sig-box { border-top: 1px solid #333; padding-top: 5px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
       </style>
     </head>
     <body>
