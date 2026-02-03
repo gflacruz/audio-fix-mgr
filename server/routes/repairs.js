@@ -46,7 +46,7 @@ router.get("/", async (req, res) => {
         r.brand ILIKE $${paramIndex} OR 
         r.model ILIKE $${paramIndex} OR 
         r.serial ILIKE $${paramIndex} OR 
-        CAST(r.claim_number AS TEXT) ILIKE $${paramIndex} OR
+        r.claim_number ILIKE $${paramIndex} OR
         c.name ILIKE $${paramIndex}
       )`);
       params.push(searchPattern);
@@ -408,10 +408,32 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
+    // Generate Claim Number (YY-NNNN)
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const searchPattern = `${year}-%`;
+
+    const lastClaimResult = await db.query(
+      `SELECT claim_number FROM repairs WHERE claim_number LIKE $1 ORDER BY id DESC LIMIT 1`,
+      [searchPattern]
+    );
+
+    let nextSequence = 1;
+    if (lastClaimResult.rows.length > 0) {
+      const lastClaim = lastClaimResult.rows[0].claim_number;
+      // Ensure we are parsing a format we expect (YY-NNNN)
+      const parts = lastClaim.split('-');
+      if (parts.length === 2 && !isNaN(parts[1])) {
+        nextSequence = parseInt(parts[1], 10) + 1;
+      }
+    }
+
+    const newClaimNumber = `${year}-${nextSequence.toString().padStart(4, '0')}`;
+
     const result = await db.query(
       `INSERT INTO repairs 
-       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, is_shipped_in, shipping_carrier, box_height, box_length, box_width, model_version, accessories_included, is_on_site) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) 
+       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, is_shipped_in, shipping_carrier, box_height, box_length, box_width, model_version, accessories_included, is_on_site, claim_number) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) 
        RETURNING *`,
       [
         clientId,
@@ -431,6 +453,7 @@ router.post("/", async (req, res) => {
         modelVersion || null,
         accessoriesIncluded || null,
         isOnSite || false,
+        newClaimNumber
       ],
     );
 

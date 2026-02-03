@@ -1,0 +1,243 @@
+ %% PLEASE DO NOT MODIFY OR DELETE THIS FILE! %% 
+ %% This file contains information about the installation of an application. %% 
+ %% It will be used to automatically remove all application components from your computer if you choose to do so. %% 
+
+
+NOTE: Beginning of the bootstrapper section
+
+*** ERROR: Unable to create a directory named 'C:'
+*** DURING THIS ACTION: CreateDir: "C:"
+
+CONFIG: Title: "Quick Service Shop V6.1.5"
+
+*** ERROR: Unable to create a directory named 'C:'
+*** DURING THIS ACTION: CreateDir: "C:"
+
+*** ERROR: Unable to create a directory named 'C:'
+*** DURING THIS ACTION: CreateDir: "C:"
+
+ACTION: RegKey: "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion", "SharedDLLs"
+
+ACTION: SystemFile: "C:\Windows\System32\VB6STKIT.DLL"
+(File was not found or was an older version -- new file copied)
+
+ACTION: SystemFile: "C:\WINDOWS\SYSTEM32\COMCAT.DLL"
+(File currently on disk was already up to date)
+
+ACTION: SystemFile: "C:\WINDOWS\SYSTEM32\STDOLE2.TLB"
+(File currently on disk was already up to date)
+
+ACTION: SystemFile: "C:\WINDOWS\SYSTEM32\ASYCFILT.DLL"
+(File currently on disk was already up to date)
+
+ACTION: SystemFile: "C:\WINDOWS\SYSTEM32\OLEPRO32.DLL"
+(File currently on disk was already up to date)
+
+ACTION: SystemFile: "C:\WINDOWS\SYSTEM32\OLEAUT32.DLL"
+(File currently on disk was already up to date)
+
+ACTION: SystemFile: "C:\WINDOWS\SYSTEM32\msvbvm60.dll"
+(File currently on disk was already up to date)
+
+ACTION: DllSelfRegister: "C:\WINDOWS\SYSTEM32\COMCAT.DLL"
+
+ACTION: TLBRegister: "C:\WINDOWS\SYSTEM32\STDOLE2.TLB"
+
+ACTION: DllSelfRegister: "C:\WINDOWS\SYSTEM32\OLEPRO32.DLL"
+
+ACTION: DllSelfRegister: "C:\WINDOWS\SYSTEM32\OLEAUT32.DLL"
+
+ACTION: DllSelfRegister: "C:\WINDOWS\SYSTEM32\msvbvm60.dll"
+
+NOTE: End of the bootstrapper section
+
+NOTE: Now spawning the main Setup program 'Setup1.exe'....
+
+ACTION: CreateDir: "d:\QSS"
+
+ACTION: CreateDir: "C:\Users\SoundTech\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Service Pro Update"
+
+ACTION: PrivateFile: "D:\QSS\TP.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\sz.dat"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\SY.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\sw.dat"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\ST.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\SR.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\SP.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\SN.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\SM.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\SH.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\SG.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\SF.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\serv.zip"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\serv"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\TECHNICN.GIF"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\REF.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\readme.doc"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\QSSFILES.txt"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\qss.doc"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\qmaf.dat"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\QE.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\PK.EXE"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\SE.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\network.txt"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\man.ism"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\man.isl"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\man.isf"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\man.isd"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\install.bat"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\HELP.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\FAXDIR.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\Export.exe"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\exd.dat"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\CONVERT.EXE"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\CN.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\CD.DAT"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\serv.exe"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\sales.exe"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\reports.exe"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\po.exe"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\PKZIP.EXE"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\PKUNZIP.EXE"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\phone.exe"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\password.exe"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\parts.exe"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\manuals.exe"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\ar.exe"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\account.exe"
+(File was not found or was an older version -- new file copied)
+
+ACTION: SharedFile: "C:\Windows\System32\SMTP.ocx"
+(File was not found or was an older version -- new file copied)
+
+ACTION: SharedFile: "C:\Windows\System32\MSWINSCK.OCX"
+(File was not found or was an older version -- new file copied)
+
+ACTION: SharedFile: "C:\Windows\System32\MSFLXGRD.OCX"
+(File was not found or was an older version -- new file copied)
+
+ACTION: SharedFile: "C:\Windows\System32\COMDLG32.OCX"
+(File was not found or was an older version -- new file copied)
+
+ACTION: SharedFile: "C:\Windows\System32\TABCTL32.OCX"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\SlpApi42.dll"
+(File was not found or was an older version -- new file copied)
+
+ACTION: SharedFile: "C:\Windows\System32\vbis4032.DLL"
+(File was not found or was an older version -- new file copied)
+
+ACTION: PrivateFile: "D:\QSS\compdata.exe"
+(File was not found or was an older version -- new file copied)
+
+ACTION: DllSelfRegister: "C:\Windows\System32\SMTP.ocx"
+
+ACTION: DllSelfRegister: "C:\Windows\System32\MSWINSCK.OCX"
+
+ACTION: DllSelfRegister: "C:\Windows\System32\MSFLXGRD.OCX"
+
+ACTION: DllSelfRegister: "C:\Windows\System32\COMDLG32.OCX"
+
+ACTION: DllSelfRegister: "C:\Windows\System32\TABCTL32.OCX"
+
+ACTION: ShellLink: "Service Pro Update", "Service Pro Update"
+
+ACTION: RegKey: "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion", "App Paths\serv.exe"
+
+ACTION: RegValue: "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\serv.exe", ""
+
