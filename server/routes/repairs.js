@@ -1,23 +1,24 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const db = require('../db');
-const cloudinary = require('cloudinary').v2;
-const multer = require('multer');
+const db = require("../db");
+const cloudinary = require("cloudinary").v2;
+const multer = require("multer");
+const nodemailer = require("nodemailer");
+const { verifyToken } = require("../middleware/auth");
 
 // Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 // Configure Multer (Memory Storage)
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-
 // GET /api/repairs - List all repairs
-router.get('/', async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const { clientId, search, includeClosed } = req.query;
     let query = `
@@ -49,24 +50,24 @@ router.get('/', async (req, res) => {
     }
 
     // Filter closed units if includeClosed is explicitly false
-    if (includeClosed === 'false') {
-        whereClauses.push(`r.status != 'closed'`);
+    if (includeClosed === "false") {
+      whereClauses.push(`r.status != 'closed'`);
     }
 
     if (whereClauses.length > 0) {
-      query += ` WHERE ${whereClauses.join(' AND ')}`;
+      query += ` WHERE ${whereClauses.join(" AND ")}`;
     }
 
-    query += ' ORDER BY r.created_at DESC';
+    query += " ORDER BY r.created_at DESC";
 
     const result = await db.query(query, params);
-    
+
     // Map snake_case DB fields to camelCase for frontend compatibility if needed
     // But for now, let's stick to what the DB returns and we'll adjust the frontend adapter later.
     // Actually, to make Phase 3 easier, let's map keys here or use "AS" in SQL.
     // Current frontend expects camelCase (e.g. clientName, claimNumber).
-    
-    const formatted = result.rows.map(row => ({
+
+    const formatted = result.rows.map((row) => ({
       id: row.id,
       claimNumber: row.claim_number,
       clientId: row.client_id,
@@ -92,18 +93,18 @@ router.get('/', async (req, res) => {
       boxLength: row.box_length,
       boxWidth: row.box_width,
       modelVersion: row.model_version,
-      accessoriesIncluded: row.accessories_included
+      accessoriesIncluded: row.accessories_included,
     }));
 
     res.json(formatted);
   } catch (error) {
-    console.error('Error fetching repairs:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error fetching repairs:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // GET /api/repairs/payroll - List unpaid closed repairs
-router.get('/payroll', async (req, res) => {
+router.get("/payroll", async (req, res) => {
   try {
     const query = `
       SELECT 
@@ -116,15 +117,15 @@ router.get('/payroll', async (req, res) => {
       GROUP BY r.id
       ORDER BY r.technician, r.created_at DESC
     `;
-    
+
     const result = await db.query(query);
-    
-    const formatted = result.rows.map(row => {
+
+    const formatted = result.rows.map((row) => {
       const labor = parseFloat(row.labor_cost) || 0;
       const parts = parseFloat(row.parts_cost) || 0;
-      const diagFee = row.diagnostic_fee_collected ? 89.00 : 0;
+      const diagFee = row.diagnostic_fee_collected ? 89.0 : 0;
       const total = labor + parts + diagFee;
-      
+
       return {
         id: row.id,
         claimNumber: row.claim_number,
@@ -136,22 +137,22 @@ router.get('/payroll', async (req, res) => {
         diagnosticFee: diagFee,
         totalCost: total,
         commission: total * 0.5,
-        date: row.created_at
+        date: row.created_at,
       };
     });
 
     res.json(formatted);
   } catch (error) {
-    console.error('Error fetching payroll:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error fetching payroll:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // GET /api/repairs/payroll-history - List paid out repairs with filters
-router.get('/payroll-history', async (req, res) => {
+router.get("/payroll-history", async (req, res) => {
   try {
     const { technician, startDate, endDate } = req.query;
-    
+
     // We prefer paid_to if available (for historical accuracy), otherwise fallback to technician
     let query = `
       SELECT 
@@ -163,11 +164,11 @@ router.get('/payroll-history', async (req, res) => {
       LEFT JOIN repair_parts rp ON r.id = rp.repair_id
       WHERE r.paid_out = TRUE
     `;
-    
+
     const params = [];
     let paramIndex = 1;
 
-    if (technician && technician !== 'all') {
+    if (technician && technician !== "all") {
       // Check against paid_to if set, otherwise technician
       query += ` AND COALESCE(r.paid_to, r.technician) = $${paramIndex}`;
       params.push(technician);
@@ -189,13 +190,13 @@ router.get('/payroll-history', async (req, res) => {
     query += ` GROUP BY r.id ORDER BY r.paid_out_date DESC`;
 
     const result = await db.query(query, params);
-    
-    const formatted = result.rows.map(row => {
+
+    const formatted = result.rows.map((row) => {
       const labor = parseFloat(row.labor_cost) || 0;
       const parts = parseFloat(row.parts_cost) || 0;
-      const diagFee = row.diagnostic_fee_collected ? 89.00 : 0;
+      const diagFee = row.diagnostic_fee_collected ? 89.0 : 0;
       const total = labor + parts + diagFee;
-      
+
       return {
         id: row.id,
         claimNumber: row.claim_number,
@@ -208,23 +209,23 @@ router.get('/payroll-history', async (req, res) => {
         totalCost: total,
         commission: total * 0.5,
         date: row.created_at,
-        paidOutDate: row.paid_out_date
+        paidOutDate: row.paid_out_date,
       };
     });
 
     res.json(formatted);
   } catch (error) {
-    console.error('Error fetching payroll history:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error fetching payroll history:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // POST /api/repairs/payout - Mark repairs as paid
-router.post('/payout', async (req, res) => {
+router.post("/payout", async (req, res) => {
   try {
     const { repairIds } = req.body;
     if (!repairIds || !Array.isArray(repairIds) || repairIds.length === 0) {
-      return res.status(400).json({ error: 'No repair IDs provided' });
+      return res.status(400).json({ error: "No repair IDs provided" });
     }
 
     // Set paid_out, paid_out_date, and copy technician to paid_to
@@ -235,17 +236,17 @@ router.post('/payout', async (req, res) => {
           paid_to = technician
       WHERE id = ANY($1)
     `;
-    
+
     await db.query(query, [repairIds]);
-    res.json({ message: 'Repairs marked as paid' });
+    res.json({ message: "Repairs marked as paid" });
   } catch (error) {
-    console.error('Error processing payout:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error processing payout:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // GET /api/repairs/:id - Get single repair with details and notes
-router.get('/:id', async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -258,32 +259,32 @@ router.get('/:id', async (req, res) => {
       JOIN clients c ON r.client_id = c.id 
       WHERE r.id = $1
     `;
-    
+
     const repairResult = await db.query(repairQuery, [id]);
-    
+
     if (repairResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Repair not found' });
+      return res.status(404).json({ error: "Repair not found" });
     }
 
     const row = repairResult.rows[0];
 
     // Fetch Client Phones
     const phonesResult = await db.query(
-      'SELECT * FROM client_phones WHERE client_id = $1 ORDER BY is_primary DESC',
-      [row.client_id]
+      "SELECT * FROM client_phones WHERE client_id = $1 ORDER BY is_primary DESC",
+      [row.client_id],
     );
 
-    const clientPhones = phonesResult.rows.map(p => ({
-        number: p.phone_number,
-        type: p.type,
-        extension: p.extension,
-        isPrimary: p.is_primary
+    const clientPhones = phonesResult.rows.map((p) => ({
+      number: p.phone_number,
+      type: p.type,
+      extension: p.extension,
+      isPrimary: p.is_primary,
     }));
 
     // Fetch Notes
     const notesResult = await db.query(
-      'SELECT * FROM repair_notes WHERE repair_id = $1 ORDER BY created_at ASC',
-      [id]
+      "SELECT * FROM repair_notes WHERE repair_id = $1 ORDER BY created_at ASC",
+      [id],
     );
 
     // Fetch Parts
@@ -293,13 +294,13 @@ router.get('/:id', async (req, res) => {
        LEFT JOIN parts p ON rp.part_id = p.id
        WHERE rp.repair_id = $1
        ORDER BY rp.created_at ASC`,
-      [id]
+      [id],
     );
 
     // Fetch Photos
     const photosResult = await db.query(
-      'SELECT * FROM repair_photos WHERE repair_id = $1 ORDER BY created_at DESC',
-      [id]
+      "SELECT * FROM repair_photos WHERE repair_id = $1 ORDER BY created_at DESC",
+      [id],
     );
 
     // Format Response
@@ -320,7 +321,7 @@ router.get('/:id', async (req, res) => {
         address: row.client_address,
         city: row.client_city,
         state: row.client_state,
-        zip: row.client_zip
+        zip: row.client_zip,
       },
       brand: row.brand,
       model: row.model,
@@ -347,48 +348,60 @@ router.get('/:id', async (req, res) => {
       laborCost: parseFloat(row.labor_cost) || 0,
       returnShippingCost: parseFloat(row.return_shipping_cost) || 0,
       returnShippingCarrier: row.return_shipping_carrier,
-      notes: notesResult.rows.map(n => ({
+      notes: notesResult.rows.map((n) => ({
         id: n.id,
         text: n.text,
         author: n.author,
-        date: n.created_at
+        date: n.created_at,
       })),
-      parts: partsResult.rows.map(p => ({
+      parts: partsResult.rows.map((p) => ({
         id: p.id, // repair_part link id
         partId: p.part_id,
         name: p.name || p.inventory_name,
         quantity: p.quantity,
         price: parseFloat(p.unit_price),
-        total: parseFloat(p.unit_price) * p.quantity
+        total: parseFloat(p.unit_price) * p.quantity,
       })),
-      photos: photosResult.rows.map(ph => ({
+      photos: photosResult.rows.map((ph) => ({
         id: ph.id,
         url: ph.url,
         publicId: ph.public_id,
-        date: ph.created_at
-      }))
+        date: ph.created_at,
+      })),
     };
 
     res.json(ticket);
-
   } catch (error) {
-    console.error('Error fetching repair detail:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error fetching repair detail:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // POST /api/repairs - Create new repair ticket
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
-    const { 
-      clientId, brand, model, serial, unitType, issue, priority, 
-      technician, diagnosticFeeCollected, isOnSite,
-      isShippedIn, shippingCarrier, boxHeight, boxLength, boxWidth,
-      modelVersion, accessoriesIncluded
+    const {
+      clientId,
+      brand,
+      model,
+      serial,
+      unitType,
+      issue,
+      priority,
+      technician,
+      diagnosticFeeCollected,
+      isOnSite,
+      isShippedIn,
+      shippingCarrier,
+      boxHeight,
+      boxLength,
+      boxWidth,
+      modelVersion,
+      accessoriesIncluded,
     } = req.body;
 
     if (!clientId || !brand || !model || !issue) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
     const result = await db.query(
@@ -397,9 +410,14 @@ router.post('/', async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) 
        RETURNING *`,
       [
-        clientId, brand, model, serial, unitType, issue, 
-        priority || 'normal', 
-        technician || 'Unassigned', 
+        clientId,
+        brand,
+        model,
+        serial,
+        unitType,
+        issue,
+        priority || "normal",
+        technician || "Unassigned",
         diagnosticFeeCollected || false,
         isShippedIn || false,
         shippingCarrier || null,
@@ -408,12 +426,12 @@ router.post('/', async (req, res) => {
         boxWidth || null,
         modelVersion || null,
         accessoriesIncluded || null,
-        isOnSite || false
-      ]
+        isOnSite || false,
+      ],
     );
 
     const row = result.rows[0];
-    
+
     // Return frontend-friendly format
     res.status(201).json({
       id: row.id,
@@ -422,35 +440,58 @@ router.post('/', async (req, res) => {
       // ... include other fields if immediate feedback is needed
     });
   } catch (error) {
-    console.error('Error creating repair:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error creating repair:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // PATCH /api/repairs/:id - Update repair details
-router.patch('/:id', async (req, res) => {
+router.patch("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-    
+
     // Whitelist allowed fields to prevent arbitrary updates
-    const allowedFields = ['status', 'technician', 'priority', 'diagnosticFeeCollected', 'isOnSite', 'issue', 'modelVersion', 'accessoriesIncluded', 'isShippedIn', 'shippingCarrier', 'boxHeight', 'boxLength', 'boxWidth', 'workPerformed', 'laborCost', 'returnShippingCost', 'returnShippingCarrier', 'isTaxExempt'];
-    
+    const allowedFields = [
+      "status",
+      "technician",
+      "priority",
+      "diagnosticFeeCollected",
+      "isOnSite",
+      "issue",
+      "modelVersion",
+      "accessoriesIncluded",
+      "isShippedIn",
+      "shippingCarrier",
+      "boxHeight",
+      "boxLength",
+      "boxWidth",
+      "workPerformed",
+      "laborCost",
+      "returnShippingCost",
+      "returnShippingCarrier",
+      "isTaxExempt",
+    ];
+
     // Auto-update dates based on status changes
-    if (updates.status === 'ready') {
-       updates.completedDate = new Date().toISOString();
-       allowedFields.push('completedDate');
-    } else if (updates.status === 'closed') {
-       updates.closedDate = new Date().toISOString();
-       allowedFields.push('closedDate');
-    } else if (updates.status && updates.status !== 'ready' && updates.status !== 'closed') {
-        // Only clear them if explicitly desired? 
-        // Usually moving back from Closed -> Ready might keep closed date? 
-        // Let's assume moving backwards clears the future dates.
-        if (updates.status === 'repairing' || updates.status === 'diagnosing') {
-            // We could clear them, but standard SQL updates would need NULL.
-            // For now, let's just track the timestamp when it *becomes* that status.
-        }
+    if (updates.status === "ready") {
+      updates.completedDate = new Date().toISOString();
+      allowedFields.push("completedDate");
+    } else if (updates.status === "closed") {
+      updates.closedDate = new Date().toISOString();
+      allowedFields.push("closedDate");
+    } else if (
+      updates.status &&
+      updates.status !== "ready" &&
+      updates.status !== "closed"
+    ) {
+      // Only clear them if explicitly desired?
+      // Usually moving back from Closed -> Ready might keep closed date?
+      // Let's assume moving backwards clears the future dates.
+      if (updates.status === "repairing" || updates.status === "diagnosing") {
+        // We could clear them, but standard SQL updates would need NULL.
+        // For now, let's just track the timestamp when it *becomes* that status.
+      }
     }
 
     const fieldsToUpdate = [];
@@ -460,7 +501,10 @@ router.patch('/:id', async (req, res) => {
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key)) {
         // Map camelCase to snake_case
-        const dbField = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+        const dbField = key.replace(
+          /[A-Z]/g,
+          (letter) => `_${letter.toLowerCase()}`,
+        );
         fieldsToUpdate.push(`${dbField} = $${paramIndex}`);
         values.push(value);
         paramIndex++;
@@ -468,40 +512,40 @@ router.patch('/:id', async (req, res) => {
     }
 
     if (fieldsToUpdate.length === 0) {
-      return res.status(400).json({ error: 'No valid fields to update' });
+      return res.status(400).json({ error: "No valid fields to update" });
     }
 
     values.push(id);
-    const query = `UPDATE repairs SET ${fieldsToUpdate.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+    const query = `UPDATE repairs SET ${fieldsToUpdate.join(", ")} WHERE id = $${paramIndex} RETURNING *`;
 
     const result = await db.query(query, values);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Repair not found' });
+      return res.status(404).json({ error: "Repair not found" });
     }
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error updating repair:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error updating repair:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // POST /api/repairs/:id/notes - Add a note
-router.post('/:id/notes', async (req, res) => {
+router.post("/:id/notes", async (req, res) => {
   try {
     const { id } = req.params;
     const { text, author } = req.body;
 
     if (!text) {
-      return res.status(400).json({ error: 'Note text is required' });
+      return res.status(400).json({ error: "Note text is required" });
     }
 
     const result = await db.query(
       `INSERT INTO repair_notes (repair_id, text, author) 
        VALUES ($1, $2, $3) 
        RETURNING *`,
-      [id, text, author || 'System']
+      [id, text, author || "System"],
     );
 
     const note = result.rows[0];
@@ -509,53 +553,65 @@ router.post('/:id/notes', async (req, res) => {
       id: note.id,
       text: note.text,
       author: note.author,
-      date: note.created_at
+      date: note.created_at,
     });
   } catch (error) {
-    console.error('Error adding note:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error adding note:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // POST /api/repairs/:id/parts - Add part to repair
-router.post('/:id/parts', async (req, res) => {
+router.post("/:id/parts", async (req, res) => {
   const client = await db.pool.connect();
   try {
     const { id } = req.params;
     const { partId, quantity, name, price } = req.body;
     const qty = quantity || 1;
 
-    await client.query('BEGIN');
+    await client.query("BEGIN");
 
     let finalPrice = 0;
-    let finalName = '';
+    let finalName = "";
     let finalPartId = null;
 
     if (partId) {
       // Check part existence and stock
-      const partRes = await client.query('SELECT name, retail_price, quantity_in_stock FROM parts WHERE id = $1', [partId]);
+      const partRes = await client.query(
+        "SELECT name, retail_price, quantity_in_stock FROM parts WHERE id = $1",
+        [partId],
+      );
       if (partRes.rows.length === 0) {
-        await client.query('ROLLBACK');
-        return res.status(404).json({ error: 'Part not found' });
+        await client.query("ROLLBACK");
+        return res.status(404).json({ error: "Part not found" });
       }
-      
+
       const part = partRes.rows[0];
       if (part.quantity_in_stock < qty) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ error: `Not enough stock. Available: ${part.quantity_in_stock}` });
+        await client.query("ROLLBACK");
+        return res
+          .status(400)
+          .json({
+            error: `Not enough stock. Available: ${part.quantity_in_stock}`,
+          });
       }
 
       // Deduct stock
-      await client.query('UPDATE parts SET quantity_in_stock = quantity_in_stock - $1 WHERE id = $2', [qty, partId]);
-      
+      await client.query(
+        "UPDATE parts SET quantity_in_stock = quantity_in_stock - $1 WHERE id = $2",
+        [qty, partId],
+      );
+
       finalPrice = part.retail_price;
       finalName = part.name;
       finalPartId = partId;
     } else {
       // Custom Part Logic
       if (!name || !price) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ error: 'Name and Price are required for custom parts.' });
+        await client.query("ROLLBACK");
+        return res
+          .status(400)
+          .json({ error: "Name and Price are required for custom parts." });
       }
       finalName = name;
       finalPrice = price;
@@ -567,71 +623,77 @@ router.post('/:id/parts', async (req, res) => {
       `INSERT INTO repair_parts (repair_id, part_id, quantity, unit_price, name)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [id, finalPartId, qty, finalPrice, finalName]
+      [id, finalPartId, qty, finalPrice, finalName],
     );
-    
-    await client.query('COMMIT');
+
+    await client.query("COMMIT");
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error adding part to repair:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    await client.query("ROLLBACK");
+    console.error("Error adding part to repair:", error);
+    res.status(500).json({ error: "Internal server error" });
   } finally {
     client.release();
   }
 });
 
 // DELETE /api/repairs/:id/parts/:linkId - Remove part from repair
-router.delete('/:id/parts/:linkId', async (req, res) => {
+router.delete("/:id/parts/:linkId", async (req, res) => {
   const client = await db.pool.connect();
   try {
     const { linkId } = req.params;
 
-    await client.query('BEGIN');
+    await client.query("BEGIN");
 
     // Get the part link to know what to restore
-    const linkRes = await client.query('SELECT part_id, quantity FROM repair_parts WHERE id = $1', [linkId]);
-    
+    const linkRes = await client.query(
+      "SELECT part_id, quantity FROM repair_parts WHERE id = $1",
+      [linkId],
+    );
+
     if (linkRes.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Repair part link not found' });
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Repair part link not found" });
     }
 
     const { part_id, quantity } = linkRes.rows[0];
 
     // Restore stock
-    await client.query('UPDATE parts SET quantity_in_stock = quantity_in_stock + $1 WHERE id = $2', [quantity, part_id]);
+    await client.query(
+      "UPDATE parts SET quantity_in_stock = quantity_in_stock + $1 WHERE id = $2",
+      [quantity, part_id],
+    );
 
     // Remove link
-    await client.query('DELETE FROM repair_parts WHERE id = $1', [linkId]);
+    await client.query("DELETE FROM repair_parts WHERE id = $1", [linkId]);
 
-    await client.query('COMMIT');
-    res.json({ message: 'Part removed and stock restored' });
+    await client.query("COMMIT");
+    res.json({ message: "Part removed and stock restored" });
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Error removing part:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    await client.query("ROLLBACK");
+    console.error("Error removing part:", error);
+    res.status(500).json({ error: "Internal server error" });
   } finally {
     client.release();
   }
 });
 
 // POST /api/repairs/:id/photos - Upload a photo
-router.post('/:id/photos', upload.single('photo'), async (req, res) => {
+router.post("/:id/photos", upload.single("photo"), async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     if (!req.file) {
-      return res.status(400).json({ error: 'No photo uploaded' });
+      return res.status(400).json({ error: "No photo uploaded" });
     }
 
     // Upload to Cloudinary using stream
     const uploadStream = cloudinary.uploader.upload_stream(
-      { folder: 'audio_fix_repairs' },
+      { folder: "audio_fix_repairs" },
       async (error, result) => {
         if (error) {
-          console.error('Cloudinary upload error:', error);
-          return res.status(500).json({ error: 'Image upload failed' });
+          console.error("Cloudinary upload error:", error);
+          return res.status(500).json({ error: "Image upload failed" });
         }
 
         try {
@@ -640,43 +702,45 @@ router.post('/:id/photos', upload.single('photo'), async (req, res) => {
             `INSERT INTO repair_photos (repair_id, url, public_id) 
              VALUES ($1, $2, $3) 
              RETURNING *`,
-            [id, result.secure_url, result.public_id]
+            [id, result.secure_url, result.public_id],
           );
-          
+
           const photo = dbResult.rows[0];
           res.status(201).json({
             id: photo.id,
             url: photo.url,
             publicId: photo.public_id,
-            date: photo.created_at
+            date: photo.created_at,
           });
         } catch (dbError) {
-          console.error('Database save error:', dbError);
-          res.status(500).json({ error: 'Database save failed' });
+          console.error("Database save error:", dbError);
+          res.status(500).json({ error: "Database save failed" });
         }
-      }
+      },
     );
 
     // Pipe the buffer to the upload stream
-    const bufferStream = require('stream').Readable.from(req.file.buffer);
+    const bufferStream = require("stream").Readable.from(req.file.buffer);
     bufferStream.pipe(uploadStream);
-
   } catch (error) {
-    console.error('Error handling photo upload:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error handling photo upload:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
 // DELETE /api/repairs/:id/photos/:photoId - Delete a photo
-router.delete('/:id/photos/:photoId', async (req, res) => {
+router.delete("/:id/photos/:photoId", async (req, res) => {
   try {
     const { photoId } = req.params;
 
     // Get public_id from DB first
-    const photoRes = await db.query('SELECT * FROM repair_photos WHERE id = $1', [photoId]);
-    
+    const photoRes = await db.query(
+      "SELECT * FROM repair_photos WHERE id = $1",
+      [photoId],
+    );
+
     if (photoRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Photo not found' });
+      return res.status(404).json({ error: "Photo not found" });
     }
 
     const photo = photoRes.rows[0];
@@ -685,14 +749,155 @@ router.delete('/:id/photos/:photoId', async (req, res) => {
     await cloudinary.uploader.destroy(photo.public_id);
 
     // Delete from DB
-    await db.query('DELETE FROM repair_photos WHERE id = $1', [photoId]);
+    await db.query("DELETE FROM repair_photos WHERE id = $1", [photoId]);
 
-    res.json({ message: 'Photo deleted' });
+    res.json({ message: "Photo deleted" });
   } catch (error) {
-    console.error('Error deleting photo:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error deleting photo:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Email Transporter Setup
+const getTransporter = () => {
+  return nodemailer.createTransport({
+    host: process.env.EMAIL_HOST,
+    port: process.env.EMAIL_PORT,
+    secure: process.env.EMAIL_SECURE === "true", // true for 465, false for other ports
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+};
+
+// Helper to calculate totals
+const calculateTotals = (repair, parts) => {
+  const partsTotal = parts.reduce(
+    (sum, p) => sum + parseFloat(p.unit_price) * p.quantity,
+    0,
+  );
+  const laborTotal = parseFloat(repair.labor_cost) || 0;
+  const shippingTotal = parseFloat(repair.return_shipping_cost) || 0;
+  const onSiteFee = repair.is_on_site ? 125.0 : 0;
+  const rushFee = repair.priority === "rush" ? 100.0 : 0;
+
+  const tax = repair.is_tax_exempt ? 0 : (partsTotal + laborTotal) * 0.075;
+  const total =
+    partsTotal + laborTotal + shippingTotal + onSiteFee + rushFee + tax;
+
+  const diagnosticFee = 89.0;
+  const amountDue = repair.diagnostic_fee_collected
+    ? Math.max(0, total - diagnosticFee)
+    : total;
+
+  return { total, amountDue };
+};
+
+// POST /api/repairs/:id/email-estimate
+router.post("/:id/email-estimate", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Fetch repair info with client email
+    const repairQuery = `
+      SELECT r.*, c.email as client_email, c.name as client_name
+      FROM repairs r 
+      JOIN clients c ON r.client_id = c.id 
+      WHERE r.id = $1
+    `;
+    const repairRes = await db.query(repairQuery, [id]);
+
+    if (repairRes.rows.length === 0)
+      return res.status(404).json({ error: "Repair not found" });
+    const repair = repairRes.rows[0];
+
+    if (!repair.client_email) {
+      return res.status(400).json({ error: "Client has no email address" });
+    }
+
+    // Fetch Parts for total calculation
+    const partsRes = await db.query(
+      "SELECT * FROM repair_parts WHERE repair_id = $1",
+      [id],
+    );
+    const { amountDue } = calculateTotals(repair, partsRes.rows);
+
+    const transporter = getTransporter();
+
+    await transporter.sendMail({
+      from: `"${process.env.EMAIL_FROM_NAME || "Sound Technology Inc"}" <${process.env.EMAIL_USER}>`,
+      to: repair.client_email,
+      subject: `Estimate for Repair #${repair.claim_number} - ${repair.brand} ${repair.model}`,
+      text: `Hello ${repair.client_name},\n\nWe have completed the diagnosis of your ${repair.brand} ${repair.model}.\n\nThe estimated total for the repair is $${amountDue.toFixed(2)}.\n\nPlease reply to this email or call us to approve this work.\n\nThank you,\nSound Technology Inc`,
+      html: `
+        <p>Hello ${repair.client_name},</p>
+        <p>We have completed the diagnosis of your <strong>${repair.brand} ${repair.model}</strong>.</p>
+        <p>The estimated total for the repair is <strong>$${amountDue.toFixed(2)}</strong>.</p>
+        <p>Please reply to this email or call us at (813) 985-1120 to approve this work.</p>
+        <br/>
+        <p>Thank you,</p>
+        <p>Sound Technology Inc</p>
+      `,
+    });
+
+    res.json({ message: "Estimate email sent" });
+  } catch (error) {
+    console.error("Error sending estimate email:", error);
+    res.status(500).json({ error: "Failed to send email: " + error.message });
+  }
+});
+
+// POST /api/repairs/:id/email-pickup
+router.post("/:id/email-pickup", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const repairQuery = `
+      SELECT r.*, c.email as client_email, c.name as client_name
+      FROM repairs r 
+      JOIN clients c ON r.client_id = c.id 
+      WHERE r.id = $1
+    `;
+    const repairRes = await db.query(repairQuery, [id]);
+
+    if (repairRes.rows.length === 0)
+      return res.status(404).json({ error: "Repair not found" });
+    const repair = repairRes.rows[0];
+
+    if (!repair.client_email) {
+      return res.status(400).json({ error: "Client has no email address" });
+    }
+
+    const partsRes = await db.query(
+      "SELECT * FROM repair_parts WHERE repair_id = $1",
+      [id],
+    );
+    const { amountDue } = calculateTotals(repair, partsRes.rows);
+
+    const transporter = getTransporter();
+
+    await transporter.sendMail({
+      from: `"${process.env.EMAIL_FROM_NAME || "Sound Technology Inc"}" <${process.env.EMAIL_USER}>`,
+      to: repair.client_email,
+      subject: `Ready for Pickup - Repair #${repair.claim_number} - ${repair.brand} ${repair.model}`,
+      text: `Hello ${repair.client_name},\n\nGood news! Your ${repair.brand} ${repair.model} is ready for pickup.\n\nThe final amount due is $${amountDue.toFixed(2)}.\n\nOur hours are 10am - 6pm Mon-Fri. Please come by at your earliest convenience.\n\nThank you,\nSound Technology Inc`,
+      html: `
+        <p>Hello ${repair.client_name},</p>
+        <p>Good news! Your <strong>${repair.brand} ${repair.model}</strong> is ready for pickup.</p>
+        <p>The final amount due is <strong>$${amountDue.toFixed(2)}</strong>.</p>
+        <p>Our hours are 10am - 6pm Mon-Fri. Please come by at your earliest convenience or call us at (813) 985-1120.</p>
+        <br/>
+        <p>Thank you,</p>
+        <p>Sound Technology Inc</p>
+      `,
+    });
+
+    res.json({ message: "Pickup email sent" });
+  } catch (error) {
+    console.error("Error sending pickup email:", error);
+    res.status(500).json({ error: "Failed to send email: " + error.message });
   }
 });
 
 module.exports = router;
-

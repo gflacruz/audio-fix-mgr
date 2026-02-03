@@ -1,9 +1,7 @@
-// src/pages/Login.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Wrench, Settings } from 'lucide-react';
-import { getDB } from '@/lib/api'; // Just to verify connection if needed
+import { Wrench, Settings, Loader2 } from 'lucide-react';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -11,9 +9,17 @@ const Login = () => {
   const [error, setError] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [serverUrl, setServerUrl] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
+
+  // Redirect if already logged in (or after successful login reload)
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     // Load saved server URL or default
@@ -27,30 +33,18 @@ const Login = () => {
 
   const handleServerUrlChange = (e) => {
     setServerUrl(e.target.value);
-    // Real-time save, or save on submit? Real-time is easier for now,
-    // but implies a page reload might be needed to apply it to api.js constant.
-    // Actually, api.js reads it on module load.
-    // We should probably reload the page if this changes and they hit "Save" or "Login".
     localStorage.setItem('server_url', e.target.value);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
-    // Ensure api.js picks up the new URL (it might need a reload if we just set it)
-    // But since api.js is already loaded, we might need to force a reload if they changed it.
-    // For now, let's assume they set it up before hitting login.
-    // To be safe, we can update the localStorage (done above) and rely on the fact 
-    // that api.js might need a reload. 
-    // Actually, let's just use the URL directly here for the login call to verify it works.
+    setIsLoading(true);
 
     let loginUrl = serverUrl.replace(/\/$/, '');
     if (!loginUrl.startsWith('http')) loginUrl = `http://${loginUrl}`;
-    // If they omitted port and it's not standard, this might fail, but let's trust user or default
     if (!loginUrl.includes(':') && !loginUrl.includes('https')) loginUrl = `${loginUrl}:3001`; 
     
-    // Construct the full API base for login
     const apiBase = `${loginUrl}/api`;
 
     try {
@@ -63,34 +57,20 @@ const Login = () => {
       const data = await response.json();
 
       if (response.ok) {
-        // If login succeeded, the URL is good. Ensure localStorage is exact.
-        // We set 'server_url' to the base URL (e.g. http://192.168.1.15:3001)
         localStorage.setItem('server_url', loginUrl);
-        
-        // Force reload if the API module has an old cached URL? 
-        // If api.js evaluates `localStorage` at top level, it won't change until reload.
-        // We should probably force a reload if the previous value was different, 
-        // OR just rely on the user refreshing if things break. 
-        // Better: Reload page if we just changed the server setting, but we are logged in now.
-        // If we just navigate, api.js still has old value in memory.
-        // Let's do a hard window.location.href assignment if we want to be safe, 
-        // OR just update the login and let them reload if needed.
-        // Actually, if we successfully logged in, we have the token.
-        // But future calls (getRepairs) use API_BASE from api.js.
-        
-        // Let's assume the user might need to refresh if they changed the IP.
-        // We will do a full page reload to root upon success to ensure api.js re-initializes.
-        
         login(data);
-        // navigate('/') is soft. window.location.href is hard.
-        // If we changed the URL, we MUST reload.
-        window.location.href = '/'; 
+        
+        // Reload to ensure api.js picks up the new URL. 
+        // The useEffect above will handle the redirect to '/' after reload.
+        window.location.reload(); 
       } else {
         setError(data.error || 'Login failed');
+        setIsLoading(false);
       }
     } catch (err) {
       console.error(err);
       setError(`Connection failed to ${apiBase}. Check Server Address.`);
+      setIsLoading(false);
     }
   };
 
@@ -101,6 +81,7 @@ const Login = () => {
           onClick={() => setShowSettings(!showSettings)}
           className="absolute top-4 right-4 text-zinc-600 hover:text-amber-500 transition-colors"
           title="Server Settings"
+          type="button"
         >
           <Settings className="w-5 h-5" />
         </button>
@@ -145,6 +126,7 @@ const Login = () => {
               className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-3 text-white focus:border-amber-500 focus:outline-none transition-colors"
               placeholder="Enter username"
               required
+              disabled={isLoading}
             />
           </div>
           <div>
@@ -156,13 +138,22 @@ const Login = () => {
               className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-3 text-white focus:border-amber-500 focus:outline-none transition-colors"
               placeholder="Enter password"
               required
+              disabled={isLoading}
             />
           </div>
           <button
             type="submit"
-            className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 rounded-lg transition-all transform active:scale-95 shadow-lg shadow-amber-900/20 mt-4"
+            disabled={isLoading}
+            className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 rounded-lg transition-all transform active:scale-95 shadow-lg shadow-amber-900/20 mt-4 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed disabled:active:scale-100"
           >
-            Sign In
+            {isLoading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Verifying...</span>
+              </>
+            ) : (
+              'Sign In'
+            )}
           </button>
         </form>
       </div>

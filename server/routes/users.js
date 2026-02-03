@@ -78,4 +78,26 @@ router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
+// PUT /api/users/:id/password - Reset User Password (Admin only)
+router.put('/:id/password', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ error: "Password is required" });
+    }
+
+    // Hash new password
+    const encryptedPassword = await bcrypt.hash(password, 10);
+
+    await db.query('UPDATE users SET password = $1 WHERE id = $2', [encryptedPassword, id]);
+    
+    res.json({ message: "Password updated successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 module.exports = router;

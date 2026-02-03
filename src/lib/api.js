@@ -261,6 +261,22 @@ export const deleteRepairPhoto = async (repairId, photoId) => {
   });
 };
 
+export const sendEstimateEmail = async (repairId) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/repairs/${repairId}/email-estimate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const sendPickupEmail = async (repairId) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/repairs/${repairId}/email-pickup`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
 // Suggestions
 export const createSuggestion = async (content) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
