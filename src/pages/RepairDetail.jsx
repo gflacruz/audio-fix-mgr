@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getRepair, updateRepair, addRepairNote, getTechnicians, getParts, addRepairPart, removeRepairPart, addCustomRepairPart, uploadRepairPhoto, deleteRepairPhoto, sendEstimateEmail, sendPickupEmail } from '@/lib/api';
 import { printDiagnosticReceipt, printRepairInvoice } from '@/lib/printer';
+import Modal from '@/components/Modal';
 import { ArrowLeft, Save, Clock, User, CheckCircle2, MessageSquare, ThumbsUp, Printer, Package, Plus, Trash2, X, FileText, DollarSign, Truck, Edit2, Camera, Image as ImageIcon, Loader2, Mail, Send } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
@@ -45,17 +46,21 @@ const RepairDetail = () => {
 
   // Email State
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailModal, setEmailModal] = useState({
+    isOpen: false,
+    type: null, // 'estimate' or 'pickup'
+    step: 'idle', // 'confirm', 'sending', 'success', 'error'
+    error: null
+  });
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [foundTicket, techList] = await Promise.all([
-          getRepair(id),
-          getTechnicians()
-        ]);
+        // Load ticket first (critical)
+        const foundTicket = await getRepair(id);
         setTicket(foundTicket);
         setClient(foundTicket.client);
-        setTechnicians(techList);
+        
         // Initialize invoice data from ticket
         setInvoiceData({
           workPerformed: foundTicket.workPerformed || '',
@@ -63,6 +68,16 @@ const RepairDetail = () => {
           returnShippingCost: foundTicket.returnShippingCost || '',
           laborCost: foundTicket.laborCost || ''
         });
+
+        // Load technicians separately (non-critical)
+        try {
+          const techList = await getTechnicians();
+          setTechnicians(techList);
+        } catch (techError) {
+          console.warn("Failed to load technicians:", techError);
+          // Don't fail the whole page if just techs fail
+        }
+
       } catch (error) {
         console.error("Failed to load repair:", error);
       }
@@ -435,33 +450,50 @@ const RepairDetail = () => {
   };
 
   const handleSendEstimateEmail = async () => {
-    if (!window.confirm('Send "Estimate Available" email to client?')) return;
-    setSendingEmail(true);
-    try {
-      await sendEstimateEmail(id);
-      addSystemNote('Email sent: Estimate Available');
-      alert('Estimate email sent successfully.');
-    } catch (error) {
-      console.error("Failed to send email:", error);
-      alert("Failed to send email: " + error.message);
-    } finally {
-      setSendingEmail(false);
-    }
+    setEmailModal({
+      isOpen: true,
+      type: 'estimate',
+      step: 'confirm',
+      error: null
+    });
   };
 
   const handleSendPickupEmail = async () => {
-    if (!window.confirm('Send "Ready for Pickup" email to client?')) return;
-    setSendingEmail(true);
+    setEmailModal({
+      isOpen: true,
+      type: 'pickup',
+      step: 'confirm',
+      error: null
+    });
+  };
+  
+  const proceedWithEmail = async () => {
+    if (!emailModal.type) return;
+    
+    setEmailModal(prev => ({ ...prev, step: 'sending', error: null }));
+    
     try {
-      await sendPickupEmail(id);
-      addSystemNote('Email sent: Ready for Pickup');
-      alert('Pickup email sent successfully.');
+      if (emailModal.type === 'estimate') {
+        await sendEstimateEmail(id);
+        addSystemNote('Email sent: Estimate Available');
+      } else if (emailModal.type === 'pickup') {
+        await sendPickupEmail(id);
+        addSystemNote('Email sent: Ready for Pickup');
+      }
+      
+      setEmailModal(prev => ({ ...prev, step: 'success' }));
     } catch (error) {
       console.error("Failed to send email:", error);
-      alert("Failed to send email: " + error.message);
-    } finally {
-      setSendingEmail(false);
+      setEmailModal(prev => ({ 
+        ...prev, 
+        step: 'error', 
+        error: error.message || 'Failed to send email'
+      }));
     }
+  };
+
+  const closeEmailModal = () => {
+    setEmailModal(prev => ({ ...prev, isOpen: false, step: 'idle' }));
   };
 
   if (loading) return <div className="p-8 text-zinc-500">Loading...</div>;
@@ -565,11 +597,10 @@ const RepairDetail = () => {
               {(ticket.status === 'ready' || ticket.status === 'closed') && (
                 <button
                   onClick={handleSendPickupEmail}
-                  disabled={sendingEmail}
                   className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
                   title="Email Ready for Pickup"
                 >
-                  {sendingEmail ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                  <Send size={18} />
                 </button>
               )}
            </div>
@@ -578,11 +609,10 @@ const RepairDetail = () => {
            <div className="flex gap-2 mt-2">
              <button
                onClick={handleSendEstimateEmail}
-               disabled={sendingEmail}
                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-500 border border-amber-600/30 text-xs font-medium rounded transition-colors disabled:opacity-50"
                title="Email Estimate"
              >
-               {sendingEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+               <Mail size={14} />
                Email Estimate
              </button>
              <button
@@ -1435,6 +1465,83 @@ const RepairDetail = () => {
           </div>
         </div>
       )}
+
+      {/* Email Confirmation Modal */}
+      <Modal
+        isOpen={emailModal.isOpen}
+        onClose={closeEmailModal}
+        title={emailModal.step === 'success' ? 'Success' : emailModal.step === 'error' ? 'Error' : 'Confirm Email'}
+        footer={
+          emailModal.step === 'confirm' ? (
+            <>
+              <button 
+                onClick={closeEmailModal}
+                className="px-4 py-2 text-zinc-400 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={proceedWithEmail}
+                className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg font-medium"
+              >
+                Send Email
+              </button>
+            </>
+          ) : emailModal.step === 'success' || emailModal.step === 'error' ? (
+            <button 
+              onClick={closeEmailModal}
+              className="bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded-lg font-medium"
+            >
+              Close
+            </button>
+          ) : null
+        }
+      >
+        {emailModal.step === 'confirm' && (
+          <div className="flex flex-col items-center p-4 text-center">
+            <div className="w-16 h-16 bg-amber-900/30 rounded-full flex items-center justify-center mb-4">
+              <Mail className="text-amber-500" size={32} />
+            </div>
+            <p className="text-lg text-zinc-200 mb-2">
+              Send "{emailModal.type === 'estimate' ? 'Estimate Available' : 'Ready for Pickup'}" email?
+            </p>
+            <p className="text-sm text-zinc-400">
+              This will notify <strong>{client?.name}</strong> at <strong>{client?.email}</strong>.
+            </p>
+          </div>
+        )}
+
+        {emailModal.step === 'sending' && (
+          <div className="flex flex-col items-center justify-center p-8 space-y-4">
+            <Loader2 size={48} className="animate-spin text-amber-500" />
+            <p className="text-zinc-300">Sending email...</p>
+          </div>
+        )}
+
+        {emailModal.step === 'success' && (
+          <div className="flex flex-col items-center p-4 text-center">
+            <div className="w-16 h-16 bg-emerald-900/30 rounded-full flex items-center justify-center mb-4">
+              <CheckCircle2 className="text-emerald-500" size={32} />
+            </div>
+            <p className="text-lg text-zinc-200 mb-2">Email Sent Successfully</p>
+            <p className="text-sm text-zinc-400">
+              The client has been notified.
+            </p>
+          </div>
+        )}
+
+        {emailModal.step === 'error' && (
+          <div className="flex flex-col items-center p-4 text-center">
+             <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mb-4">
+              <X className="text-red-500" size={32} />
+            </div>
+            <p className="text-lg text-red-400 mb-2">Failed to Send Email</p>
+            <p className="text-sm text-zinc-400 bg-zinc-950 p-3 rounded border border-zinc-800 w-full break-words">
+              {emailModal.error}
+            </p>
+          </div>
+        )}
+      </Modal>
 
     </div>
   );

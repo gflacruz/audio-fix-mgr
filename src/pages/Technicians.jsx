@@ -42,7 +42,7 @@ const Technicians = () => {
     // Check if we need to load data (Unassigned is always valid)
     if (!selectedTech && selectedTech !== '') return;
     loadData();
-  }, [selectedTech]);
+  }, [selectedTech, technicians]);
 
   const handleAssign = async (e, repairId) => {
     e.preventDefault(); // Prevent navigation

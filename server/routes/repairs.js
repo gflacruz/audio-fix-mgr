@@ -4,7 +4,11 @@ const db = require("../db");
 const cloudinary = require("cloudinary").v2;
 const multer = require("multer");
 const nodemailer = require("nodemailer");
+const dns = require("dns");
+const util = require("util");
 const { verifyToken } = require("../middleware/auth");
+
+const lookup = util.promisify(dns.lookup);
 
 // Configure Cloudinary
 cloudinary.config({
@@ -759,14 +763,20 @@ router.delete("/:id/photos/:photoId", async (req, res) => {
 });
 
 // Email Transporter Setup
-const getTransporter = () => {
+const getTransporter = async () => {
+  // Resolve Hostname Manually due to Local DNS issues
+  const { address } = await lookup(process.env.SMTP_HOST);
+  
   return nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT,
-    secure: process.env.EMAIL_SECURE === "true", // true for 465, false for other ports
+    host: address, // Use resolved IP
+    port: process.env.SMTP_PORT,
+    secure: process.env.SMTP_SECURE === "true", // true for 465, false for other ports
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    tls: {
+      servername: process.env.SMTP_HOST // Required for SSL verification
     },
   });
 };
@@ -823,10 +833,10 @@ router.post("/:id/email-estimate", verifyToken, async (req, res) => {
     );
     const { amountDue } = calculateTotals(repair, partsRes.rows);
 
-    const transporter = getTransporter();
+    const transporter = await getTransporter();
 
     await transporter.sendMail({
-      from: `"${process.env.EMAIL_FROM_NAME || "Sound Technology Inc"}" <${process.env.EMAIL_USER}>`,
+      from: `"${process.env.SMTP_FROM || "Sound Technology Inc"}" <${process.env.SMTP_USER}>`,
       to: repair.client_email,
       subject: `Estimate for Repair #${repair.claim_number} - ${repair.brand} ${repair.model}`,
       text: `Hello ${repair.client_name},\n\nWe have completed the diagnosis of your ${repair.brand} ${repair.model}.\n\nThe estimated total for the repair is $${amountDue.toFixed(2)}.\n\nPlease reply to this email or call us to approve this work.\n\nThank you,\nSound Technology Inc`,
@@ -875,10 +885,10 @@ router.post("/:id/email-pickup", verifyToken, async (req, res) => {
     );
     const { amountDue } = calculateTotals(repair, partsRes.rows);
 
-    const transporter = getTransporter();
+    const transporter = await getTransporter();
 
     await transporter.sendMail({
-      from: `"${process.env.EMAIL_FROM_NAME || "Sound Technology Inc"}" <${process.env.EMAIL_USER}>`,
+      from: `"${process.env.SMTP_FROM || "Sound Technology Inc"}" <${process.env.SMTP_USER}>`,
       to: repair.client_email,
       subject: `Ready for Pickup - Repair #${repair.claim_number} - ${repair.brand} ${repair.model}`,
       text: `Hello ${repair.client_name},\n\nGood news! Your ${repair.brand} ${repair.model} is ready for pickup.\n\nThe final amount due is $${amountDue.toFixed(2)}.\n\nOur hours are 10am - 6pm Mon-Fri. Please come by at your earliest convenience.\n\nThank you,\nSound Technology Inc`,
