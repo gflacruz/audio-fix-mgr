@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getClients, createClient, createRepair } from '@/lib/api';
+import { getClients, createClient, updateClient, createRepair } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { Save, Plus, Trash2 } from 'lucide-react';
 
@@ -17,6 +17,7 @@ const Intake = () => {
     clientName: '',
     companyName: '',
     phones: [{ number: '', type: 'Cell', extension: '' }],
+    primaryNotification: 'Phone',
     email: '',
     address: '',
     city: '',
@@ -123,6 +124,7 @@ const Intake = () => {
             clientName: client.name,
             companyName: client.companyName || '',
             email: client.email || '',
+            primaryNotification: client.primaryNotification || 'Phone',
             address: client.address || '',
             city: client.city || '',
             state: client.state || '',
@@ -168,7 +170,17 @@ const Intake = () => {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     const val = type === 'checkbox' ? checked : value;
-    setFormData(prev => ({ ...prev, [name]: val }));
+    
+    setFormData(prev => {
+      const newData = { ...prev, [name]: val };
+      
+      // If email is cleared and preference was Email, revert to Phone
+      if (name === 'email' && !val && prev.primaryNotification === 'Email') {
+        newData.primaryNotification = 'Phone';
+      }
+      
+      return newData;
+    });
     
     if (name === 'zip') {
       fetchZipInfo(value);
@@ -201,9 +213,18 @@ const Intake = () => {
 
       if (client) {
         clientId = client.id;
-        // Optionally update client phones here if they changed?
-        // For now, simpler to assume we use the existing client.
-        // If we want to UPDATE the client with new numbers during intake, we'd call updateClient.
+        // Update client with latest info from form including notification preference
+        await updateClient(client.id, {
+          name: formData.clientName,
+          companyName: formData.companyName,
+          phones: formData.phones,
+          email: formData.email,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zip: formData.zip,
+          primaryNotification: formData.primaryNotification
+        });
       } else {
         // Create new client
         const newClient = await createClient({
@@ -214,7 +235,8 @@ const Intake = () => {
           address: formData.address,
           city: formData.city,
           state: formData.state,
-          zip: formData.zip
+          zip: formData.zip,
+          primaryNotification: formData.primaryNotification
         });
         clientId = newClient.id;
         clientName = newClient.name;
@@ -333,10 +355,27 @@ const Intake = () => {
               <input required name="clientName" value={formData.clientName} onChange={handleChange}
                 className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
             </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-zinc-400 mb-1">Email Address</label>
-              <input name="email" value={formData.email} onChange={handleChange}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" />
+            <div className="col-span-2 grid grid-cols-3 gap-4">
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-zinc-400 mb-1">Email Address</label>
+                <input name="email" value={formData.email} onChange={handleChange}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-1">
+                  Primary Notification
+                </label>
+                <select 
+                  name="primaryNotification" 
+                  value={formData.primaryNotification} 
+                  onChange={handleChange}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+                >
+                  <option value="Phone">Phone</option>
+                  <option value="Text">Text</option>
+                  <option value="Email" disabled={!formData.email}>Email</option>
+                </select>
+              </div>
             </div>
             <div className="col-span-2">
               <label className="block text-sm font-medium text-zinc-400 mb-1">

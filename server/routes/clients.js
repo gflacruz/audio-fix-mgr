@@ -14,6 +14,7 @@ const formatClient = (row, phones = []) => ({
   city: row.city,
   state: row.state,
   zip: row.zip,
+  primaryNotification: row.primary_notification || 'Phone',
   dateAdded: row.created_at
 });
 
@@ -25,9 +26,11 @@ router.get('/', async (req, res) => {
     let params = [];
 
     if (search) {
-      // Search by name or ANY associated phone number
+      // Search by name, company, email, or ANY associated phone number
       queryText += ` 
         WHERE name ILIKE $1 
+        OR company_name ILIKE $1
+        OR email ILIKE $1
         OR EXISTS (
           SELECT 1 FROM client_phones 
           WHERE client_phones.client_id = clients.id 
@@ -105,7 +108,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/clients - Create new client
 router.post('/', async (req, res) => {
   try {
-    const { name, companyName, phones, email, address, city, state, zip } = req.body;
+    const { name, companyName, phones, email, address, city, state, zip, primaryNotification } = req.body;
 
     // Backward compatibility: if "phone" string is sent instead of "phones" array
     let phoneList = phones;
@@ -120,10 +123,10 @@ router.post('/', async (req, res) => {
     const primaryPhone = phoneList[0].number;
 
     const result = await db.query(
-      `INSERT INTO clients (name, company_name, phone, email, address, city, state, zip) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+      `INSERT INTO clients (name, company_name, phone, email, address, city, state, zip, primary_notification) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
        RETURNING *`,
-      [name, companyName, primaryPhone, email, address, city, state, zip]
+      [name, companyName, primaryPhone, email, address, city, state, zip, primaryNotification || 'Phone']
     );
 
     const clientId = result.rows[0].id;
@@ -165,14 +168,17 @@ router.patch('/:id', async (req, res) => {
     const updates = req.body;
     
     // Whitelist allowed fields
-    const allowedFields = ['name', 'companyName', 'email', 'address', 'city', 'state', 'zip'];
+    const allowedFields = ['name', 'companyName', 'email', 'address', 'city', 'state', 'zip', 'primaryNotification'];
     const fieldsToUpdate = [];
     const values = [];
     let paramIndex = 1;
 
     for (const [key, value] of Object.entries(updates)) {
       if (allowedFields.includes(key)) {
-        const dbField = key === 'companyName' ? 'company_name' : key;
+        let dbField = key;
+        if (key === 'companyName') dbField = 'company_name';
+        if (key === 'primaryNotification') dbField = 'primary_notification';
+        
         fieldsToUpdate.push(`${dbField} = $${paramIndex}`);
         values.push(value);
         paramIndex++;

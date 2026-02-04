@@ -89,7 +89,7 @@ const SearchPage = () => {
         <input 
           type="text"
           autoFocus
-          placeholder="Search by name, phone, serial, brand, model, or claim #..."
+          placeholder="Search by name, company, email, phone, serial, brand, model, or claim #..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-14 pr-6 py-4 text-xl text-white focus:border-amber-500 focus:outline-none shadow-xl"

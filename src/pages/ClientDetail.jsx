@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getClient, updateClient, getRepairs } from '@/lib/api';
-import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy, Plus, Trash2, Building2 } from 'lucide-react';
+import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy, Plus, Trash2, Building2, MessageSquare } from 'lucide-react';
 
 const ClientDetail = () => {
   const { id } = useParams();
@@ -78,7 +78,18 @@ const ClientDetail = () => {
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    
+    setFormData(prev => {
+      const newData = { ...prev, [name]: value };
+      
+      // Logic to revert notification preference if email is cleared
+      if (name === 'email' && !value && prev.primaryNotification === 'Email') {
+        newData.primaryNotification = 'Phone';
+      }
+      
+      return newData;
+    });
   };
 
   const copyToClipboard = (text) => {
@@ -164,7 +175,7 @@ const ClientDetail = () => {
                     </button>
                   </div>
                   <div className="space-y-2">
-                    {(formData.phones || []).map((phone, index) => (
+                        {(formData.phones || []).map((phone, index) => (
                       <div key={index} className="flex gap-2">
                         <div className="flex-1">
                            <input
@@ -205,10 +216,25 @@ const ClientDetail = () => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-xs text-zinc-500 mb-1 block">Email</label>
-                  <input name="email" value={formData.email} onChange={handleChange} 
-                    className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-white text-sm focus:border-amber-500 outline-none" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-zinc-500 mb-1 block">Email</label>
+                    <input name="email" value={formData.email || ''} onChange={handleChange} 
+                      className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-white text-sm focus:border-amber-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-zinc-500 mb-1 block">Notification Pref</label>
+                    <select 
+                      name="primaryNotification" 
+                      value={formData.primaryNotification || 'Phone'} 
+                      onChange={handleChange}
+                      className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-white text-sm focus:border-amber-500 outline-none"
+                    >
+                      <option value="Phone">Phone</option>
+                      <option value="Text">Text</option>
+                      <option value="Email" disabled={!formData.email}>Email</option>
+                    </select>
+                  </div>
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Street Address</label>
@@ -246,7 +272,7 @@ const ClientDetail = () => {
                     </div>
                   )}
 
-                  {(client.phones && client.phones.length > 0) ? (
+                        {(client.phones && client.phones.length > 0) ? (
                     client.phones.map((phone, idx) => (
                       <div key={idx} className="flex items-start gap-3 group">
                         <Phone size={18} className={`mt-0.5 ${phone.isPrimary ? 'text-amber-600' : 'text-zinc-600'}`} />
@@ -286,7 +312,9 @@ const ClientDetail = () => {
                 </div>
 
                 <div className="flex items-start gap-3 group">
-                  <Mail size={18} className="text-amber-600 mt-0.5" />
+                  <div className="text-zinc-600 mt-0.5">
+                    <Mail size={18} />
+                  </div>
                   <div className="break-all">
                     <div className="flex items-center gap-2">
                       <div className="text-zinc-200">{client.email || 'No email'}</div>
@@ -300,9 +328,24 @@ const ClientDetail = () => {
                         </button>
                       )}
                     </div>
-                    <div className="text-xs text-zinc-600">Email</div>
+                    <div className="text-xs text-zinc-600 flex items-center gap-2">
+                      Email
+                    </div>
                   </div>
                 </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="text-zinc-600 mt-0.5">
+                    <MessageSquare size={18} />
+                  </div>
+                  <div>
+                    <div className="text-zinc-200">
+                      {client.primaryNotification || 'Phone'}
+                    </div>
+                    <div className="text-xs text-zinc-600">Preferred Contact Method</div>
+                  </div>
+                </div>
+
                 <div className="flex items-start gap-3">
                   <MapPin size={18} className="text-amber-600 mt-0.5" />
                   <div>

@@ -46,8 +46,10 @@ router.get("/", async (req, res) => {
         r.brand ILIKE $${paramIndex} OR 
         r.model ILIKE $${paramIndex} OR 
         r.serial ILIKE $${paramIndex} OR 
-        r.claim_number ILIKE $${paramIndex} OR
-        c.name ILIKE $${paramIndex}
+        CAST(r.claim_number AS TEXT) ILIKE $${paramIndex} OR
+        c.name ILIKE $${paramIndex} OR
+        c.company_name ILIKE $${paramIndex} OR
+        c.email ILIKE $${paramIndex}
       )`);
       params.push(searchPattern);
       paramIndex++;

@@ -1017,6 +1017,10 @@ const RepairDetail = () => {
                 <div className="text-zinc-200 truncate" title={client?.email}>{client?.email || '-'}</div>
               </div>
               <div>
+                <label className="text-xs text-zinc-600 block">Primary Notification</label>
+                <div className="text-zinc-200">{client?.primaryNotification || 'Phone'}</div>
+              </div>
+              <div>
                 <label className="text-xs text-zinc-600 block">Address</label>
                 <div className="text-zinc-200 text-sm">
                   {client?.address && <div>{client.address}</div>}
