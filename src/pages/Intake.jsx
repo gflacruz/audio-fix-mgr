@@ -275,22 +275,22 @@ const Intake = () => {
 
   return (
     <div className="max-w-3xl">
-      <h2 className="text-2xl font-bold mb-6 text-white">New Repair Intake</h2>
+      <h2 className="text-2xl font-bold mb-6 text-zinc-900 dark:text-white">New Repair Intake</h2>
       
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Client Info Section */}
-        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
-          <h3 className="text-lg font-semibold text-amber-500 mb-4">Client Information</h3>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-sm dark:shadow-none">
+          <h3 className="text-lg font-semibold text-amber-600 dark:text-amber-500 mb-4">Client Information</h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 space-y-3">
               <div className="flex justify-between items-center">
-                <label className="block text-sm font-medium text-zinc-400">
+                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400">
                   Phone Numbers (Auto-lookup) <span className="text-red-500">*</span>
                 </label>
                 <button
                   type="button"
                   onClick={addPhone}
-                  className="text-xs flex items-center gap-1 text-amber-500 hover:text-amber-400 transition-colors"
+                  className="text-xs flex items-center gap-1 text-amber-600 dark:text-amber-500 hover:text-amber-500 dark:hover:text-amber-400 transition-colors"
                 >
                   <Plus size={14} /> Add Phone
                 </button>
@@ -305,14 +305,14 @@ const Intake = () => {
                       value={phone.number}
                       onChange={(e) => handlePhoneChange(index, 'number', e.target.value)}
                       placeholder={index === 0 ? "Enter phone to find client..." : "Additional phone number"}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none required:border-red-500/50"
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50"
                     />
                   </div>
                   <div className="w-24">
                     <select
                       value={phone.type}
                       onChange={(e) => handlePhoneChange(index, 'type', e.target.value)}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
                     >
                       <option value="Cell">Cell</option>
                       <option value="Work">Work</option>
@@ -326,7 +326,7 @@ const Intake = () => {
                       value={phone.extension}
                       onChange={(e) => handlePhoneChange(index, 'extension', e.target.value)}
                       placeholder="Ext."
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
                     />
                   </div>
                   {formData.phones.length > 1 && (
@@ -342,34 +342,34 @@ const Intake = () => {
               ))}
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-zinc-400 mb-1">
+              <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                 Company Name (Optional)
               </label>
               <input name="companyName" value={formData.companyName} onChange={handleChange}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" />
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" />
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-zinc-400 mb-1">
+              <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                 Full Name <span className="text-red-500">*</span>
               </label>
               <input required name="clientName" value={formData.clientName} onChange={handleChange}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
             </div>
             <div className="col-span-2 grid grid-cols-3 gap-4">
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-zinc-400 mb-1">Email Address</label>
+                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">Email Address</label>
                 <input name="email" value={formData.email} onChange={handleChange}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" />
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-400 mb-1">
+                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                   Primary Notification
                 </label>
                 <select 
                   name="primaryNotification" 
                   value={formData.primaryNotification} 
                   onChange={handleChange}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
                 >
                   <option value="Phone">Phone</option>
                   <option value="Text">Text</option>
@@ -378,42 +378,42 @@ const Intake = () => {
               </div>
             </div>
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-zinc-400 mb-1">
+              <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                 Street Address <span className="text-red-500">*</span>
               </label>
               <input required name="address" value={formData.address} onChange={handleChange} placeholder="123 Audio Lane"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-1">
+              <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                 Zip Code <span className="text-red-500">*</span>
               </label>
               <input required name="zip" value={formData.zip} onChange={handleChange} placeholder="90210" maxLength={5}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-400 mb-1">
+                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                   City <span className="text-red-500">*</span>
                 </label>
                 <input required name="city" value={formData.city} onChange={handleChange}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-400 mb-1">
+                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                   State <span className="text-red-500">*</span>
                 </label>
                 <input required name="state" value={formData.state} onChange={handleChange} maxLength={2}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Unit Info Section */}
-        <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-xl">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-sm dark:shadow-none">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-amber-500">Unit Details</h3>
+            <h3 className="text-lg font-semibold text-amber-600 dark:text-amber-500">Unit Details</h3>
             <div className="flex gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -421,9 +421,9 @@ const Intake = () => {
                   name="isOnSite"
                   checked={formData.isOnSite}
                   onChange={handleChange}
-                  className="w-5 h-5 rounded border-zinc-700 bg-zinc-800 text-amber-600 focus:ring-amber-500"
+                  className="w-5 h-5 rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-amber-600 focus:ring-amber-500"
                 />
-                <span className="text-zinc-300 font-medium">On Site</span>
+                <span className="text-zinc-700 dark:text-zinc-300 font-medium">On Site</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -431,9 +431,9 @@ const Intake = () => {
                   name="isShippedIn"
                   checked={formData.isShippedIn}
                   onChange={handleChange}
-                  className="w-5 h-5 rounded border-zinc-700 bg-zinc-800 text-amber-600 focus:ring-amber-500"
+                  className="w-5 h-5 rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-amber-600 focus:ring-amber-500"
                 />
-                <span className="text-zinc-300 font-medium">Shipment</span>
+                <span className="text-zinc-700 dark:text-zinc-300 font-medium">Shipment</span>
               </label>
             </div>
           </div>
@@ -441,21 +441,21 @@ const Intake = () => {
           <div className="grid grid-cols-2 gap-4">
             {formData.isShippedIn && (
               <>
-                <div className="col-span-2 p-4 bg-zinc-950/50 border border-zinc-800 rounded-lg mb-2">
-                  <h4 className="text-sm font-medium text-zinc-400 mb-3 uppercase tracking-wider">Shipment Details</h4>
+                <div className="col-span-2 p-4 bg-zinc-50 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 rounded-lg mb-2">
+                  <h4 className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-3 uppercase tracking-wider">Shipment Details</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium text-zinc-400 mb-1">Carrier</label>
+                      <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">Carrier</label>
                       <input 
                         name="shippingCarrier" 
                         value={formData.shippingCarrier} 
                         onChange={handleChange} 
                         placeholder="e.g. UPS, FedEx, USPS"
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" 
+                        className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" 
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium text-zinc-400 mb-1">Box Dimensions (inches)</label>
+                      <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">Box Dimensions (inches)</label>
                       <div className="grid grid-cols-3 gap-2">
                         <div>
                           <input 
@@ -464,7 +464,7 @@ const Intake = () => {
                             value={formData.boxLength} 
                             onChange={handleChange} 
                             placeholder="Length"
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" 
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" 
                           />
                         </div>
                         <div>
@@ -474,7 +474,7 @@ const Intake = () => {
                             value={formData.boxWidth} 
                             onChange={handleChange} 
                             placeholder="Width"
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" 
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" 
                           />
                         </div>
                         <div>
@@ -484,7 +484,7 @@ const Intake = () => {
                             value={formData.boxHeight} 
                             onChange={handleChange} 
                             placeholder="Height"
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" 
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" 
                           />
                         </div>
                       </div>
@@ -495,9 +495,9 @@ const Intake = () => {
             )}
 
             <div className="col-span-2">
-               <label className="block text-sm font-medium text-zinc-400 mb-1">Unit Type</label>
+               <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">Unit Type</label>
                <select name="unitType" value={formData.unitType} onChange={handleChange}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none">
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none">
                   <option value="Receiver">Receiver</option>
                   <option value="Power Amp">Power Amp</option>
                   <option value="Integrated Amp">Integrated Amp</option>
@@ -512,45 +512,45 @@ const Intake = () => {
                </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-1">
+              <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                 Brand / Make <span className="text-red-500">*</span>
               </label>
               <input required name="brand" value={formData.brand} onChange={handleChange} placeholder="e.g. Fender"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
             </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-400 mb-1">
+                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                   Model <span className="text-red-500">*</span>
                 </label>
                 <input required name="model" value={formData.model} onChange={handleChange} placeholder="e.g. Twin Reverb"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
                 <label className="block text-xs font-medium text-zinc-500 mt-2 mb-1">
                   Model Version (Optional)
                 </label>
                 <input name="modelVersion" value={formData.modelVersion} onChange={handleChange} placeholder="e.g. MKII, Reissue"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" />
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" />
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-zinc-400 mb-1">Serial Number</label>
+                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">Serial Number</label>
                 <input name="serial" value={formData.serial} onChange={handleChange}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" />
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" />
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-zinc-400 mb-1">Accessories Included (Optional)</label>
+                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">Accessories Included (Optional)</label>
                 <input name="accessoriesIncluded" value={formData.accessoriesIncluded} onChange={handleChange} placeholder="e.g. Power Cord, Remote, Case"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none" />
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" />
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-zinc-400 mb-1">
+                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                 Reported Issue <span className="text-red-500">*</span>
               </label>
               <textarea required name="issue" value={formData.issue} onChange={handleChange} rows="3"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
             </div>
             <div>
-               <label className="block text-sm font-medium text-zinc-400 mb-1">Priority</label>
+               <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">Priority</label>
                <select name="priority" value={formData.priority} onChange={handleChange}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:border-amber-500 focus:outline-none">
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none">
                   <option value="normal">Normal</option>
                   <option value="rush">Rush (+Fee)</option>
                   <option value="warranty">Warranty</option>
@@ -570,16 +570,16 @@ const Intake = () => {
       {/* Fee Collection Modal */}
       {showFeeModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 max-w-md w-full shadow-2xl">
-            <h3 className="text-xl font-bold text-white mb-4">Collect Diagnostic Fee</h3>
-            <p className="text-zinc-300 mb-6">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 max-w-md w-full shadow-2xl">
+            <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">Collect Diagnostic Fee</h3>
+            <p className="text-zinc-600 dark:text-zinc-300 mb-6">
               For normal priority repairs, a <strong>$89 diagnostic fee</strong> is standard. 
               Has this fee been collected from the client?
             </p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => createTicket(false)}
-                className="px-4 py-2 rounded-lg text-zinc-300 hover:bg-zinc-800 transition-colors"
+                className="px-4 py-2 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               >
                 No, Not Collected
               </button>

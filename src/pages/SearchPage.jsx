@@ -51,12 +51,12 @@ const SearchPage = () => {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-white">Global Search</h2>
+        <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">Global Search</h2>
         
         <div className="flex items-center gap-6">
           {/* Include Closed Toggle */}
           <label className="flex items-center gap-2 cursor-pointer select-none group">
-            <div className={`relative w-10 h-6 rounded-full p-1 transition-colors duration-200 ${includeClosed ? 'bg-amber-600' : 'bg-zinc-700 group-hover:bg-zinc-600'}`}>
+            <div className={`relative w-10 h-6 rounded-full p-1 transition-colors duration-200 ${includeClosed ? 'bg-amber-600' : 'bg-zinc-200 dark:bg-zinc-700 group-hover:bg-zinc-300 dark:group-hover:bg-zinc-600'}`}>
               <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${includeClosed ? 'translate-x-4' : ''}`} />
             </div>
             <input 
@@ -65,20 +65,20 @@ const SearchPage = () => {
               checked={includeClosed}
               onChange={(e) => setIncludeClosed(e.target.checked)}
             />
-            <span className="text-sm text-zinc-400 group-hover:text-zinc-300 transition-colors">Include Closed</span>
+            <span className="text-sm text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-300 transition-colors">Include Closed</span>
           </label>
 
           {/* Sort Dropdown */}
-          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
+          <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 shadow-sm dark:shadow-none">
             <ArrowUpDown size={16} className="text-zinc-500" />
             <select 
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value)}
-              className="bg-transparent text-sm text-zinc-300 focus:outline-none cursor-pointer"
+              className="bg-transparent text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none cursor-pointer"
             >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-              <option value="alpha">Alphabetical (A-Z)</option>
+              <option value="newest" className="dark:bg-zinc-900">Newest First</option>
+              <option value="oldest" className="dark:bg-zinc-900">Oldest First</option>
+              <option value="alpha" className="dark:bg-zinc-900">Alphabetical (A-Z)</option>
             </select>
           </div>
         </div>
@@ -92,7 +92,7 @@ const SearchPage = () => {
           placeholder="Search by name, company, email, phone, serial, brand, model, or claim #..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-14 pr-6 py-4 text-xl text-white focus:border-amber-500 focus:outline-none shadow-xl"
+          className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-14 pr-6 py-4 text-xl text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none shadow-xl dark:shadow-none"
         />
       </div>
 
@@ -100,7 +100,7 @@ const SearchPage = () => {
         
         {/* Clients Results */}
         <div>
-          <h3 className="text-zinc-400 font-semibold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
+          <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
             <User size={16} /> Clients Found ({results.clients.length})
           </h3>
           <div className="space-y-3">
@@ -108,30 +108,30 @@ const SearchPage = () => {
               <Link 
                 to={`/client/${client.id}`} 
                 key={client.id}
-                className="block bg-zinc-900 border border-zinc-800 rounded-lg p-4 hover:border-amber-500/50 hover:bg-zinc-800/50 transition-all group"
+                className="block bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 hover:border-amber-500/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-all group shadow-sm dark:shadow-none"
               >
                 <div className="flex justify-between items-center">
                   <div>
-                    <div className="font-bold text-white group-hover:text-amber-500 transition-colors">{client.name}</div>
+                    <div className="font-bold text-zinc-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-500 transition-colors">{client.name}</div>
                     <div className="text-sm text-zinc-500">{client.phone}</div>
-                    {client.email && <div className="text-xs text-zinc-600">{client.email}</div>}
+                    {client.email && <div className="text-xs text-zinc-500 dark:text-zinc-600">{client.email}</div>}
                   </div>
-                  <ArrowRight size={16} className="text-zinc-600 group-hover:text-amber-500 transition-colors" />
+                  <ArrowRight size={16} className="text-zinc-400 dark:text-zinc-600 group-hover:text-amber-600 dark:group-hover:text-amber-500 transition-colors" />
                 </div>
               </Link>
             ))}
             {hasSearched && results.clients.length === 0 && (
-              <div className="text-zinc-600 text-sm italic p-2">No clients found matching "{query}"</div>
+              <div className="text-zinc-500 dark:text-zinc-600 text-sm italic p-2">No clients found matching "{query}"</div>
             )}
             {!hasSearched && (
-              <div className="text-zinc-700 text-sm italic p-2">Type to search clients...</div>
+              <div className="text-zinc-400 dark:text-zinc-700 text-sm italic p-2">Type to search clients...</div>
             )}
           </div>
         </div>
 
         {/* Repairs Results */}
         <div>
-          <h3 className="text-zinc-400 font-semibold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
+          <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
             <Wrench size={16} /> Units Found ({results.repairs.length})
           </h3>
           <div className="space-y-3">
@@ -139,18 +139,18 @@ const SearchPage = () => {
               <Link 
                 to={`/repair/${ticket.id}`} 
                 key={ticket.id}
-                className="block bg-zinc-900 border border-zinc-800 rounded-lg p-4 hover:border-amber-500/50 hover:bg-zinc-800/50 transition-all group"
+                className="block bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 hover:border-amber-500/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-all group shadow-sm dark:shadow-none"
               >
                 <div className="flex justify-between items-start">
                   <div>
-                    <div className="font-bold text-white group-hover:text-amber-500 transition-colors">
+                    <div className="font-bold text-zinc-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-500 transition-colors">
                       <span className="text-zinc-500 mr-2">#{ticket.claimNumber || ticket.id}</span>
                       {ticket.brand} {ticket.model}
                     </div>
                     <div className="text-sm text-zinc-500">
                       Owner: {ticket.clientName}
                     </div>
-                    <div className="mt-2 text-xs text-zinc-400 bg-zinc-950/50 px-2 py-1 rounded inline-block">
+                    <div className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-950/50 px-2 py-1 rounded inline-block">
                       {ticket.status}
                     </div>
                   </div>
@@ -158,10 +158,10 @@ const SearchPage = () => {
               </Link>
             ))}
              {hasSearched && results.repairs.length === 0 && (
-              <div className="text-zinc-600 text-sm italic p-2">No units found matching "{query}"</div>
+              <div className="text-zinc-500 dark:text-zinc-600 text-sm italic p-2">No units found matching "{query}"</div>
             )}
             {!hasSearched && (
-              <div className="text-zinc-700 text-sm italic p-2">Type to search units...</div>
+              <div className="text-zinc-400 dark:text-zinc-700 text-sm italic p-2">Type to search units...</div>
             )}
           </div>
         </div>

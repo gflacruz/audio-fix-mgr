@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, PenTool, Wrench, Users, Search, UserCog, LogOut, Shield, Package, DollarSign, MessageSquarePlus, X } from 'lucide-react';
+import { LayoutDashboard, PenTool, Wrench, Users, Search, UserCog, LogOut, Shield, Package, DollarSign, MessageSquarePlus, X, Sun, Moon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import { createSuggestion } from '@/lib/api';
 
 const Sidebar = () => {
   const { user, logout, isAdmin } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [showSuggestionModal, setShowSuggestionModal] = useState(false);
   const [suggestionContent, setSuggestionContent] = useState('');
@@ -37,17 +39,17 @@ const Sidebar = () => {
     `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
       isActive 
         ? 'bg-amber-600 text-white shadow-lg shadow-amber-900/20' 
-        : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
+        : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white'
     }`;
 
   return (
     <>
-      <div className="w-64 bg-zinc-900 border-r border-zinc-800 h-screen flex flex-col p-4 pt-8">
+      <div className="w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 h-screen flex flex-col p-4 pt-8 transition-colors duration-200">
         <div className="mb-10 px-2 flex items-center gap-2">
           <div className="w-8 h-8 bg-amber-500 rounded flex items-center justify-center">
-            <Wrench className="text-zinc-900 w-5 h-5" />
+            <Wrench className="text-white dark:text-zinc-900 w-5 h-5" />
           </div>
-          <h1 className="text-xl font-bold text-white tracking-tight">AudioFix<span className="text-amber-500">Mgr</span></h1>
+          <h1 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">AudioFix<span className="text-amber-500">Mgr</span></h1>
         </div>
 
         <nav className="space-y-2 flex-1 overflow-y-auto">
@@ -99,15 +101,23 @@ const Sidebar = () => {
           )}
         </nav>
 
-        <div className="mt-auto pt-4 border-t border-zinc-800">
+        <div className="mt-auto pt-4 border-t border-zinc-200 dark:border-zinc-800">
           <div className="px-4 mb-4">
-            <div className="text-sm font-medium text-white">{user?.name}</div>
+            <div className="text-sm font-medium text-zinc-900 dark:text-white">{user?.name}</div>
             <div className="text-xs text-zinc-500 capitalize">{user?.role}</div>
           </div>
 
           <button 
+            onClick={toggleTheme}
+            className="w-full flex items-center gap-3 px-4 py-2 mb-2 text-zinc-600 dark:text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-sm"
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
+
+          <button 
             onClick={() => setShowSuggestionModal(true)}
-            className="w-full flex items-center gap-3 px-4 py-2 mb-2 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 rounded-lg transition-colors text-sm"
+            className="w-full flex items-center gap-3 px-4 py-2 mb-2 text-zinc-600 dark:text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-sm"
           >
             <MessageSquarePlus size={18} />
             <span>Make Suggestion</span>
@@ -115,7 +125,7 @@ const Sidebar = () => {
 
           <button 
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2 text-zinc-400 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-colors text-sm"
+            className="w-full flex items-center gap-3 px-4 py-2 text-zinc-600 dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors text-sm"
           >
             <LogOut size={18} />
             <span>Sign Out</span>
@@ -125,27 +135,27 @@ const Sidebar = () => {
 
       {showSuggestionModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-zinc-900 border border-zinc-700 rounded-lg w-full max-w-md p-6 relative">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg w-full max-w-md p-6 relative shadow-xl">
             <button 
               onClick={() => setShowSuggestionModal(false)}
-              className="absolute top-4 right-4 text-zinc-400 hover:text-white"
+              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
             >
               <X size={20} />
             </button>
-            <h2 className="text-xl font-bold text-white mb-4">Make a Suggestion</h2>
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">Make a Suggestion</h2>
             <form onSubmit={handleSubmitSuggestion}>
               <textarea
                 value={suggestionContent}
                 onChange={(e) => setSuggestionContent(e.target.value)}
                 placeholder="What feature would you like to see?"
-                className="w-full h-32 bg-zinc-800 border border-zinc-700 rounded-lg p-3 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 mb-4 resize-none"
+                className="w-full h-32 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-zinc-900 dark:text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 mb-4 resize-none"
                 required
               />
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowSuggestionModal(false)}
-                  className="px-4 py-2 text-zinc-300 hover:text-white"
+                  className="px-4 py-2 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white"
                 >
                   Cancel
                 </button>

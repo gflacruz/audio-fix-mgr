@@ -27,7 +27,7 @@ const ProtectedRoute = () => {
   }
 
   return (
-    <div className="flex h-screen bg-zinc-950 text-zinc-100 font-sans">
+    <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans transition-colors duration-200">
       <Sidebar />
       <main className="flex-1 overflow-auto">
         <div className="p-8 max-w-7xl mx-auto">

@@ -6,14 +6,14 @@ import { useAuth } from '../context/AuthContext';
 
 const StatusBadge = ({ status }) => {
   const colors = {
-    queued: 'bg-zinc-800 text-zinc-300',
-    diagnosing: 'bg-blue-900/50 text-blue-400 border-blue-900',
-    estimate: 'bg-orange-900/50 text-orange-400 border-orange-900',
-    parts: 'bg-yellow-900/50 text-yellow-400 border-yellow-900',
-    repairing: 'bg-purple-900/50 text-purple-400 border-purple-900',
-    testing: 'bg-pink-900/50 text-pink-400 border-pink-900',
-    ready: 'bg-green-900/50 text-green-400 border-green-900',
-    closed: 'bg-zinc-900 text-zinc-600',
+    queued: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',
+    diagnosing: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-400 dark:border-blue-900',
+    estimate: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:text-orange-400 dark:border-orange-900',
+    parts: 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-400 dark:border-yellow-900',
+    repairing: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/50 dark:text-purple-400 dark:border-purple-900',
+    testing: 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/50 dark:text-pink-400 dark:border-pink-900',
+    ready: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/50 dark:text-green-400 dark:border-green-900',
+    closed: 'bg-zinc-200 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-600',
   };
   
   return (
@@ -97,31 +97,31 @@ const Technicians = () => {
     <div className="max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-8">
         <div className="p-3 bg-amber-500/10 rounded-xl">
-          <UserCog className="text-amber-500" size={32} />
+          <UserCog className="text-amber-600 dark:text-amber-500" size={32} />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-white">Technician Workload</h2>
-          <p className="text-zinc-500 text-sm">Manage assignments and track progress per technician.</p>
+          <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">Technician Workload</h2>
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm">Manage assignments and track progress per technician.</p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-zinc-800 mb-8 gap-8 overflow-x-auto">
+      <div className="flex border-b border-zinc-200 dark:border-zinc-800 mb-8 gap-8 overflow-x-auto">
         {/* Unassigned Tab */}
         <button
           onClick={() => setSelectedTech('Unassigned')}
           className={`pb-4 px-2 text-sm font-medium transition-all relative whitespace-nowrap ${
             selectedTech === 'Unassigned'
-              ? 'text-white' 
-              : 'text-zinc-500 hover:text-zinc-300'
+              ? 'text-zinc-900 dark:text-white' 
+              : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300'
           }`}
         >
           <span className="flex items-center gap-2">
             Unassigned
             <span className={`px-2 py-0.5 rounded-full text-xs ${
               selectedTech === 'Unassigned'
-                ? 'bg-amber-500 text-zinc-900' 
-                : 'bg-zinc-800 text-zinc-400'
+                ? 'bg-amber-500 text-white dark:text-zinc-900' 
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
             }`}>
               {counts['Unassigned'] || 0}
             </span>
@@ -137,15 +137,15 @@ const Technicians = () => {
             onClick={() => setSelectedTech(tech)}
             className={`pb-4 px-2 text-sm font-medium transition-all relative whitespace-nowrap ${
               selectedTech === tech 
-                ? 'text-white' 
-                : 'text-zinc-500 hover:text-zinc-300'
+                ? 'text-zinc-900 dark:text-white' 
+                : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-300'
             }`}
           >
             {tech}
             <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
               selectedTech === tech 
-                ? 'bg-amber-500 text-zinc-900' 
-                : 'bg-zinc-800 text-zinc-400'
+                ? 'bg-amber-500 text-white dark:text-zinc-900' 
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
             }`}>
               {counts[tech] || 0}
             </span>
@@ -161,14 +161,14 @@ const Technicians = () => {
         {tickets.map(ticket => (
           <div 
             key={ticket.id}
-            className="block bg-zinc-900 border border-zinc-800 rounded-xl p-5 hover:border-amber-500/50 hover:bg-zinc-800/50 transition-all group relative"
+            className="block bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 hover:border-amber-500/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-all group relative shadow-sm dark:shadow-none"
           >
             <Link to={`/repair/${ticket.id}`} className="absolute inset-0 z-0" />
             
             <div className="relative z-10 flex justify-between items-start mb-3 pointer-events-none">
               <div className="pointer-events-auto">
                 <div className="flex items-center gap-3 mb-1">
-                  <span className="font-bold text-lg text-white group-hover:text-amber-500 transition-colors">
+                  <span className="font-bold text-lg text-zinc-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-500 transition-colors">
                     <span className="text-zinc-500 mr-2">#{ticket.claimNumber || ticket.id}</span>
                     {ticket.brand} {ticket.model}
                   </span>
@@ -179,8 +179,8 @@ const Technicians = () => {
                     </span>
                   )}
                 </div>
-                <div className="text-zinc-400 text-sm">
-                  Client: <span className="text-zinc-200">{ticket.clientName}</span> • In: {new Date(ticket.dateIn).toLocaleDateString()}
+                <div className="text-zinc-500 dark:text-zinc-400 text-sm">
+                  Client: <span className="text-zinc-700 dark:text-zinc-200">{ticket.clientName}</span> • In: {new Date(ticket.dateIn).toLocaleDateString()}
                 </div>
               </div>
 
@@ -191,7 +191,7 @@ const Technicians = () => {
                         value={ticket.technician || ''}
                         onChange={(e) => handleAssign(e, ticket.id)}
                         onClick={(e) => e.preventDefault()}
-                        className="bg-zinc-950 border border-zinc-700 text-zinc-300 text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2"
+                        className="bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-300 text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2 shadow-sm dark:shadow-none"
                     >
                         <option value="">Unassigned</option>
                         {technicians.map(t => (
@@ -202,7 +202,7 @@ const Technicians = () => {
               )}
             </div>
 
-            <div className="bg-zinc-950/50 rounded p-3 text-sm text-zinc-400 border border-zinc-800/50 relative z-10 pointer-events-none">
+            <div className="bg-zinc-50 dark:bg-zinc-950/50 rounded p-3 text-sm text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800/50 relative z-10 pointer-events-none">
               <span className="font-semibold text-zinc-500 block mb-1 text-xs uppercase tracking-wide">Current Issue</span>
               {ticket.issue}
             </div>
@@ -210,15 +210,15 @@ const Technicians = () => {
         ))}
 
         {tickets.length === 0 && (
-          <div className="text-center py-16 bg-zinc-900/50 border border-zinc-800/50 rounded-xl border-dashed">
+          <div className="text-center py-16 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800/50 rounded-xl border-dashed">
             {selectedTech === 'Unassigned' ? (
-                 <UserMinus size={48} className="mx-auto text-zinc-700 mb-4" />
+                 <UserMinus size={48} className="mx-auto text-zinc-400 dark:text-zinc-700 mb-4" />
             ) : (
-                 <UserCog size={48} className="mx-auto text-zinc-700 mb-4" />
+                 <UserCog size={48} className="mx-auto text-zinc-400 dark:text-zinc-700 mb-4" />
             )}
            
-            <h3 className="text-zinc-400 font-medium">No Active Jobs</h3>
-            <p className="text-zinc-600 text-sm mt-1">
+            <h3 className="text-zinc-600 dark:text-zinc-400 font-medium">No Active Jobs</h3>
+            <p className="text-zinc-500 dark:text-zinc-600 text-sm mt-1">
                 {selectedTech === 'Unassigned' 
                     ? "All active tickets are assigned." 
                     : `${selectedTech} has no tickets assigned right now.`}

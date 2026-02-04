@@ -2,18 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom Scrollbar for dark theme */
+/* Custom Scrollbar (Adaptive) */
 ::-webkit-scrollbar {
   width: 8px;
 }
+
+/* Light Mode Defaults */
 ::-webkit-scrollbar-track {
-  background: #18181b; 
+  background: transparent; 
 }
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46; 
+  background: #d4d4d8; /* zinc-300 */
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa; /* zinc-400 */
+}
+
+/* Dark Mode Overrides */
+.dark ::-webkit-scrollbar-track {
+  background: #18181b; 
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #3f3f46; 
+}
+.dark ::-webkit-scrollbar-thumb:hover {
   background: #52525b; 
 }
 

@@ -34,7 +34,7 @@ const Clients = () => {
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-white">Client Database</h2>
+        <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">Client Database</h2>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-zinc-400 w-4 h-4" />
           <input
@@ -43,13 +43,13 @@ const Clients = () => {
             placeholder="Search clients..."
             value={search}
             onChange={handleSearch}
-            className="bg-zinc-900 border border-zinc-700 text-white pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:border-amber-500 w-64"
+            className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:border-amber-500 w-64 shadow-sm dark:shadow-none"
           />
         </div>
       </div>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden mb-4">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden mb-4 shadow-sm dark:shadow-none">
         <table className="w-full text-left text-sm">
-          <thead className="bg-zinc-800/50 text-zinc-400">
+          <thead className="bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400">
             <tr>
               <th className="p-4 font-medium">Name</th>
               <th className="p-4 font-medium">Email</th>
@@ -59,24 +59,24 @@ const Clients = () => {
               <th className="p-4 font-medium w-20"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-800">
+          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
             {clients.map((client, i) => (
-              <tr key={i} className="hover:bg-zinc-800/30 group">
-                <td className="p-4 font-medium text-white">
-                  <Link to={`/client/${client.id}`} className="hover:text-amber-500 transition-colors">
+              <tr key={i} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 group transition-colors">
+                <td className="p-4 font-medium text-zinc-900 dark:text-white">
+                  <Link to={`/client/${client.id}`} className="hover:text-amber-600 dark:hover:text-amber-500 transition-colors">
                     {client.name}
                   </Link>
                 </td>
-                <td className="p-4 text-zinc-400">{client.email}</td>
-                <td className="p-4 text-zinc-400">{formatPhoneNumber(client.phone)}</td>
-                <td className="p-4 text-zinc-400 max-w-xs truncate">
+                <td className="p-4 text-zinc-600 dark:text-zinc-400">{client.email}</td>
+                <td className="p-4 text-zinc-600 dark:text-zinc-400">{formatPhoneNumber(client.phone)}</td>
+                <td className="p-4 text-zinc-600 dark:text-zinc-400 max-w-xs truncate">
                   {[client.address, client.city, client.state].filter(Boolean).join(', ') || '-'}
                 </td>
                 <td className="p-4 text-zinc-500">{new Date(client.dateAdded).toLocaleDateString()}</td>
                 <td className="p-4 text-right">
                   <Link 
                     to={`/client/${client.id}`}
-                    className="text-zinc-500 hover:text-white px-3 py-1 bg-zinc-800 rounded text-xs transition-colors opacity-0 group-hover:opacity-100"
+                    className="text-zinc-600 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white px-3 py-1 bg-zinc-100 dark:bg-zinc-800 rounded text-xs transition-colors opacity-0 group-hover:opacity-100"
                   >
                     View
                   </Link>
@@ -96,15 +96,15 @@ const Clients = () => {
         <button
           onClick={() => setPage(p => Math.max(1, p - 1))}
           disabled={page === 1}
-          className="flex items-center gap-2 px-4 py-2 bg-zinc-800 text-zinc-300 rounded hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm dark:shadow-none"
         >
           <ChevronLeft className="w-4 h-4" /> Previous
         </button>
-        <span className="text-zinc-500">Page {page}</span>
+        <span className="text-zinc-600 dark:text-zinc-500">Page {page}</span>
         <button
           onClick={() => setPage(p => p + 1)}
           disabled={clients.length < LIMIT}
-          className="flex items-center gap-2 px-4 py-2 bg-zinc-800 text-zinc-300 rounded hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm dark:shadow-none"
         >
           Next <ChevronRight className="w-4 h-4" />
         </button>

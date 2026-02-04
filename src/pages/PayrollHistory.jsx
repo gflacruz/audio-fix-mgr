@@ -69,23 +69,23 @@ const PayrollHistory = () => {
     <div className="max-w-6xl mx-auto pb-10">
       <button 
         onClick={() => navigate('/payroll')} 
-        className="flex items-center gap-2 text-zinc-500 hover:text-white mb-6 transition-colors"
+        className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white mb-6 transition-colors"
       >
         <ArrowLeft size={20} /> Back to Payroll
       </button>
 
       <div className="flex justify-between items-start mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <History className="text-blue-500" size={32} />
+          <h1 className="text-3xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
+            <History className="text-blue-600 dark:text-blue-500" size={32} />
             Payroll History
           </h1>
-          <p className="text-zinc-400 mt-1">View past commission payouts.</p>
+          <p className="text-zinc-500 dark:text-zinc-400 mt-1">View past commission payouts.</p>
         </div>
       </div>
 
       {/* Filters Bar */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 mb-8 flex flex-wrap gap-4 items-end">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 mb-8 flex flex-wrap gap-4 items-end shadow-sm dark:shadow-none">
         <div className="flex-1 min-w-[200px]">
           <label className="block text-xs font-medium text-zinc-500 mb-1.5 ml-1">Technician</label>
           <div className="relative">
@@ -94,7 +94,7 @@ const PayrollHistory = () => {
               name="technician"
               value={filters.technician}
               onChange={handleFilterChange}
-              className="w-full bg-zinc-950 border border-zinc-700 text-white pl-10 pr-4 py-2 rounded-lg focus:border-blue-500 outline-none appearance-none"
+              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white pl-10 pr-4 py-2 rounded-lg focus:border-blue-500 outline-none appearance-none"
             >
               <option value="all">All Technicians</option>
               {technicians.map(t => (
@@ -114,7 +114,7 @@ const PayrollHistory = () => {
               value={filters.startDate}
               onChange={handleFilterChange}
               onClick={(e) => e.target.showPicker?.()}
-              className="w-full bg-zinc-950 border border-zinc-700 text-white pl-10 pr-4 py-2 rounded-lg focus:border-blue-500 outline-none cursor-pointer"
+              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white pl-10 pr-4 py-2 rounded-lg focus:border-blue-500 outline-none cursor-pointer"
             />
           </div>
         </div>
@@ -129,28 +129,28 @@ const PayrollHistory = () => {
               value={filters.endDate}
               onChange={handleFilterChange}
               onClick={(e) => e.target.showPicker?.()}
-              className="w-full bg-zinc-950 border border-zinc-700 text-white pl-10 pr-4 py-2 rounded-lg focus:border-blue-500 outline-none cursor-pointer"
+              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white pl-10 pr-4 py-2 rounded-lg focus:border-blue-500 outline-none cursor-pointer"
             />
           </div>
         </div>
         
-        <div className="ml-auto flex items-center gap-4 bg-zinc-950 px-4 py-2 rounded-lg border border-zinc-800">
-           <span className="text-sm text-zinc-400">Total Paid Out</span>
-           <span className="text-xl font-mono font-bold text-white">${totalPaid.toFixed(2)}</span>
+        <div className="ml-auto flex items-center gap-4 bg-zinc-50 dark:bg-zinc-950 px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800">
+           <span className="text-sm text-zinc-500 dark:text-zinc-400">Total Paid Out</span>
+           <span className="text-xl font-mono font-bold text-zinc-900 dark:text-white">${totalPaid.toFixed(2)}</span>
         </div>
       </div>
 
       {loading ? (
         <div className="text-center py-12 text-zinc-500">Loading history...</div>
       ) : repairs.length === 0 ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center text-zinc-500">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-12 text-center text-zinc-500 shadow-sm dark:shadow-none">
           No records found for the selected period.
         </div>
       ) : (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm dark:shadow-none">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-zinc-950 text-zinc-500 font-medium border-b border-zinc-800">
+              <thead className="bg-zinc-50 dark:bg-zinc-950 text-zinc-500 font-medium border-b border-zinc-200 dark:border-zinc-800">
                 <tr>
                   <th className="px-6 py-3">Paid Date</th>
                   <th className="px-6 py-3">Technician</th>
@@ -160,31 +160,31 @@ const PayrollHistory = () => {
                   <th className="px-6 py-3 text-right">Parts</th>
                   <th className="px-6 py-3 text-right">Diag</th>
                   <th className="px-6 py-3 text-right">Total Ticket</th>
-                  <th className="px-6 py-3 text-right text-emerald-500">Commission Paid</th>
+                  <th className="px-6 py-3 text-right text-emerald-600 dark:text-emerald-500">Commission Paid</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/50">
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
                 {repairs.map(repair => (
-                  <tr key={repair.id} className="hover:bg-zinc-800/30 transition-colors">
-                    <td className="px-6 py-4 text-zinc-400">
+                  <tr key={repair.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
+                    <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">
                       {new Date(repair.paidOutDate).toLocaleDateString()}
-                      <div className="text-xs text-zinc-600">{new Date(repair.paidOutDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                      <div className="text-xs text-zinc-500 dark:text-zinc-600">{new Date(repair.paidOutDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                     </td>
-                    <td className="px-6 py-4 text-white font-medium">{repair.technician}</td>
-                    <td className="px-6 py-4 text-zinc-400 font-mono">
+                    <td className="px-6 py-4 text-zinc-900 dark:text-white font-medium">{repair.technician}</td>
+                    <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 font-mono">
                       <button 
                         onClick={() => navigate(`/repair/${repair.id}`)}
-                        className="hover:text-blue-400 hover:underline"
+                        className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
                       >
                         #{repair.claimNumber}
                       </button>
                     </td>
-                    <td className="px-6 py-4 text-zinc-300">{repair.brand} {repair.model}</td>
-                    <td className="px-6 py-4 text-right text-zinc-500">${repair.laborCost.toFixed(2)}</td>
-                    <td className="px-6 py-4 text-right text-zinc-500">${repair.partsCost.toFixed(2)}</td>
-                    <td className="px-6 py-4 text-right text-zinc-500">${repair.diagnosticFee.toFixed(2)}</td>
-                    <td className="px-6 py-4 text-right text-zinc-400">${repair.totalCost.toFixed(2)}</td>
-                    <td className="px-6 py-4 text-right text-emerald-400 font-bold font-mono">
+                    <td className="px-6 py-4 text-zinc-700 dark:text-zinc-300">{repair.brand} {repair.model}</td>
+                    <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-500">${repair.laborCost.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-500">${repair.partsCost.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-500">${repair.diagnosticFee.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-right text-zinc-600 dark:text-zinc-400">${repair.totalCost.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-right text-emerald-600 dark:text-emerald-400 font-bold font-mono">
                       ${repair.commission.toFixed(2)}
                     </td>
                   </tr>

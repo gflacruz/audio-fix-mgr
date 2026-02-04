@@ -87,25 +87,25 @@ const Payroll = () => {
     <div className="max-w-6xl mx-auto pb-10">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <DollarSign className="text-emerald-500" size={32} />
+          <h1 className="text-3xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
+            <DollarSign className="text-emerald-600 dark:text-emerald-500" size={32} />
             Technician Payroll
           </h1>
-          <p className="text-zinc-400 mt-1">Review and payout commissions for closed tickets.</p>
+          <p className="text-zinc-500 dark:text-zinc-400 mt-1">Review and payout commissions for closed tickets.</p>
         </div>
 
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/payroll/history')}
-            className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors mr-4"
+            className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors mr-4"
           >
             <History size={20} />
             History
           </button>
 
           <div className="text-right mr-4">
-            <div className="text-sm text-zinc-400">Selected Payout</div>
-            <div className="text-2xl font-mono text-emerald-400 font-bold">
+            <div className="text-sm text-zinc-500 dark:text-zinc-400">Selected Payout</div>
+            <div className="text-2xl font-mono text-emerald-600 dark:text-emerald-400 font-bold">
               ${totalCommissionOwed.toFixed(2)}
             </div>
           </div>
@@ -121,9 +121,9 @@ const Payroll = () => {
       </div>
 
       {Object.keys(grouped).length === 0 ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
-          <CheckCircle2 size={48} className="mx-auto text-zinc-700 mb-4" />
-          <h3 className="text-xl text-zinc-300 font-medium">All Caught Up!</h3>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-12 text-center shadow-sm dark:shadow-none">
+          <CheckCircle2 size={48} className="mx-auto text-zinc-400 dark:text-zinc-700 mb-4" />
+          <h3 className="text-xl text-zinc-900 dark:text-zinc-300 font-medium">All Caught Up!</h3>
           <p className="text-zinc-500 mt-2">No unpaid closed repairs found.</p>
         </div>
       ) : (
@@ -133,19 +133,19 @@ const Payroll = () => {
             const allSelected = techRepairs.every(r => selectedIds.has(r.id));
 
             return (
-              <div key={tech} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-                <div className="px-6 py-4 bg-zinc-950 border-b border-zinc-800 flex justify-between items-center">
+              <div key={tech} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm dark:shadow-none">
+                <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center">
                   <div className="flex items-center gap-4">
-                    <h2 className="text-xl font-bold text-white">{tech}</h2>
-                    <span className="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-sm">
+                    <h2 className="text-xl font-bold text-zinc-900 dark:text-white">{tech}</h2>
+                    <span className="bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2 py-0.5 rounded text-sm">
                       {techRepairs.length} tickets
                     </span>
                   </div>
                   <div className="flex items-center gap-4">
-                     <span className="text-zinc-400 text-sm">Total Pending: <span className="text-white font-mono ml-1">${techTotal.toFixed(2)}</span></span>
+                     <span className="text-zinc-500 dark:text-zinc-400 text-sm">Total Pending: <span className="text-zinc-900 dark:text-white font-mono ml-1">${techTotal.toFixed(2)}</span></span>
                      <button 
                        onClick={() => handleSelectTechnician(tech, techRepairs)}
-                       className="text-xs text-amber-500 hover:text-amber-400 font-medium uppercase tracking-wider"
+                       className="text-xs text-amber-600 dark:text-amber-500 hover:text-amber-500 dark:hover:text-amber-400 font-medium uppercase tracking-wider"
                      >
                        {allSelected ? 'Deselect All' : 'Select All'}
                      </button>
@@ -154,7 +154,7 @@ const Payroll = () => {
 
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-zinc-900/50 text-zinc-500 font-medium border-b border-zinc-800">
+                    <thead className="bg-zinc-50 dark:bg-zinc-900/50 text-zinc-500 font-medium border-b border-zinc-200 dark:border-zinc-800">
                       <tr>
                         <th className="px-6 py-3 w-12"></th>
                         <th className="px-6 py-3">Claim #</th>
@@ -164,14 +164,14 @@ const Payroll = () => {
                         <th className="px-6 py-3 text-right">Parts</th>
                         <th className="px-6 py-3 text-right">Diag Fee</th>
                         <th className="px-6 py-3 text-right">Total Ticket</th>
-                        <th className="px-6 py-3 text-right text-emerald-500">Commission (50%)</th>
+                        <th className="px-6 py-3 text-right text-emerald-600 dark:text-emerald-500">Commission (50%)</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-800/50">
+                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
                       {techRepairs.map(repair => (
                         <tr 
                           key={repair.id} 
-                          className={`hover:bg-zinc-800/30 transition-colors ${selectedIds.has(repair.id) ? 'bg-emerald-900/10' : ''}`}
+                          className={`hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors ${selectedIds.has(repair.id) ? 'bg-emerald-50 dark:bg-emerald-900/10' : ''}`}
                           onClick={() => handleSelect(repair.id)}
                         >
                           <td className="px-6 py-4">
@@ -179,27 +179,27 @@ const Payroll = () => {
                               type="checkbox" 
                               checked={selectedIds.has(repair.id)}
                               onChange={() => handleSelect(repair.id)}
-                              className="w-5 h-5 rounded border-zinc-600 bg-zinc-800 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-zinc-900 cursor-pointer"
+                              className="w-5 h-5 rounded border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-zinc-900 cursor-pointer"
                             />
                           </td>
-                          <td className="px-6 py-4 text-zinc-300 font-mono">
+                          <td className="px-6 py-4 text-zinc-600 dark:text-zinc-300 font-mono">
                             <button 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigate(`/repair/${repair.id}`);
                               }}
-                              className="hover:text-amber-500 hover:underline"
+                              className="hover:text-amber-600 dark:hover:text-amber-500 hover:underline"
                             >
                               #{repair.claimNumber}
                             </button>
                           </td>
-                          <td className="px-6 py-4 text-zinc-400">{new Date(repair.date).toLocaleDateString()}</td>
-                          <td className="px-6 py-4 text-white font-medium">{repair.brand} {repair.model}</td>
-                          <td className="px-6 py-4 text-right text-zinc-400">${repair.laborCost.toFixed(2)}</td>
-                          <td className="px-6 py-4 text-right text-zinc-400">${repair.partsCost.toFixed(2)}</td>
-                          <td className="px-6 py-4 text-right text-zinc-400">${repair.diagnosticFee.toFixed(2)}</td>
-                          <td className="px-6 py-4 text-right text-zinc-200 font-bold">${repair.totalCost.toFixed(2)}</td>
-                          <td className="px-6 py-4 text-right text-emerald-400 font-bold font-mono text-base">
+                          <td className="px-6 py-4 text-zinc-500 dark:text-zinc-400">{new Date(repair.date).toLocaleDateString()}</td>
+                          <td className="px-6 py-4 text-zinc-900 dark:text-white font-medium">{repair.brand} {repair.model}</td>
+                          <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-400">${repair.laborCost.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-400">${repair.partsCost.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-400">${repair.diagnosticFee.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-right text-zinc-700 dark:text-zinc-200 font-bold">${repair.totalCost.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-right text-emerald-600 dark:text-emerald-400 font-bold font-mono text-base">
                             ${repair.commission.toFixed(2)}
                           </td>
                         </tr>

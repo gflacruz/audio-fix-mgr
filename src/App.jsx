@@ -1,6 +1,7 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -21,8 +22,9 @@ import Suggestions from './pages/Suggestions';
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
+      <ThemeProvider>
+        <Router>
+          <Routes>
           <Route path="/login" element={<Login />} />
           
           <Route element={<ProtectedRoute />}>
@@ -41,8 +43,9 @@ function App() {
             <Route path="/admin" element={<AdminUsers />} />
             <Route path="/suggestions" element={<Suggestions />} />
           </Route>
-        </Routes>
-      </Router>
+          </Routes>
+        </Router>
+      </ThemeProvider>
     </AuthProvider>
   );
 }
