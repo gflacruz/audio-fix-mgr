@@ -38,6 +38,12 @@ export const printDiagnosticReceipt = (ticket, client) => {
         .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; text-transform: uppercase; }
         .paid { background: #dcfce7; color: #166534; }
         .unpaid { background: #fee2e2; color: #991b1b; }
+        @media print {
+          body {
+            width: 100% !important;
+            max-width: none !important;
+          }
+        }
       </style>
     </head>
     <body>
@@ -196,6 +202,12 @@ export const printRepairInvoice = (ticket, client) => {
         .footer { margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px; font-size: 11px; color: #888; }
         .signature-line { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
         .sig-box { border-top: 1px solid #333; padding-top: 5px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+        @media print {
+          body {
+            width: 100% !important;
+            max-width: none !important;
+          }
+        }
       </style>
     </head>
     <body>

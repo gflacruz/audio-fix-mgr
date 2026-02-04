@@ -21,7 +21,12 @@ const formatClient = (row, phones = []) => ({
 // GET /api/clients - Search or List clients
 router.get('/', async (req, res) => {
   try {
-    const { search } = req.query;
+    const { search, page, limit } = req.query;
+    
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 100;
+    const offset = (pageNum - 1) * limitNum;
+
     let queryText = 'SELECT * FROM clients';
     let params = [];
 
@@ -40,7 +45,8 @@ router.get('/', async (req, res) => {
       params.push(`%${search}%`);
     }
 
-    queryText += ' ORDER BY name ASC LIMIT 100';
+    queryText += ` ORDER BY name ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(limitNum, offset);
 
     const result = await db.query(queryText, params);
     res.json(result.rows.map(row => formatClient(row)));

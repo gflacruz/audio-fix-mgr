@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getRepair, updateRepair, addRepairNote, getTechnicians, getParts, addRepairPart, removeRepairPart, addCustomRepairPart, uploadRepairPhoto, deleteRepairPhoto, sendEstimateEmail, sendPickupEmail } from '@/lib/api';
+import { getRepair, updateRepair, addRepairNote, getTechnicians, getParts, addRepairPart, removeRepairPart, addCustomRepairPart, uploadRepairPhoto, deleteRepairPhoto, sendEstimateEmail, sendPickupEmail, sendEstimateText, sendPickupText } from '@/lib/api';
 import { printDiagnosticReceipt, printRepairInvoice } from '@/lib/printer';
 import Modal from '@/components/Modal';
 import { ArrowLeft, Save, Clock, User, CheckCircle2, MessageSquare, ThumbsUp, Printer, Package, Plus, Trash2, X, FileText, DollarSign, Truck, Edit2, Camera, Image as ImageIcon, Loader2, Mail, Send } from 'lucide-react';
@@ -49,6 +49,7 @@ const RepairDetail = () => {
   const [emailModal, setEmailModal] = useState({
     isOpen: false,
     type: null, // 'estimate' or 'pickup'
+    method: 'email', // 'email' or 'text'
     step: 'idle', // 'confirm', 'sending', 'success', 'error'
     error: null
   });
@@ -450,18 +451,22 @@ const RepairDetail = () => {
   };
 
   const handleSendEstimateEmail = async () => {
+    const method = client?.primaryNotification === 'Text' ? 'text' : 'email';
     setEmailModal({
       isOpen: true,
       type: 'estimate',
+      method,
       step: 'confirm',
       error: null
     });
   };
 
   const handleSendPickupEmail = async () => {
+    const method = client?.primaryNotification === 'Text' ? 'text' : 'email';
     setEmailModal({
       isOpen: true,
       type: 'pickup',
+      method,
       step: 'confirm',
       error: null
     });
@@ -473,21 +478,32 @@ const RepairDetail = () => {
     setEmailModal(prev => ({ ...prev, step: 'sending', error: null }));
     
     try {
-      if (emailModal.type === 'estimate') {
-        await sendEstimateEmail(id);
-        addSystemNote('Email sent: Estimate Available');
-      } else if (emailModal.type === 'pickup') {
-        await sendPickupEmail(id);
-        addSystemNote('Email sent: Ready for Pickup');
+      if (emailModal.method === 'text') {
+         if (emailModal.type === 'estimate') {
+           await sendEstimateText(id);
+           addSystemNote('Text sent: Estimate Available');
+         } else if (emailModal.type === 'pickup') {
+           await sendPickupText(id);
+           addSystemNote('Text sent: Ready for Pickup');
+         }
+      } else {
+         // Default to Email
+         if (emailModal.type === 'estimate') {
+           await sendEstimateEmail(id);
+           addSystemNote('Email sent: Estimate Available');
+         } else if (emailModal.type === 'pickup') {
+           await sendPickupEmail(id);
+           addSystemNote('Email sent: Ready for Pickup');
+         }
       }
       
       setEmailModal(prev => ({ ...prev, step: 'success' }));
     } catch (error) {
-      console.error("Failed to send email:", error);
+      console.error("Failed to send notification:", error);
       setEmailModal(prev => ({ 
         ...prev, 
         step: 'error', 
-        error: error.message || 'Failed to send email'
+        error: error.message || 'Failed to send notification'
       }));
     }
   };
@@ -593,14 +609,19 @@ const RepairDetail = () => {
                 <option value="closed">Closed</option>
               </select>
 
-              {/* Email Pickup Button - Only show if ready or closed */}
+              {/* Pickup Notification Button - Only show if ready or closed */}
               {(ticket.status === 'ready' || ticket.status === 'closed') && (
                 <button
                   onClick={handleSendPickupEmail}
-                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
-                  title="Email Ready for Pickup"
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 ${
+                    client?.primaryNotification === 'Text' 
+                      ? 'bg-emerald-700 hover:bg-emerald-600 text-white' 
+                      : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                  }`}
+                  title={client?.primaryNotification === 'Text' ? "Text Ready for Pickup" : "Email Ready for Pickup"}
                 >
-                  <Send size={18} />
+                  {client?.primaryNotification === 'Text' ? <MessageSquare size={18} /> : <Send size={18} />}
+                  {client?.primaryNotification === 'Text' && <span className="text-sm">Text Pickup</span>}
                 </button>
               )}
            </div>
@@ -609,11 +630,15 @@ const RepairDetail = () => {
            <div className="flex gap-2 mt-2">
              <button
                onClick={handleSendEstimateEmail}
-               className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-500 border border-amber-600/30 text-xs font-medium rounded transition-colors disabled:opacity-50"
-               title="Email Estimate"
+               className={`flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded transition-colors disabled:opacity-50 ${
+                 client?.primaryNotification === 'Text'
+                   ? 'bg-amber-700/30 hover:bg-amber-700/40 text-amber-400 border-amber-600/50'
+                   : 'bg-amber-600/20 hover:bg-amber-600/30 text-amber-500 border-amber-600/30'
+               }`}
+               title={client?.primaryNotification === 'Text' ? "Text Estimate" : "Email Estimate"}
              >
-               <Mail size={14} />
-               Email Estimate
+               {client?.primaryNotification === 'Text' ? <MessageSquare size={14} /> : <Mail size={14} />}
+               {client?.primaryNotification === 'Text' ? "Text Estimate" : "Email Estimate"}
              </button>
              <button
                onClick={() => addSystemNote('Client has been notified of estimate.')}
@@ -1470,11 +1495,11 @@ const RepairDetail = () => {
         </div>
       )}
 
-      {/* Email Confirmation Modal */}
+      {/* Notification Confirmation Modal */}
       <Modal
         isOpen={emailModal.isOpen}
         onClose={closeEmailModal}
-        title={emailModal.step === 'success' ? 'Success' : emailModal.step === 'error' ? 'Error' : 'Confirm Email'}
+        title={emailModal.step === 'success' ? 'Success' : emailModal.step === 'error' ? 'Error' : `Confirm ${emailModal.method === 'text' ? 'Text' : 'Email'}`}
         footer={
           emailModal.step === 'confirm' ? (
             <>
@@ -1488,7 +1513,7 @@ const RepairDetail = () => {
                 onClick={proceedWithEmail}
                 className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg font-medium"
               >
-                Send Email
+                Send {emailModal.method === 'text' ? 'Text' : 'Email'}
               </button>
             </>
           ) : emailModal.step === 'success' || emailModal.step === 'error' ? (
@@ -1504,13 +1529,13 @@ const RepairDetail = () => {
         {emailModal.step === 'confirm' && (
           <div className="flex flex-col items-center p-4 text-center">
             <div className="w-16 h-16 bg-amber-900/30 rounded-full flex items-center justify-center mb-4">
-              <Mail className="text-amber-500" size={32} />
+              {emailModal.method === 'text' ? <MessageSquare className="text-amber-500" size={32} /> : <Mail className="text-amber-500" size={32} />}
             </div>
             <p className="text-lg text-zinc-200 mb-2">
-              Send "{emailModal.type === 'estimate' ? 'Estimate Available' : 'Ready for Pickup'}" email?
+              Send "{emailModal.type === 'estimate' ? 'Estimate Available' : 'Ready for Pickup'}" {emailModal.method === 'text' ? 'text' : 'email'}?
             </p>
             <p className="text-sm text-zinc-400">
-              This will notify <strong>{client?.name}</strong> at <strong>{client?.email}</strong>.
+              This will notify <strong>{client?.name}</strong> at <strong>{emailModal.method === 'text' ? (client?.phone || 'Unknown Phone') : (client?.email || 'Unknown Email')}</strong>.
             </p>
           </div>
         )}
@@ -1518,7 +1543,7 @@ const RepairDetail = () => {
         {emailModal.step === 'sending' && (
           <div className="flex flex-col items-center justify-center p-8 space-y-4">
             <Loader2 size={48} className="animate-spin text-amber-500" />
-            <p className="text-zinc-300">Sending email...</p>
+            <p className="text-zinc-300">Sending {emailModal.method === 'text' ? 'text' : 'email'}...</p>
           </div>
         )}
 
@@ -1527,7 +1552,7 @@ const RepairDetail = () => {
             <div className="w-16 h-16 bg-emerald-900/30 rounded-full flex items-center justify-center mb-4">
               <CheckCircle2 className="text-emerald-500" size={32} />
             </div>
-            <p className="text-lg text-zinc-200 mb-2">Email Sent Successfully</p>
+            <p className="text-lg text-zinc-200 mb-2">{emailModal.method === 'text' ? 'Text' : 'Email'} Sent Successfully</p>
             <p className="text-sm text-zinc-400">
               The client has been notified.
             </p>
@@ -1539,7 +1564,7 @@ const RepairDetail = () => {
              <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mb-4">
               <X className="text-red-500" size={32} />
             </div>
-            <p className="text-lg text-red-400 mb-2">Failed to Send Email</p>
+            <p className="text-lg text-red-400 mb-2">Failed to Send {emailModal.method === 'text' ? 'Text' : 'Email'}</p>
             <p className="text-sm text-zinc-400 bg-zinc-950 p-3 rounded border border-zinc-800 w-full break-words">
               {emailModal.error}
             </p>

@@ -42,9 +42,12 @@ const fetchJSON = async (endpoint, options = {}) => {
 };
 
 // Clients
-export const getClients = async (search = '') => {
-  const query = search ? `?search=${encodeURIComponent(search)}` : '';
-  return fetchJSON(`/clients${query}`);
+export const getClients = async (search = '', page = 1, limit = 100) => {
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  params.append('page', page);
+  params.append('limit', limit);
+  return fetchJSON(`/clients?${params.toString()}`);
 };
 
 export const getClient = async (id) => {
@@ -272,6 +275,22 @@ export const sendEstimateEmail = async (repairId) => {
 export const sendPickupEmail = async (repairId) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
   return fetchJSON(`/repairs/${repairId}/email-pickup`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const sendEstimateText = async (repairId) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/repairs/${repairId}/text-estimate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const sendPickupText = async (repairId) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/repairs/${repairId}/text-pickup`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${user?.token}` }
   });

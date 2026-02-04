@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { getRepairs, updateRepair } from '@/lib/api';
 import { Clock, AlertTriangle, CheckCircle, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -25,6 +25,7 @@ const StatusBadge = ({ status }) => {
 const Workbench = () => {
   const [tickets, setTickets] = useState([]);
   const [filter, setFilter] = useState('');
+  const searchInputRef = useRef(null);
 
   const loadData = async () => {
     try {
@@ -37,6 +38,9 @@ const Workbench = () => {
 
   useEffect(() => {
     loadData();
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
   }, []);
 
   const updateStatus = async (id, newStatus) => {
@@ -64,6 +68,7 @@ const Workbench = () => {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
           <input 
+            ref={searchInputRef}
             type="text" 
             placeholder="Search tickets..." 
             value={filter}

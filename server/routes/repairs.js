@@ -6,9 +6,16 @@ const multer = require("multer");
 const nodemailer = require("nodemailer");
 const dns = require("dns");
 const util = require("util");
+const twilio = require("twilio");
 const { verifyToken } = require("../middleware/auth");
 
 const lookup = util.promisify(dns.lookup);
+
+// Configure Twilio
+const twilioClient = process.env.TWILIO_ACCOUNT_SID 
+  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+  : null;
+
 
 // Configure Cloudinary
 cloudinary.config({
@@ -260,8 +267,10 @@ router.get("/:id", async (req, res) => {
     const repairQuery = `
       SELECT r.*, 
              c.name as client_name, c.company_name as client_company, c.phone as client_phone, c.email as client_email,
-             c.address as client_address, c.city as client_city, c.state as client_state, c.zip as client_zip
+             c.address as client_address, c.city as client_city, c.state as client_state, c.zip as client_zip,
+             c.primary_notification
       FROM repairs r 
+
       JOIN clients c ON r.client_id = c.id 
       WHERE r.id = $1
     `;
@@ -328,7 +337,9 @@ router.get("/:id", async (req, res) => {
         city: row.client_city,
         state: row.client_state,
         zip: row.client_zip,
+        primaryNotification: row.primary_notification
       },
+
       brand: row.brand,
       model: row.model,
       serial: row.serial,
@@ -934,5 +945,125 @@ router.post("/:id/email-pickup", verifyToken, async (req, res) => {
     res.status(500).json({ error: "Failed to send email: " + error.message });
   }
 });
+
+// POST /api/repairs/:id/text-estimate
+router.post("/:id/text-estimate", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!twilioClient) {
+      return res.status(500).json({ error: "Twilio not configured on server" });
+    }
+
+    // Fetch repair info
+    const repairQuery = `
+      SELECT r.*, c.phone as client_phone, c.name as client_name, c.primary_notification
+      FROM repairs r 
+      JOIN clients c ON r.client_id = c.id 
+      WHERE r.id = $1
+    `;
+    const repairRes = await db.query(repairQuery, [id]);
+
+    if (repairRes.rows.length === 0)
+      return res.status(404).json({ error: "Repair not found" });
+    const repair = repairRes.rows[0];
+
+    // Get Primary Phone from client_phones table if available, else fallback to legacy phone
+    const phonesRes = await db.query(
+      "SELECT phone_number FROM client_phones WHERE client_id = $1 AND is_primary = true",
+      [repair.client_id]
+    );
+    
+    let phoneNumber = repair.client_phone;
+    if (phonesRes.rows.length > 0) {
+      phoneNumber = phonesRes.rows[0].phone_number;
+    }
+
+    if (!phoneNumber) {
+      return res.status(400).json({ error: "Client has no phone number" });
+    }
+
+    // Ensure phone number is E.164 format (US only assumption for now, or just prepend +1 if 10 digits)
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    const formattedPhone = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
+
+    // Fetch Parts for total
+    const partsRes = await db.query(
+      "SELECT * FROM repair_parts WHERE repair_id = $1",
+      [id],
+    );
+    const { amountDue } = calculateTotals(repair, partsRes.rows);
+
+    await twilioClient.messages.create({
+      body: `Hello ${repair.client_name}, STI here. Estimate for your ${repair.brand} ${repair.model} is $${amountDue.toFixed(2)}. Pls call (813) 985-1120 to approve.`,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: formattedPhone
+    });
+
+    res.json({ message: "Estimate text sent" });
+  } catch (error) {
+    console.error("Error sending estimate text:", error);
+    res.status(500).json({ error: "Failed to send text: " + error.message });
+  }
+});
+
+// POST /api/repairs/:id/text-pickup
+router.post("/:id/text-pickup", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!twilioClient) {
+      return res.status(500).json({ error: "Twilio not configured on server" });
+    }
+
+    const repairQuery = `
+      SELECT r.*, c.phone as client_phone, c.name as client_name
+      FROM repairs r 
+      JOIN clients c ON r.client_id = c.id 
+      WHERE r.id = $1
+    `;
+    const repairRes = await db.query(repairQuery, [id]);
+
+    if (repairRes.rows.length === 0)
+      return res.status(404).json({ error: "Repair not found" });
+    const repair = repairRes.rows[0];
+
+    // Get Primary Phone
+    const phonesRes = await db.query(
+      "SELECT phone_number FROM client_phones WHERE client_id = $1 AND is_primary = true",
+      [repair.client_id]
+    );
+    
+    let phoneNumber = repair.client_phone;
+    if (phonesRes.rows.length > 0) {
+      phoneNumber = phonesRes.rows[0].phone_number;
+    }
+
+    if (!phoneNumber) {
+      return res.status(400).json({ error: "Client has no phone number" });
+    }
+
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    const formattedPhone = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
+
+    const partsRes = await db.query(
+      "SELECT * FROM repair_parts WHERE repair_id = $1",
+      [id],
+    );
+    const { amountDue } = calculateTotals(repair, partsRes.rows);
+
+    await twilioClient.messages.create({
+      body: `Hello ${repair.client_name}, STI here. Your ${repair.brand} ${repair.model} is ready! Total: $${amountDue.toFixed(2)}. M-F 10-6.`,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: formattedPhone
+    });
+
+    res.json({ message: "Pickup text sent" });
+  } catch (error) {
+    console.error("Error sending pickup text:", error);
+    res.status(500).json({ error: "Failed to send text: " + error.message });
+  }
+});
+
 
 module.exports = router;
