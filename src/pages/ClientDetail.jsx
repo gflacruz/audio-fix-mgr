@@ -391,9 +391,9 @@ const ClientDetail = () => {
                       </div>
                       <div className="text-sm text-zinc-500 mt-1">
                         In: {new Date(ticket.dateIn).toLocaleDateString()} • {ticket.issue.substring(0, 60)}...
-                        {ticket.diagnosticFee > 0 && (
+                        {ticket.diagnosticFeeCollected && (
                           <span className="ml-2 text-green-600 dark:text-green-500 font-medium text-xs">
-                             (Paid: ${ticket.diagnosticFee.toFixed(2)})
+                             (Paid: ${Number(ticket.depositAmount || ticket.diagnosticFee || 0).toFixed(2)})
                           </span>
                         )}
                       </div>

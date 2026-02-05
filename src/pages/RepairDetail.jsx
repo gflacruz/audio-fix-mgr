@@ -164,9 +164,13 @@ const RepairDetail = () => {
       const newStatus = !ticket.diagnosticFeeCollected;
       const updates = { diagnosticFeeCollected: newStatus };
       
-      // If turning ON and fee is 0, set to standard 89
-      if (newStatus && (!ticket.diagnosticFee || ticket.diagnosticFee === 0)) {
-        updates.diagnosticFee = 89.00;
+      // If turning ON, ensure we have a valid fee amount
+      if (newStatus) {
+        // If there's already a deposit amount, keep it. 
+        // If not, use existing fee or default to 89.
+        if (!ticket.depositAmount || ticket.depositAmount === 0) {
+           updates.depositAmount = ticket.diagnosticFee > 0 ? ticket.diagnosticFee : 89.00;
+        }
       }
 
       await updateRepair(id, updates);
@@ -184,8 +188,17 @@ const RepairDetail = () => {
         return;
       }
 
-      await updateRepair(id, { diagnosticFee: newFee });
-      setTicket(prev => ({ ...prev, diagnosticFee: newFee }));
+      // Update both for backward compatibility, but rely on depositAmount
+      await updateRepair(id, { 
+        depositAmount: newFee,
+        diagnosticFee: newFee 
+      });
+      
+      setTicket(prev => ({ 
+        ...prev, 
+        depositAmount: newFee,
+        diagnosticFee: newFee 
+      }));
       setIsEditingFee(false);
     } catch (error) {
       console.error("Failed to update fee:", error);
@@ -552,7 +565,7 @@ const RepairDetail = () => {
   const tax = ticket.isTaxExempt ? 0 : (partsTotal + laborTotal) * 0.075;
   const total = partsTotal + laborTotal + shippingTotal + onSiteFee + rushFee + tax;
   
-  const diagnosticFee = ticket.diagnosticFee > 0 ? ticket.diagnosticFee : 89.00;
+  const diagnosticFee = ticket.depositAmount ? parseFloat(ticket.depositAmount) : (ticket.diagnosticFee > 0 ? ticket.diagnosticFee : 89.00);
   const amountDue = ticket.diagnosticFeeCollected ? Math.max(0, total - diagnosticFee) : total;
   
   return (

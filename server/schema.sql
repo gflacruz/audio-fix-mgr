@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS repairs (
   status VARCHAR(50) DEFAULT 'checked_in',
   technician VARCHAR(100) DEFAULT 'Unassigned',
   diagnostic_fee_collected BOOLEAN DEFAULT FALSE,
+  deposit_amount DECIMAL(10, 2) DEFAULT 0.00,
   is_on_site BOOLEAN DEFAULT FALSE,
   is_shipped_in BOOLEAN DEFAULT FALSE,
   shipping_carrier VARCHAR(100),
