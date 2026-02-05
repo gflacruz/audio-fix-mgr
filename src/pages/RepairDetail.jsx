@@ -963,7 +963,7 @@ const RepairDetail = () => {
                  ) : (
                    <div className="flex items-center gap-2">
                      <label htmlFor="feeCollected" className="text-xs text-zinc-500 dark:text-zinc-400 select-none cursor-pointer">
-                       Diagnostic Fee Collected (${diagnosticFee.toFixed(2)})
+                        Deposit Amount Collected (${diagnosticFee.toFixed(2)})
                      </label>
                      <button 
                        onClick={() => {
@@ -1051,7 +1051,7 @@ const RepairDetail = () => {
               )}
               {ticket.diagnosticFeeCollected && (
                 <div className="flex justify-between text-sm text-green-500">
-                  <span>Less: Diagnostic Fee</span>
+                  <span>Less: Deposit Amount</span>
                   <span className="font-mono">-${diagnosticFee.toFixed(2)}</span>
                 </div>
               )}
