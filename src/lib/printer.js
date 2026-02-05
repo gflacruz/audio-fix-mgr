@@ -28,8 +28,9 @@ export const printDiagnosticReceipt = (ticket, client) => {
     <head>
       <title>Receipt #${ticket.claimNumber || ticket.id}</title>
       <style>
+        *, *::before, *::after { box-sizing: border-box; }
         @media print { 
-          @page { margin: 0.5cm; } 
+          @page { margin: 0.5cm; }
           body { -webkit-print-color-adjust: exact; }
         }
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #333; }
@@ -192,8 +193,9 @@ export const printRepairInvoice = (ticket, client) => {
     <head>
       <title>Invoice #${ticket.claimNumber || ticket.id}</title>
       <style>
+        *, *::before, *::after { box-sizing: border-box; }
         @media print { 
-          @page { margin: 0.5cm; } 
+          @page { margin: 0.5cm; }
           body { -webkit-print-color-adjust: exact; }
         }
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 25px; max-width: 800px; margin: 0 auto; color: #333; }
