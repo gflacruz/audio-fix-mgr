@@ -158,8 +158,15 @@ const RepairDetail = () => {
   const handleFeeToggle = async () => {
     try {
       const newStatus = !ticket.diagnosticFeeCollected;
-      await updateRepair(id, { diagnosticFeeCollected: newStatus });
-      setTicket(prev => ({ ...prev, diagnosticFeeCollected: newStatus }));
+      const updates = { diagnosticFeeCollected: newStatus };
+      
+      // If turning ON and fee is 0, set to standard 89
+      if (newStatus && (!ticket.diagnosticFee || ticket.diagnosticFee === 0)) {
+        updates.diagnosticFee = 89.00;
+      }
+
+      await updateRepair(id, updates);
+      setTicket(prev => ({ ...prev, ...updates }));
     } catch (error) {
       console.error("Failed to toggle fee:", error);
     }
@@ -524,7 +531,7 @@ const RepairDetail = () => {
   const tax = ticket.isTaxExempt ? 0 : (partsTotal + laborTotal) * 0.075;
   const total = partsTotal + laborTotal + shippingTotal + onSiteFee + rushFee + tax;
   
-  const diagnosticFee = 89.00;
+  const diagnosticFee = ticket.diagnosticFee > 0 ? ticket.diagnosticFee : 89.00;
   const amountDue = ticket.diagnosticFeeCollected ? Math.max(0, total - diagnosticFee) : total;
   
   return (
@@ -907,7 +914,7 @@ const RepairDetail = () => {
                    className="w-4 h-4 rounded border-zinc-600 bg-zinc-100 dark:bg-zinc-800 text-amber-600 focus:ring-amber-500 focus:ring-offset-zinc-900"
                  />
                  <label htmlFor="feeCollected" className="text-xs text-zinc-500 dark:text-zinc-400 select-none cursor-pointer">
-                   Diagnostic Fee Collected ($89)
+                   Diagnostic Fee Collected (${diagnosticFee.toFixed(2)})
                  </label>
               </div>
                <div className="flex items-center gap-2">

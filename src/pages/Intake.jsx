@@ -40,6 +40,7 @@ const Intake = () => {
   });
 
   const [showFeeModal, setShowFeeModal] = useState(false);
+  const [customFee, setCustomFee] = useState(89);
 
   // ... fetchZipInfo remains same ...
   const fetchZipInfo = async (zip) => {
@@ -195,10 +196,10 @@ const Intake = () => {
       return;
     }
 
-    await createTicket(false);
+    await createTicket(false, 0);
   };
 
-  const createTicket = async (feeCollected) => {
+  const createTicket = async (feeCollected, feeAmount = 0) => {
     try {
       // 1. Find or Create Client
       let clientId;
@@ -256,6 +257,7 @@ const Intake = () => {
         priority: formData.priority,
         technician: 'Unassigned',
         diagnosticFeeCollected: feeCollected,
+        diagnosticFee: feeCollected ? feeAmount : 0,
         isOnSite: formData.isOnSite,
         isShippedIn: formData.isShippedIn,
         shippingCarrier: formData.isShippedIn ? formData.shippingCarrier : null,
@@ -573,18 +575,31 @@ const Intake = () => {
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 max-w-md w-full shadow-2xl">
             <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">Collect Diagnostic Fee</h3>
             <p className="text-zinc-600 dark:text-zinc-300 mb-6">
-              For normal priority repairs, a <strong>$89 diagnostic fee</strong> is standard. 
-              Has this fee been collected from the client?
+              For normal priority repairs, a diagnostic fee is standard. 
+              Please confirm the amount and collection status.
             </p>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
+                Fee Amount ($)
+              </label>
+              <input 
+                type="number" 
+                value={customFee} 
+                onChange={(e) => setCustomFee(parseFloat(e.target.value) || 0)}
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
+              />
+            </div>
+
             <div className="flex gap-3 justify-end">
               <button
-                onClick={() => createTicket(false)}
+                onClick={() => createTicket(false, 0)}
                 className="px-4 py-2 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
               >
                 No, Not Collected
               </button>
               <button
-                onClick={() => createTicket(true)}
+                onClick={() => createTicket(true, customFee)}
                 className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white font-medium transition-colors"
               >
                 Yes, Fee Collected

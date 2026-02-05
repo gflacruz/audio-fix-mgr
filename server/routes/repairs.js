@@ -98,6 +98,7 @@ router.get("/", async (req, res) => {
       completedDate: row.completed_date,
       closedDate: row.closed_date,
       diagnosticFeeCollected: row.diagnostic_fee_collected,
+      diagnosticFee: parseFloat(row.diagnostic_fee) || 0,
       isOnSite: row.is_on_site,
       isTaxExempt: row.is_tax_exempt,
       isShippedIn: row.is_shipped_in,
@@ -352,6 +353,7 @@ router.get("/:id", async (req, res) => {
       completedDate: row.completed_date,
       closedDate: row.closed_date,
       diagnosticFeeCollected: row.diagnostic_fee_collected,
+      diagnosticFee: parseFloat(row.diagnostic_fee) || 0,
       isOnSite: row.is_on_site,
       isTaxExempt: row.is_tax_exempt,
       isShippedIn: row.is_shipped_in,
@@ -407,6 +409,7 @@ router.post("/", async (req, res) => {
       priority,
       technician,
       diagnosticFeeCollected,
+      diagnosticFee,
       isOnSite,
       isShippedIn,
       shippingCarrier,
@@ -445,8 +448,8 @@ router.post("/", async (req, res) => {
 
     const result = await db.query(
       `INSERT INTO repairs 
-       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, is_shipped_in, shipping_carrier, box_height, box_length, box_width, model_version, accessories_included, is_on_site, claim_number) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) 
+       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, diagnostic_fee, is_shipped_in, shipping_carrier, box_height, box_length, box_width, model_version, accessories_included, is_on_site, claim_number) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) 
        RETURNING *`,
       [
         clientId,
@@ -458,6 +461,7 @@ router.post("/", async (req, res) => {
         priority || "normal",
         technician || "Unassigned",
         diagnosticFeeCollected || false,
+        diagnosticFee || 0,
         isShippedIn || false,
         shippingCarrier || null,
         boxHeight || null,
@@ -497,6 +501,7 @@ router.patch("/:id", async (req, res) => {
       "technician",
       "priority",
       "diagnosticFeeCollected",
+      "diagnosticFee",
       "isOnSite",
       "issue",
       "modelVersion",
@@ -832,7 +837,7 @@ const calculateTotals = (repair, parts) => {
   const total =
     partsTotal + laborTotal + shippingTotal + onSiteFee + rushFee + tax;
 
-  const diagnosticFee = 89.0;
+  const diagnosticFee = parseFloat(repair.diagnostic_fee) || 0;
   const amountDue = repair.diagnostic_fee_collected
     ? Math.max(0, total - diagnosticFee)
     : total;

@@ -391,9 +391,14 @@ const ClientDetail = () => {
                       </div>
                       <div className="text-sm text-zinc-500 mt-1">
                         In: {new Date(ticket.dateIn).toLocaleDateString()} • {ticket.issue.substring(0, 60)}...
+                        {ticket.diagnosticFee > 0 && (
+                          <span className="ml-2 text-green-600 dark:text-green-500 font-medium text-xs">
+                             (Paid: ${ticket.diagnosticFee.toFixed(2)})
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div className={`px-2 py-1 rounded text-xs uppercase font-bold tracking-wider 
+                    <div className={`px-2 py-1 rounded text-xs uppercase font-bold tracking-wider
                       ${ticket.status === 'ready' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-500' : 
                         ticket.status === 'closed' ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-500'}`}>
                       {ticket.status}

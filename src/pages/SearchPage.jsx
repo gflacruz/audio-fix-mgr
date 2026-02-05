@@ -9,10 +9,20 @@ const SearchPage = () => {
   const [includeClosed, setIncludeClosed] = useState(false);
   const [results, setResults] = useState({ clients: [], repairs: [] });
   const [hasSearched, setHasSearched] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
 
+  // Debounce query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 2000);
+    return () => clearTimeout(handler);
+  }, [query]);
+
+  // Perform search when debouncedQuery changes
   useEffect(() => {
     const performSearch = async () => {
-      if (!query.trim()) {
+      if (!debouncedQuery.trim()) {
         setResults({ clients: [], repairs: [] });
         setHasSearched(false);
         return;
@@ -20,8 +30,8 @@ const SearchPage = () => {
 
       try {
         const [foundClients, foundRepairs] = await Promise.all([
-          getClients(query),
-          getRepairs({ search: query, includeClosed })
+          getClients(debouncedQuery),
+          getRepairs({ search: debouncedQuery, includeClosed })
         ]);
 
         // Apply Sorting (Client-side for now as API sorting is fixed)
@@ -43,10 +53,8 @@ const SearchPage = () => {
       }
     };
 
-    // Debounce search
-    const timeoutId = setTimeout(performSearch, 300);
-    return () => clearTimeout(timeoutId);
-  }, [query, sortOrder, includeClosed]);
+    performSearch();
+  }, [debouncedQuery, sortOrder, includeClosed]);
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -92,6 +100,7 @@ const SearchPage = () => {
           placeholder="Search by name, company, email, phone, serial, brand, model, or claim #..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && setDebouncedQuery(query)}
           className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl pl-14 pr-6 py-4 text-xl text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none shadow-xl dark:shadow-none"
         />
       </div>

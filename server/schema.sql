@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS clients (
   city VARCHAR(100),
   state VARCHAR(50),
   zip VARCHAR(20),
+  primary_notification VARCHAR(50) DEFAULT 'Phone',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
