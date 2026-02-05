@@ -54,6 +54,10 @@ const RepairDetail = () => {
     error: null
   });
 
+  // Diagnostic Fee Edit State
+  const [isEditingFee, setIsEditingFee] = useState(false);
+  const [tempFee, setTempFee] = useState('');
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -169,6 +173,23 @@ const RepairDetail = () => {
       setTicket(prev => ({ ...prev, ...updates }));
     } catch (error) {
       console.error("Failed to toggle fee:", error);
+    }
+  };
+
+  const handleSaveFee = async () => {
+    try {
+      const newFee = parseFloat(tempFee);
+      if (isNaN(newFee) || newFee < 0) {
+        alert("Please enter a valid fee amount.");
+        return;
+      }
+
+      await updateRepair(id, { diagnosticFee: newFee });
+      setTicket(prev => ({ ...prev, diagnosticFee: newFee }));
+      setIsEditingFee(false);
+    } catch (error) {
+      console.error("Failed to update fee:", error);
+      alert("Failed to update fee.");
     }
   };
 
@@ -905,7 +926,7 @@ const RepairDetail = () => {
         <div className="col-span-1 space-y-6">
           
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-3">
-              <div className="flex items-center gap-2">
+               <div className="flex items-center gap-2">
                  <input 
                    type="checkbox" 
                    id="feeCollected"
@@ -913,9 +934,35 @@ const RepairDetail = () => {
                    onChange={handleFeeToggle}
                    className="w-4 h-4 rounded border-zinc-600 bg-zinc-100 dark:bg-zinc-800 text-amber-600 focus:ring-amber-500 focus:ring-offset-zinc-900"
                  />
-                 <label htmlFor="feeCollected" className="text-xs text-zinc-500 dark:text-zinc-400 select-none cursor-pointer">
-                   Diagnostic Fee Collected (${diagnosticFee.toFixed(2)})
-                 </label>
+                 
+                 {isEditingFee ? (
+                   <div className="flex items-center gap-2">
+                     <input
+                       type="number"
+                       value={tempFee}
+                       onChange={(e) => setTempFee(e.target.value)}
+                       className="w-20 px-2 py-0.5 text-xs bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded focus:border-amber-500 outline-none"
+                       autoFocus
+                     />
+                     <button onClick={handleSaveFee} className="text-green-600 hover:text-green-500"><CheckCircle2 size={14} /></button>
+                     <button onClick={() => setIsEditingFee(false)} className="text-red-500 hover:text-red-400"><X size={14} /></button>
+                   </div>
+                 ) : (
+                   <div className="flex items-center gap-2">
+                     <label htmlFor="feeCollected" className="text-xs text-zinc-500 dark:text-zinc-400 select-none cursor-pointer">
+                       Diagnostic Fee Collected (${diagnosticFee.toFixed(2)})
+                     </label>
+                     <button 
+                       onClick={() => {
+                         setTempFee(diagnosticFee);
+                         setIsEditingFee(true);
+                       }}
+                       className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
+                     >
+                       <Edit2 size={12} />
+                     </button>
+                   </div>
+                 )}
               </div>
                <div className="flex items-center gap-2">
                  <input 
