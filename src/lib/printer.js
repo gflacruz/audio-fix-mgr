@@ -8,6 +8,17 @@ const formatPhone = (phone) => {
   return phone;
 };
 
+const LOGO_SVG = `<svg width="140" height="60" viewBox="0 0 140 60" xmlns="http://www.w3.org/2000/svg">
+  <!-- Icon Box -->
+  <rect x="2" y="2" width="56" height="56" rx="6" stroke="#000" stroke-width="2.5" fill="none"/>
+  <text x="30" y="38" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-size="22" text-anchor="middle" fill="#000">STI</text>
+  
+  <!-- Stylized Lines -->
+  <path d="M68 15 L120 15" stroke="#000" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M68 30 L100 30" stroke="#000" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M68 45 L130 45" stroke="#000" stroke-width="2.5" stroke-linecap="round"/>
+</svg>`;
+
 export const printDiagnosticReceipt = (ticket, client) => {
   const printWindow = window.open("", "_blank");
 
@@ -22,7 +33,8 @@ export const printDiagnosticReceipt = (ticket, client) => {
           body { -webkit-print-color-adjust: exact; }
         }
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #333; }
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+        .shop-info { text-align: right; }
         .shop-name { font-size: 24px; font-weight: bold; color: #000; margin-bottom: 5px; }
         .doc-title { font-size: 18px; text-transform: uppercase; letter-spacing: 2px; color: #666; }
         .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
@@ -48,10 +60,13 @@ export const printDiagnosticReceipt = (ticket, client) => {
     </head>
     <body>
       <div class="header">
-        <div class="shop-name">Sound Technology Inc</div>
-        <div style="font-size: 14px; color: #666; margin-bottom: 5px;">4508 Oak Fair Blvd. Suite 104 Tampa, FL 33610</div>
-        <div style="font-size: 14px; color: #666; margin-bottom: 10px;">(813) 985-1120</div>
-        <div class="doc-title">Diagnostic Fee Receipt</div>
+        <div>${LOGO_SVG}</div>
+        <div class="shop-info">
+          <div class="shop-name">Sound Technology Inc</div>
+          <div style="font-size: 14px; color: #666; margin-bottom: 5px;">4508 Oak Fair Blvd. Suite 104 Tampa, FL 33610</div>
+          <div style="font-size: 14px; color: #666; margin-bottom: 10px;">(813) 985-1120</div>
+          <div class="doc-title">Diagnostic Fee Receipt</div>
+        </div>
       </div>
 
       <div class="info-grid">
@@ -182,7 +197,8 @@ export const printRepairInvoice = (ticket, client) => {
           body { -webkit-print-color-adjust: exact; }
         }
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 25px; max-width: 800px; margin: 0 auto; color: #333; }
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+        .shop-info { text-align: right; }
         .shop-name { font-size: 22px; font-weight: bold; color: #000; margin-bottom: 5px; }
         .doc-title { font-size: 16px; text-transform: uppercase; letter-spacing: 2px; color: #666; }
         .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
@@ -212,10 +228,13 @@ export const printRepairInvoice = (ticket, client) => {
     </head>
     <body>
       <div class="header">
-        <div class="shop-name">Sound Technology Inc</div>
-        <div style="font-size: 14px; color: #666; margin-bottom: 5px;">4508 Oak Fair Blvd. Suite 104 Tampa, FL 33610</div>
-        <div style="font-size: 14px; color: #666; margin-bottom: 10px;">(813) 985-1120</div>
-        <div class="doc-title">Repair Invoice</div>
+        <div>${LOGO_SVG}</div>
+        <div class="shop-info">
+          <div class="shop-name">Sound Technology Inc</div>
+          <div style="font-size: 14px; color: #666; margin-bottom: 5px;">4508 Oak Fair Blvd. Suite 104 Tampa, FL 33610</div>
+          <div style="font-size: 14px; color: #666; margin-bottom: 10px;">(813) 985-1120</div>
+          <div class="doc-title">Repair Invoice</div>
+        </div>
       </div>
 
       <div class="info-grid">

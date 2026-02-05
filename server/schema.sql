@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS client_phones (
 
 CREATE TABLE IF NOT EXISTS repairs (
   id SERIAL PRIMARY KEY,
-  claim_number INTEGER DEFAULT nextval('claim_number_seq'),
+  claim_number VARCHAR(50),
   client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
   brand VARCHAR(255) NOT NULL,
   model VARCHAR(255) NOT NULL,
