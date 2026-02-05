@@ -890,7 +890,7 @@ const RepairDetail = () => {
                   disabled={isUploadingPhoto}
                 />
                 <button 
-                  className={`text-xs bg-zinc-100 dark:bg-zinc-800 hover:bg-blue-600 hover:text-white text-zinc-700 dark:text-zinc-300 px-3 py-1.5 rounded flex items-center gap-2 transition-colors ${isUploadingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`text-xs bg-zinc-100 dark:bg-zinc-800 group-hover:bg-blue-600 group-hover:text-white text-zinc-700 dark:text-zinc-300 px-3 py-1.5 rounded flex items-center gap-2 transition-colors ${isUploadingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {isUploadingPhoto ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
                   {isUploadingPhoto ? 'Uploading...' : 'Add Photo'}
@@ -1443,7 +1443,7 @@ const RepairDetail = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">Shipping Cost Quote ($)</label>
-                      <div className="relative">
+              <div className="relative group">
                         <span className="absolute left-3 top-2 text-zinc-500">$</span>
                         <input
                           type="number"
