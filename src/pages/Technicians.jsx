@@ -30,17 +30,23 @@ const Technicians = () => {
   const [counts, setCounts] = useState({});
   const [technicians, setTechnicians] = useState([]);
 
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
     // Load technicians first
     getTechnicians().then(techs => {
       setTechnicians(techs);
+      setIsLoading(false);
       // Don't force select first tech, default is Unassigned
-    }).catch(console.error);
+    }).catch(err => {
+      console.error(err);
+      setIsLoading(false);
+    });
   }, []);
 
   useEffect(() => {
     // Check if we need to load data (Unassigned is always valid)
-    if (!selectedTech && selectedTech !== '') return;
+    // Always load data regardless of selection to populate counts
     loadData();
   }, [selectedTech, technicians]);
 
@@ -91,7 +97,7 @@ const Technicians = () => {
     }
   };
 
-  if (technicians.length === 0) return <div className="p-8 text-zinc-500">Loading technicians...</div>;
+  if (isLoading) return <div className="p-8 text-zinc-500">Loading technicians...</div>;
 
   return (
     <div className="max-w-5xl mx-auto">
