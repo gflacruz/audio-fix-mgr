@@ -111,7 +111,7 @@ export const printDiagnosticReceipt = (ticket, client) => {
               Diagnostic Fee - Standard Rate
               <div style="font-size: 12px; color: #888; margin-top: 4px;">Assessment and troubleshooting service</div>
             </td>
-            <td style="text-align: right;">$89.00</td>
+            <td style="text-align: right;">${(ticket.deposit || 0).toFixed(2)}</td>
           </tr>
         </tbody>
       </table>
@@ -120,11 +120,11 @@ export const printDiagnosticReceipt = (ticket, client) => {
         <div class="total-row">
           <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
             <span>Subtotal:</span>
-            <span>$89.00</span>
+            <span>${(ticket.deposit || 0).toFixed(2)}</span>
           </div>
           <div class="grand-total" style="display: flex; justify-content: space-between;">
             <span>Total:</span>
-            <span>$89.00</span>
+            <span>${(ticket.deposit || 0).toFixed(2)}</span>
           </div>
           <div style="margin-top: 20px; text-align: right;">
             <span class="status-badge ${ticket.diagnosticFeeCollected ? "paid" : "unpaid"}">
@@ -166,7 +166,7 @@ export const printRepairInvoice = (ticket, client) => {
 
   const subtotal = partsTotal + laborTotal + shippingTotal + onSiteFee + rushFee;
   const totalWithTax = subtotal + tax;
-  const diagnosticFee = 89.0;
+  const diagnosticFee = ticket.deposit || 0;
 
   const amountDue = ticket.diagnosticFeeCollected
     ? Math.max(0, totalWithTax - diagnosticFee)
