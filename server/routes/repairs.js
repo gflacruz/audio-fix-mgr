@@ -355,6 +355,7 @@ router.get("/:id", async (req, res) => {
       closedDate: row.closed_date,
       diagnosticFeeCollected: row.diagnostic_fee_collected,
       diagnosticFee: parseFloat(row.diagnostic_fee) || 0,
+      depositAmount: parseFloat(row.deposit_amount) || 0,
       isOnSite: row.is_on_site,
       isTaxExempt: row.is_tax_exempt,
       isShippedIn: row.is_shipped_in,
