@@ -4,7 +4,7 @@
   "description": "Audio Repair Shop Management System",
   "main": "electron/main.js",
   "scripts": {
-    "dev": "concurrently \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "dev": "concurrently \"vite\" \"wait-on tcp:5173 && electron . --auto-open-devtools-for-tabs\"",
     "build": "vite build",
     "electron:build": "vite build && electron-builder",
     "preview": "vite preview"
