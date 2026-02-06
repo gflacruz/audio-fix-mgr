@@ -16,6 +16,7 @@ const Inventory = () => {
   // Form State
   const [formData, setFormData] = useState({
     name: '',
+    nomenclature: '',
     retailPrice: '',
     wholesalePrice: '',
     quantityInStock: '',
@@ -47,6 +48,7 @@ const Inventory = () => {
       setEditingPart(part);
       setFormData({
         name: part.name,
+        nomenclature: part.nomenclature || '',
         retailPrice: part.retailPrice,
         wholesalePrice: part.wholesalePrice,
         quantityInStock: part.quantityInStock,
@@ -60,6 +62,7 @@ const Inventory = () => {
       setEditingPart(null);
       setFormData({
         name: '',
+        nomenclature: '',
         retailPrice: '',
         wholesalePrice: '',
         quantityInStock: '',
@@ -94,6 +97,7 @@ const Inventory = () => {
     try {
       const data = new FormData();
       data.append('name', formData.name);
+      data.append('nomenclature', formData.nomenclature);
       data.append('retailPrice', parseFloat(formData.retailPrice) || 0);
       data.append('wholesalePrice', parseFloat(formData.wholesalePrice) || 0);
       data.append('quantityInStock', parseInt(formData.quantityInStock) || 0);
@@ -190,7 +194,13 @@ const Inventory = () => {
                         onClick={() => navigate(`/inventory/${part.id}`)}
                     >
                         <div className="group-hover:underline">{part.name}</div>
-                        {part.description && <div className="text-xs text-zinc-500 truncate max-w-[200px]">{part.description}</div>}
+                        {(part.nomenclature || part.description) && (
+                          <div className="text-xs text-zinc-500 truncate max-w-[200px]">
+                            {part.nomenclature}
+                            {part.nomenclature && part.description ? ' - ' : ''}
+                            {part.description}
+                          </div>
+                        )}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 font-mono text-sm">{part.location || '-'}</td>
@@ -257,15 +267,26 @@ const Inventory = () => {
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-1">Part Name</label>
-                <input 
-                  type="text" 
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-1">Part Name</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-1">Nomenclature</label>
+                  <input 
+                    type="text" 
+                    value={formData.nomenclature}
+                    onChange={(e) => setFormData({...formData, nomenclature: e.target.value})}
+                    className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

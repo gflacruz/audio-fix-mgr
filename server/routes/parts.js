@@ -47,8 +47,9 @@ router.get('/', verifyToken, async (req, res) => {
     const { search } = req.query;
     let query = `
       SELECT p.*, 
-             (SELECT COALESCE(json_agg(alias), '[]') FROM part_aliases WHERE part_id = p.id) as aliases
+             COALESCE(json_agg(pa.alias) FILTER (WHERE pa.alias IS NOT NULL), '[]') as aliases
       FROM parts p
+      LEFT JOIN part_aliases pa ON p.id = pa.part_id
     `;
     
     const params = [];
@@ -57,12 +58,12 @@ router.get('/', verifyToken, async (req, res) => {
       query += ` 
         WHERE p.name ILIKE $1 
         OR p.nomenclature ILIKE $1
-        OR EXISTS (SELECT 1 FROM part_aliases pa WHERE pa.part_id = p.id AND pa.alias ILIKE $1)
+        OR pa.alias ILIKE $1
       `;
       params.push(`%${search}%`);
     }
 
-    query += ` ORDER BY p.name ASC`;
+    query += ` GROUP BY p.id ORDER BY p.name ASC`;
 
     const result = await db.query(query, params);
     
