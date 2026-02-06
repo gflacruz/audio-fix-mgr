@@ -16,6 +16,31 @@ cloudinary.config({
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+// Helper to format part object
+const formatPart = (row) => ({
+  id: row.id,
+  name: row.name,
+  nomenclature: row.nomenclature,
+  retailPrice: parseFloat(row.retail_price),
+  wholesalePrice: parseFloat(row.wholesale_price),
+  quantityInStock: row.quantity_in_stock,
+  lowLimit: row.low_limit,
+  onOrder: row.on_order,
+  aliases: row.aliases,
+  location: row.location,
+  description: row.description,
+  imageUrl: row.image_url,
+  imagePublicId: row.image_public_id,
+  bestPriceQuality: row.best_price_quality,
+  unitOfIssue: row.unit_of_issue,
+  lastSupplier: row.last_supplier,
+  supplySource: row.supply_source,
+  remarks: row.remarks,
+  // Calculated fields (might be undefined if not in query)
+  issuedYtd: row.issued_ytd ? parseInt(row.issued_ytd) : 0,
+  lastUsedDate: row.last_used_date || null
+});
+
 // GET /api/parts - List all parts (Searchable)
 router.get('/', verifyToken, async (req, res) => {
   try {
@@ -31,6 +56,7 @@ router.get('/', verifyToken, async (req, res) => {
     if (search) {
       query += ` 
         WHERE p.name ILIKE $1 
+        OR p.nomenclature ILIKE $1
         OR EXISTS (SELECT 1 FROM part_aliases pa WHERE pa.part_id = p.id AND pa.alias ILIKE $1)
       `;
       params.push(`%${search}%`);
@@ -41,18 +67,7 @@ router.get('/', verifyToken, async (req, res) => {
     const result = await db.query(query, params);
     
     // Format response (camelCase)
-    const parts = result.rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      retailPrice: parseFloat(row.retail_price),
-      wholesalePrice: parseFloat(row.wholesale_price),
-      quantityInStock: row.quantity_in_stock,
-      aliases: row.aliases,
-      location: row.location,
-      description: row.description,
-      imageUrl: row.image_url,
-      imagePublicId: row.image_public_id
-    }));
+    const parts = result.rows.map(formatPart);
 
     res.json(parts);
   } catch (error) {
@@ -67,7 +82,9 @@ router.get('/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
     const query = `
       SELECT p.*, 
-             (SELECT COALESCE(json_agg(alias), '[]') FROM part_aliases WHERE part_id = p.id) as aliases
+             (SELECT COALESCE(json_agg(alias), '[]') FROM part_aliases WHERE part_id = p.id) as aliases,
+             (SELECT COALESCE(SUM(quantity), 0) FROM repair_parts WHERE part_id = p.id AND created_at >= date_trunc('year', CURRENT_DATE)) as issued_ytd,
+             (SELECT MAX(created_at) FROM repair_parts WHERE part_id = p.id) as last_used_date
       FROM parts p
       WHERE p.id = $1
     `;
@@ -78,20 +95,7 @@ router.get('/:id', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'Part not found' });
     }
 
-    const row = result.rows[0];
-    const part = {
-      id: row.id,
-      name: row.name,
-      retailPrice: parseFloat(row.retail_price),
-      wholesalePrice: parseFloat(row.wholesale_price),
-      quantityInStock: row.quantity_in_stock,
-      aliases: row.aliases,
-      location: row.location,
-      description: row.description,
-      imageUrl: row.image_url,
-      imagePublicId: row.image_public_id
-    };
-
+    const part = formatPart(result.rows[0]);
     res.json(part);
   } catch (error) {
     console.error('Error fetching part details:', error);
@@ -103,7 +107,10 @@ router.get('/:id', verifyToken, async (req, res) => {
 router.post('/', verifyToken, verifyAdmin, upload.single('image'), async (req, res) => {
   const client = await db.pool.connect();
   try {
-    const { name, retailPrice, wholesalePrice, quantityInStock, aliases, location, description } = req.body;
+    const { 
+      name, nomenclature, retailPrice, wholesalePrice, quantityInStock, lowLimit, onOrder, 
+      aliases, location, description, bestPriceQuality, unitOfIssue, lastSupplier, supplySource, remarks 
+    } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: 'Part name is required' });
@@ -132,16 +139,28 @@ router.post('/', verifyToken, verifyAdmin, upload.single('image'), async (req, r
 
     // Insert Part
     const partResult = await client.query(
-      `INSERT INTO parts (name, retail_price, wholesale_price, quantity_in_stock, location, description, image_url, image_public_id) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+      `INSERT INTO parts (
+        name, nomenclature, retail_price, wholesale_price, quantity_in_stock, low_limit, on_order, 
+        location, description, best_price_quality, unit_of_issue, last_supplier, supply_source, remarks,
+        image_url, image_public_id
+      ) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) 
        RETURNING *`,
       [
         name, 
+        nomenclature || null,
         retailPrice || 0, 
         wholesalePrice || 0, 
         quantityInStock || 0,
+        lowLimit || 0,
+        onOrder || 0,
         location || null,
         description || null,
+        bestPriceQuality || null,
+        unitOfIssue || null,
+        lastSupplier || null,
+        supplySource || null,
+        remarks || null,
         imageUrl,
         imagePublicId
       ]
@@ -149,7 +168,6 @@ router.post('/', verifyToken, verifyAdmin, upload.single('image'), async (req, r
     const part = partResult.rows[0];
 
     // Insert Aliases
-    // Parse aliases if it comes as a string (FormData limitation for arrays sometimes)
     let aliasList = aliases;
     if (typeof aliases === 'string') {
         try {
@@ -166,19 +184,11 @@ router.post('/', verifyToken, verifyAdmin, upload.single('image'), async (req, r
     }
 
     await client.query('COMMIT');
-
-    res.status(201).json({
-      id: part.id,
-      name: part.name,
-      retailPrice: parseFloat(part.retail_price),
-      wholesalePrice: parseFloat(part.wholesale_price),
-      quantityInStock: part.quantity_in_stock,
-      aliases: aliasList || [],
-      location: part.location,
-      description: part.description,
-      imageUrl: part.image_url,
-      imagePublicId: part.image_public_id
-    });
+    
+    // Attach aliases to result for formatting
+    part.aliases = aliasList || [];
+    
+    res.status(201).json(formatPart(part));
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error creating part:', error);
@@ -193,7 +203,10 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
   const client = await db.pool.connect();
   try {
     const { id } = req.params;
-    const { name, retailPrice, wholesalePrice, quantityInStock, aliases, location, description } = req.body;
+    const { 
+      name, nomenclature, retailPrice, wholesalePrice, quantityInStock, lowLimit, onOrder,
+      aliases, location, description, bestPriceQuality, unitOfIssue, lastSupplier, supplySource, remarks 
+    } = req.body;
 
     // Fetch existing part to check for old image
     const existingRes = await client.query('SELECT image_public_id FROM parts WHERE id = $1', [id]);
@@ -226,9 +239,40 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
     await client.query('BEGIN');
 
     // Build Update Query
-    let query = `UPDATE parts SET name = $1, retail_price = $2, wholesale_price = $3, quantity_in_stock = $4, location = $5, description = $6`;
-    const params = [name, retailPrice, wholesalePrice, quantityInStock, location || null, description || null];
-    let paramIndex = 7;
+    let query = `UPDATE parts SET 
+      name = $1, 
+      nomenclature = $2,
+      retail_price = $3, 
+      wholesale_price = $4, 
+      quantity_in_stock = $5, 
+      low_limit = $6,
+      on_order = $7,
+      location = $8, 
+      description = $9,
+      best_price_quality = $10,
+      unit_of_issue = $11,
+      last_supplier = $12,
+      supply_source = $13,
+      remarks = $14
+    `;
+    
+    const params = [
+      name, 
+      nomenclature || null,
+      retailPrice, 
+      wholesalePrice, 
+      quantityInStock, 
+      lowLimit || 0,
+      onOrder || 0,
+      location || null, 
+      description || null,
+      bestPriceQuality || null,
+      unitOfIssue || null,
+      lastSupplier || null,
+      supplySource || null,
+      remarks || null
+    ];
+    let paramIndex = 15;
 
     if (updateImage) {
         query += `, image_url = $${paramIndex}, image_public_id = $${paramIndex + 1}`;
@@ -272,18 +316,9 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
     }
 
     const part = partResult.rows[0];
-    res.json({
-      id: part.id,
-      name: part.name,
-      retailPrice: parseFloat(part.retail_price),
-      wholesalePrice: parseFloat(part.wholesale_price),
-      quantityInStock: part.quantity_in_stock,
-      aliases: aliasList || [],
-      location: part.location,
-      description: part.description,
-      imageUrl: part.image_url,
-      imagePublicId: part.image_public_id
-    });
+    part.aliases = aliasList || [];
+    
+    res.json(formatPart(part));
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error updating part:', error);
@@ -297,16 +332,9 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
 router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    // Note: ON DELETE CASCADE in schema handles aliases and repair_links automatically?
-    // In inventory.sql:
-    // part_aliases: ON DELETE CASCADE - Yes
-    // repair_parts: part_id REFERENCES parts(id) - No CASCADE specified for part_id deletion?
-    // Wait, let me check the schema I wrote.
-    
     await db.query('DELETE FROM parts WHERE id = $1', [id]);
     res.json({ message: 'Part deleted successfully' });
   } catch (error) {
-    // If foreign key constraint fails (used in repairs), we might want to block deletion or handle it.
     console.error('Error deleting part:', error);
     if (error.code === '23503') {
        return res.status(400).json({ error: 'Cannot delete part because it is used in repair tickets.' });
