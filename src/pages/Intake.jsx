@@ -307,14 +307,14 @@ const Intake = () => {
                       value={phone.number}
                       onChange={(e) => handlePhoneChange(index, 'number', e.target.value)}
                       placeholder={index === 0 ? "Enter phone to find client..." : "Additional phone number"}
-                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50"
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none required:border-red-500/50"
                     />
                   </div>
                   <div className="w-24">
                     <select
                       value={phone.type}
                       onChange={(e) => handlePhoneChange(index, 'type', e.target.value)}
-                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none"
                     >
                       <option value="Cell">Cell</option>
                       <option value="Work">Work</option>
@@ -328,7 +328,7 @@ const Intake = () => {
                       value={phone.extension}
                       onChange={(e) => handlePhoneChange(index, 'extension', e.target.value)}
                       placeholder="Ext."
-                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none"
                     />
                   </div>
                   {formData.phones.length > 1 && (
@@ -348,20 +348,20 @@ const Intake = () => {
                 Company Name (Optional)
               </label>
               <input name="companyName" value={formData.companyName} onChange={handleChange}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" />
+                className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none" />
             </div>
             <div className="col-span-2">
               <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                 Full Name <span className="text-red-500">*</span>
               </label>
               <input required name="clientName" value={formData.clientName} onChange={handleChange}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none required:border-red-500/50" />
             </div>
             <div className="col-span-2 grid grid-cols-3 gap-4">
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">Email Address</label>
                 <input name="email" value={formData.email} onChange={handleChange}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" />
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
@@ -371,7 +371,7 @@ const Intake = () => {
                   name="primaryNotification" 
                   value={formData.primaryNotification} 
                   onChange={handleChange}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none"
                 >
                   <option value="Phone">Phone</option>
                   <option value="Text">Text</option>
@@ -384,14 +384,14 @@ const Intake = () => {
                 Street Address <span className="text-red-500">*</span>
               </label>
               <input required name="address" value={formData.address} onChange={handleChange} placeholder="123 Audio Lane"
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none required:border-red-500/50" />
             </div>
             <div>
               <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                 Zip Code <span className="text-red-500">*</span>
               </label>
               <input required name="zip" value={formData.zip} onChange={handleChange} placeholder="90210" maxLength={5}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none required:border-red-500/50" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -399,14 +399,14 @@ const Intake = () => {
                   City <span className="text-red-500">*</span>
                 </label>
                 <input required name="city" value={formData.city} onChange={handleChange}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none required:border-red-500/50" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                   State <span className="text-red-500">*</span>
                 </label>
                 <input required name="state" value={formData.state} onChange={handleChange} maxLength={2}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none required:border-red-500/50" />
               </div>
             </div>
           </div>
@@ -423,7 +423,7 @@ const Intake = () => {
                   name="isOnSite"
                   checked={formData.isOnSite}
                   onChange={handleChange}
-                  className="w-5 h-5 rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-amber-600 focus:ring-amber-500"
+                  className="w-5 h-5 rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-amber-600 focus:ring-zinc-500"
                 />
                 <span className="text-zinc-700 dark:text-zinc-300 font-medium">On Site</span>
               </label>
@@ -433,7 +433,7 @@ const Intake = () => {
                   name="isShippedIn"
                   checked={formData.isShippedIn}
                   onChange={handleChange}
-                  className="w-5 h-5 rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-amber-600 focus:ring-amber-500"
+                  className="w-5 h-5 rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-amber-600 focus:ring-zinc-500"
                 />
                 <span className="text-zinc-700 dark:text-zinc-300 font-medium">Shipment</span>
               </label>
@@ -453,7 +453,7 @@ const Intake = () => {
                         value={formData.shippingCarrier} 
                         onChange={handleChange} 
                         placeholder="e.g. UPS, FedEx, USPS"
-                        className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" 
+                        className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none" 
                       />
                     </div>
                     <div className="col-span-2">
@@ -466,7 +466,7 @@ const Intake = () => {
                             value={formData.boxLength} 
                             onChange={handleChange} 
                             placeholder="Length"
-                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" 
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none" 
                           />
                         </div>
                         <div>
@@ -476,7 +476,7 @@ const Intake = () => {
                             value={formData.boxWidth} 
                             onChange={handleChange} 
                             placeholder="Width"
-                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" 
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none" 
                           />
                         </div>
                         <div>
@@ -486,7 +486,7 @@ const Intake = () => {
                             value={formData.boxHeight} 
                             onChange={handleChange} 
                             placeholder="Height"
-                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" 
+                            className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none" 
                           />
                         </div>
                       </div>
@@ -499,7 +499,7 @@ const Intake = () => {
             <div className="col-span-2">
                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">Unit Type</label>
                <select name="unitType" value={formData.unitType} onChange={handleChange}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none">
+                className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none">
                   <option value="Receiver">Receiver</option>
                   <option value="Power Amp">Power Amp</option>
                   <option value="Integrated Amp">Integrated Amp</option>
@@ -518,41 +518,41 @@ const Intake = () => {
                 Brand / Make <span className="text-red-500">*</span>
               </label>
               <input required name="brand" value={formData.brand} onChange={handleChange} placeholder="e.g. Fender"
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none required:border-red-500/50" />
             </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                   Model <span className="text-red-500">*</span>
                 </label>
                 <input required name="model" value={formData.model} onChange={handleChange} placeholder="e.g. Twin Reverb"
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none required:border-red-500/50" />
                 <label className="block text-xs font-medium text-zinc-500 mt-2 mb-1">
                   Model Version (Optional)
                 </label>
                 <input name="modelVersion" value={formData.modelVersion} onChange={handleChange} placeholder="e.g. MKII, Reissue"
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" />
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none" />
               </div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">Serial Number</label>
                 <input name="serial" value={formData.serial} onChange={handleChange}
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" />
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none" />
               </div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">Accessories Included (Optional)</label>
                 <input name="accessoriesIncluded" value={formData.accessoriesIncluded} onChange={handleChange} placeholder="e.g. Power Cord, Remote, Case"
-                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none" />
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none" />
               </div>
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
                 Reported Issue <span className="text-red-500">*</span>
               </label>
               <textarea required name="issue" value={formData.issue} onChange={handleChange} rows="3"
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none required:border-red-500/50" />
+                className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none required:border-red-500/50" />
             </div>
             <div>
                <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">Priority</label>
                <select name="priority" value={formData.priority} onChange={handleChange}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none">
+                className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none">
                   <option value="normal">Normal</option>
                   <option value="rush">Rush (+Fee)</option>
                   <option value="warranty">Warranty</option>
@@ -587,7 +587,7 @@ const Intake = () => {
                 type="number" 
                 value={customFee} 
                 onChange={(e) => setCustomFee(parseFloat(e.target.value) || 0)}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none"
               />
             </div>
 

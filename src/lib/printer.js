@@ -21,6 +21,9 @@ const LOGO_SVG = `<svg width="140" height="60" viewBox="0 0 140 60" xmlns="http:
 
 export const printDiagnosticReceipt = (ticket, client) => {
   const printWindow = window.open("", "_blank");
+  
+  // Use depositAmount (new field) or diagnosticFee (legacy) or default to 89.00
+  const feeAmount = ticket.depositAmount ? parseFloat(ticket.depositAmount) : (ticket.diagnosticFee > 0 ? parseFloat(ticket.diagnosticFee) : 89.00);
 
   const html = `
     <!DOCTYPE html>
@@ -111,7 +114,7 @@ export const printDiagnosticReceipt = (ticket, client) => {
               Diagnostic Fee - Standard Rate
               <div style="font-size: 12px; color: #888; margin-top: 4px;">Assessment and troubleshooting service</div>
             </td>
-            <td style="text-align: right;">${(ticket.deposit || 0).toFixed(2)}</td>
+            <td style="text-align: right;">$${feeAmount.toFixed(2)}</td>
           </tr>
         </tbody>
       </table>
@@ -120,11 +123,11 @@ export const printDiagnosticReceipt = (ticket, client) => {
         <div class="total-row">
           <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
             <span>Subtotal:</span>
-            <span>${(ticket.deposit || 0).toFixed(2)}</span>
+            <span>$${feeAmount.toFixed(2)}</span>
           </div>
           <div class="grand-total" style="display: flex; justify-content: space-between;">
             <span>Total:</span>
-            <span>${(ticket.deposit || 0).toFixed(2)}</span>
+            <span>$${feeAmount.toFixed(2)}</span>
           </div>
           <div style="margin-top: 20px; text-align: right;">
             <span class="status-badge ${ticket.diagnosticFeeCollected ? "paid" : "unpaid"}">
@@ -166,16 +169,20 @@ export const printRepairInvoice = (ticket, client) => {
 
   const subtotal = partsTotal + laborTotal + shippingTotal + onSiteFee + rushFee;
   const totalWithTax = subtotal + tax;
-  const diagnosticFee = ticket.deposit || 0;
+  const diagnosticFee = ticket.depositAmount ? parseFloat(ticket.depositAmount) : (ticket.diagnosticFee > 0 ? parseFloat(ticket.diagnosticFee) : 89.00);
 
   const amountDue = ticket.diagnosticFeeCollected
     ? Math.max(0, totalWithTax - diagnosticFee)
     : totalWithTax;
 
   // Generate Parts Rows
+  // Filter: Only show "Custom Parts" (Billable items with price > 0). 
+  // Inventory parts tracked at $0.00 are hidden from the customer invoice.
+  const billableParts = ticket.parts?.filter(p => p.total > 0) || [];
+
   const partsRows =
-    ticket.parts && ticket.parts.length > 0
-      ? ticket.parts
+    billableParts.length > 0
+      ? billableParts
           .map(
             (part) => `
         <tr>

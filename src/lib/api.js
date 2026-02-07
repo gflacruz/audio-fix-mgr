@@ -68,6 +68,14 @@ export const updateClient = async (id, updates) => {
   });
 };
 
+export const deleteClient = async (id) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/clients/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
 // Repairs
 export const getRepairs = async (options = {}) => {
   const params = new URLSearchParams();
@@ -212,11 +220,11 @@ export const deletePart = async (id) => {
   });
 };
 
-export const addRepairPart = async (repairId, partId, quantity = 1) => {
+export const addRepairPart = async (repairId, partId, quantity = 1, price = undefined) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
   return fetchJSON(`/repairs/${repairId}/parts`, {
     method: 'POST',
-    body: JSON.stringify({ partId, quantity }),
+    body: JSON.stringify({ partId, quantity, price }),
     headers: { Authorization: `Bearer ${user?.token}` }
   });
 };

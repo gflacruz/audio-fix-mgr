@@ -1,16 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getClient, updateClient, getRepairs } from '@/lib/api';
-import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy, Plus, Trash2, Building2, MessageSquare } from 'lucide-react';
+import { getClient, updateClient, getRepairs, deleteClient } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
+import Modal from '@/components/Modal';
+import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy, Plus, Trash2, Building2, MessageSquare, AlertTriangle } from 'lucide-react';
 
 const ClientDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [client, setClient] = useState(null);
   const [tickets, setTickets] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
 
   useEffect(() => {
     loadData();
@@ -47,6 +52,17 @@ const ClientDetail = () => {
     const newPhones = [...(formData.phones || [])];
     newPhones[index] = { ...newPhones[index], [field]: value };
     setFormData(prev => ({ ...prev, phones: newPhones }));
+  };
+
+  const handleDelete = async () => {
+    if (deleteConfirm !== 'DELETE') return;
+    try {
+      await deleteClient(id);
+      navigate('/clients');
+    } catch (error) {
+      console.error("Failed to delete client:", error);
+      alert("Failed to delete client: " + error.message);
+    }
   };
 
   const addPhone = () => {
@@ -135,16 +151,29 @@ const ClientDetail = () => {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => isEditing ? document.getElementById('client-form').requestSubmit() : setIsEditing(true)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-            isEditing 
-              ? 'bg-amber-600 hover:bg-amber-500 text-white' 
-              : 'bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 shadow-sm dark:shadow-none'
-          }`}
-        >
-          {isEditing ? <><Save size={18} /> Save Changes</> : 'Edit Client'}
-        </button>
+        <div className="flex gap-3">
+          {isAdmin && (
+            <button
+              onClick={() => {
+                setDeleteConfirm('');
+                setShowDeleteModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-900/50"
+            >
+              <Trash2 size={18} /> <span className="hidden sm:inline">Delete</span>
+            </button>
+          )}
+          <button
+            onClick={() => isEditing ? document.getElementById('client-form').requestSubmit() : setIsEditing(true)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              isEditing 
+                ? 'bg-amber-600 hover:bg-amber-500 text-white' 
+                : 'bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 shadow-sm dark:shadow-none'
+            }`}
+          >
+            {isEditing ? <><Save size={18} /> Save Changes</> : 'Edit Client'}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-8">
@@ -381,31 +410,39 @@ const ClientDetail = () => {
             </div>
             
             <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-              {tickets.map(ticket => (
-                <Link to={`/repair/${ticket.id}`} key={ticket.id} className="block p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-semibold text-zinc-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-500 transition-colors">
-                         <span className="text-zinc-500 mr-2">#{ticket.claimNumber || ticket.id}</span>
-                        {ticket.brand} {ticket.model}
+              {tickets.map(ticket => {
+                const deposit = Number(ticket.depositAmount || ticket.diagnosticFee || 0);
+                const parts = Number(ticket.partsCost || 0);
+                const labor = Number(ticket.laborCost || 0);
+                const tax = ticket.isTaxExempt ? 0 : (parts + labor) * 0.075;
+                const totalPaid = deposit + parts + labor + tax;
+
+                return (
+                  <Link to={`/repair/${ticket.id}`} key={ticket.id} className="block p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-semibold text-zinc-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-500 transition-colors">
+                           <span className="text-zinc-500 mr-2">#{ticket.claimNumber || ticket.id}</span>
+                          {ticket.brand} {ticket.model}
+                        </div>
+                        <div className="text-sm text-zinc-500 mt-1">
+                          In: {new Date(ticket.dateIn).toLocaleDateString()} • {ticket.issue ? ticket.issue.substring(0, 60) : ''}...
+                          {ticket.diagnosticFeeCollected && (
+                            <span className="ml-2 text-green-600 dark:text-green-500 font-medium text-xs">
+                               (Paid: ${totalPaid.toFixed(2)})
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-sm text-zinc-500 mt-1">
-                        In: {new Date(ticket.dateIn).toLocaleDateString()} • {ticket.issue.substring(0, 60)}...
-                        {ticket.diagnosticFeeCollected && (
-                          <span className="ml-2 text-green-600 dark:text-green-500 font-medium text-xs">
-                             (Paid: ${Number(ticket.depositAmount || ticket.diagnosticFee || 0).toFixed(2)})
-                          </span>
-                        )}
+                      <div className={`px-2 py-1 rounded text-xs uppercase font-bold tracking-wider
+                        ${ticket.status === 'ready' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-500' : 
+                          ticket.status === 'closed' ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-500'}`}>
+                        {ticket.status}
                       </div>
                     </div>
-                    <div className={`px-2 py-1 rounded text-xs uppercase font-bold tracking-wider
-                      ${ticket.status === 'ready' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-500' : 
-                        ticket.status === 'closed' ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-500'}`}>
-                      {ticket.status}
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
               {tickets.length === 0 && (
                 <div className="p-8 text-center text-zinc-500">
                   No repair history found for this client.
@@ -415,6 +452,59 @@ const ClientDetail = () => {
           </div>
         </div>
       </div>
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Client"
+        maxWidth="max-w-md"
+        footer={
+          <>
+            <button
+              onClick={() => setShowDeleteModal(false)}
+              className="px-4 py-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleteConfirm !== 'DELETE'}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            >
+              Delete Client
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg flex items-start gap-3 text-red-800 dark:text-red-400 border border-red-100 dark:border-red-900/50">
+            <AlertTriangle className="shrink-0 mt-0.5" size={20} />
+            <div className="text-sm">
+              <p className="font-bold mb-1">Warning: Irreversible Action</p>
+              <p>
+                This will permanently delete <strong>{client.name}</strong> and all associated data, including:
+              </p>
+              <ul className="list-disc list-inside mt-2 ml-1 opacity-90">
+                <li>Contact information</li>
+                <li>{tickets.length} Repair History Record{tickets.length !== 1 ? 's' : ''}</li>
+                <li>Photos and Notes</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm text-zinc-500 mb-1">
+              To confirm, type <strong>DELETE</strong> below:
+            </label>
+            <input
+              type="text"
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded p-2 text-zinc-900 dark:text-white outline-none focus:border-red-500 transition-colors"
+              placeholder="DELETE"
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

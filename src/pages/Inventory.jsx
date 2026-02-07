@@ -3,6 +3,7 @@ import { Package, Search, Plus, Edit, Trash2, X, Save, Upload, Image as ImageIco
 import { getParts, createPart, updatePart, deletePart } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import Modal from '@/components/Modal';
 
 const Inventory = () => {
   const { isAdmin } = useAuth();
@@ -16,6 +17,7 @@ const Inventory = () => {
 
   const [showModal, setShowModal] = useState(false);
   const [editingPart, setEditingPart] = useState(null);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, partId: null });
 
   // Form State
   const [formData, setFormData] = useState({
@@ -172,14 +174,19 @@ const Inventory = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this part?')) return;
+  const confirmDelete = async () => {
+    if (!deleteModal.partId) return;
     try {
-      await deletePart(id);
+      await deletePart(deleteModal.partId);
       loadParts(page);
+      setDeleteModal({ isOpen: false, partId: null });
     } catch (error) {
       alert('Failed to delete part: ' + error.message);
     }
+  };
+
+  const handleDelete = (id) => {
+    setDeleteModal({ isOpen: true, partId: id });
   };
 
   return (
@@ -486,6 +493,41 @@ const Inventory = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, partId: null })}
+        title="Confirm Delete"
+        footer={
+          <>
+            <button 
+              onClick={() => setDeleteModal({ isOpen: false, partId: null })}
+              className="px-4 py-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium"
+            >
+              Delete Part
+            </button>
+          </>
+        }
+      >
+        <div className="p-4 text-center">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4 mx-auto">
+            <Trash2 className="text-red-600 dark:text-red-500" size={32} />
+          </div>
+          <p className="text-lg text-zinc-800 dark:text-zinc-200 mb-2">
+            Are you sure you want to delete this part?
+          </p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            This action cannot be undone.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 };

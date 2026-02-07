@@ -33,7 +33,8 @@ router.get("/", async (req, res) => {
   try {
     const { clientId, search, includeClosed } = req.query;
     let query = `
-      SELECT r.*, c.name as client_name, c.company_name as client_company, c.phone as client_phone 
+      SELECT r.*, c.name as client_name, c.company_name as client_company, c.phone as client_phone,
+      COALESCE((SELECT SUM(rp.quantity * rp.unit_price) FROM repair_parts rp WHERE rp.repair_id = r.id), 0) as parts_cost
       FROM repairs r 
       JOIN clients c ON r.client_id = c.id 
     `;
@@ -100,6 +101,8 @@ router.get("/", async (req, res) => {
       diagnosticFeeCollected: row.diagnostic_fee_collected,
       diagnosticFee: parseFloat(row.diagnostic_fee) || 0,
       depositAmount: parseFloat(row.deposit_amount) || 0,
+      partsCost: parseFloat(row.parts_cost) || 0,
+      laborCost: parseFloat(row.labor_cost) || 0,
       isOnSite: row.is_on_site,
       isTaxExempt: row.is_tax_exempt,
       isShippedIn: row.is_shipped_in,
@@ -124,7 +127,7 @@ router.get("/payroll", async (req, res) => {
     const query = `
       SELECT 
         r.id, r.claim_number, r.brand, r.model, r.technician, 
-        r.labor_cost, r.diagnostic_fee_collected, r.created_at,
+        r.labor_cost, r.diagnostic_fee_collected, r.deposit_amount, r.diagnostic_fee, r.created_at, r.is_tax_exempt,
         COALESCE(SUM(rp.quantity * rp.unit_price), 0) as parts_cost
       FROM repairs r
       LEFT JOIN repair_parts rp ON r.id = rp.repair_id
@@ -138,8 +141,23 @@ router.get("/payroll", async (req, res) => {
     const formatted = result.rows.map((row) => {
       const labor = parseFloat(row.labor_cost) || 0;
       const parts = parseFloat(row.parts_cost) || 0;
-      const diagFee = row.diagnostic_fee_collected ? 89.0 : 0;
-      const total = labor + parts + diagFee;
+      
+      // Calculate Diag Fee (Deposit) logic: Deposit > DiagFee > 89 default
+      let diagFeeVal = 0;
+      const deposit = parseFloat(row.deposit_amount);
+      const recordedFee = parseFloat(row.diagnostic_fee);
+
+      if (!isNaN(deposit) && deposit > 0) {
+        diagFeeVal = deposit;
+      } else if (!isNaN(recordedFee) && recordedFee > 0) {
+        diagFeeVal = recordedFee;
+      } else if (row.diagnostic_fee_collected) {
+        diagFeeVal = 89.0;
+      }
+      const diagFee = diagFeeVal;
+      
+      const tax = row.is_tax_exempt ? 0 : (labor + parts) * 0.075;
+      const total = labor + parts + diagFee + tax;
 
       return {
         id: row.id,
@@ -149,9 +167,10 @@ router.get("/payroll", async (req, res) => {
         technician: row.technician,
         laborCost: labor,
         partsCost: parts,
+        tax: tax,
         diagnosticFee: diagFee,
         totalCost: total,
-        commission: total * 0.5,
+        commission: labor * 0.5,
         date: row.created_at,
       };
     });
@@ -173,7 +192,7 @@ router.get("/payroll-history", async (req, res) => {
       SELECT 
         r.id, r.claim_number, r.brand, r.model, 
         COALESCE(r.paid_to, r.technician) as technician_paid,
-        r.labor_cost, r.diagnostic_fee_collected, r.created_at, r.paid_out_date,
+        r.labor_cost, r.diagnostic_fee_collected, r.deposit_amount, r.diagnostic_fee, r.created_at, r.paid_out_date, r.is_tax_exempt,
         COALESCE(SUM(rp.quantity * rp.unit_price), 0) as parts_cost
       FROM repairs r
       LEFT JOIN repair_parts rp ON r.id = rp.repair_id
@@ -209,8 +228,23 @@ router.get("/payroll-history", async (req, res) => {
     const formatted = result.rows.map((row) => {
       const labor = parseFloat(row.labor_cost) || 0;
       const parts = parseFloat(row.parts_cost) || 0;
-      const diagFee = row.diagnostic_fee_collected ? 89.0 : 0;
-      const total = labor + parts + diagFee;
+      
+      // Calculate Diag Fee (Deposit) logic: Deposit > DiagFee > 89 default
+      let diagFeeVal = 0;
+      const deposit = parseFloat(row.deposit_amount);
+      const recordedFee = parseFloat(row.diagnostic_fee);
+
+      if (!isNaN(deposit) && deposit > 0) {
+        diagFeeVal = deposit;
+      } else if (!isNaN(recordedFee) && recordedFee > 0) {
+        diagFeeVal = recordedFee;
+      } else if (row.diagnostic_fee_collected) {
+        diagFeeVal = 89.0;
+      }
+      const diagFee = diagFeeVal;
+      
+      const tax = row.is_tax_exempt ? 0 : (labor + parts) * 0.075;
+      const total = labor + parts + diagFee + tax;
 
       return {
         id: row.id,
@@ -220,9 +254,10 @@ router.get("/payroll-history", async (req, res) => {
         technician: row.technician_paid, // Use the resolved name
         laborCost: labor,
         partsCost: parts,
+        tax: tax,
         diagnosticFee: diagFee,
         totalCost: total,
-        commission: total * 0.5,
+        commission: labor * 0.5,
         date: row.created_at,
         paidOutDate: row.paid_out_date,
       };
@@ -306,7 +341,7 @@ router.get("/:id", async (req, res) => {
 
     // Fetch Parts
     const partsResult = await db.query(
-      `SELECT rp.*, p.name as inventory_name, p.retail_price as current_retail
+      `SELECT rp.*, p.name as inventory_name, p.retail_price as current_retail, p.wholesale_price as current_wholesale
        FROM repair_parts rp
        LEFT JOIN parts p ON rp.part_id = p.id
        WHERE rp.repair_id = $1
@@ -381,6 +416,8 @@ router.get("/:id", async (req, res) => {
         name: p.name || p.inventory_name,
         quantity: p.quantity,
         price: parseFloat(p.unit_price),
+        retailPrice: parseFloat(p.current_retail) || 0,
+        wholesalePrice: parseFloat(p.current_wholesale) || 0,
         total: parseFloat(p.unit_price) * p.quantity,
       })),
       photos: photosResult.rows.map((ph) => ({
@@ -650,9 +687,15 @@ router.post("/:id/parts", async (req, res) => {
         [qty, partId],
       );
 
-      finalPrice = part.retail_price;
       finalName = part.name;
       finalPartId = partId;
+      
+      // Use provided price (e.g. 0 for warranty/inventory only) or default to retail
+      if (price !== undefined && price !== null && price !== "") {
+        finalPrice = price;
+      } else {
+        finalPrice = part.retail_price;
+      }
     } else {
       // Custom Part Logic
       if (!name || !price) {

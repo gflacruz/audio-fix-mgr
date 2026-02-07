@@ -58,6 +58,14 @@ const RepairDetail = () => {
   const [isEditingFee, setIsEditingFee] = useState(false);
   const [tempFee, setTempFee] = useState('');
 
+  // Issue Edit State
+  const [isEditingIssue, setIsEditingIssue] = useState(false);
+  const [tempIssue, setTempIssue] = useState('');
+
+  // Specs Edit State
+  const [isEditingSpecs, setIsEditingSpecs] = useState(false);
+  const [tempSpecs, setTempSpecs] = useState({ brand: '', model: '', serial: '' });
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -217,6 +225,28 @@ const RepairDetail = () => {
     }
   };
 
+  const handleSaveIssue = async () => {
+    try {
+      await updateRepair(id, { issue: tempIssue });
+      setTicket(prev => ({ ...prev, issue: tempIssue }));
+      setIsEditingIssue(false);
+    } catch (error) {
+      console.error("Failed to update issue:", error);
+      alert("Failed to update issue.");
+    }
+  };
+
+  const handleSaveSpecs = async () => {
+    try {
+      await updateRepair(id, tempSpecs);
+      setTicket(prev => ({ ...prev, ...tempSpecs }));
+      setIsEditingSpecs(false);
+    } catch (error) {
+      console.error("Failed to update specs:", error);
+      alert("Failed to update specs.");
+    }
+  };
+
   const handleOnSiteToggle = async () => {
     try {
       const newStatus = !ticket.isOnSite;
@@ -268,7 +298,11 @@ const RepairDetail = () => {
     }
 
     try {
-      await addRepairPart(id, selectedPartForAdd.id, quantity);
+      // Always override price to 0 for inventory parts (Inventory/Warranty mode)
+      // Custom parts are handled via handleCustomPartSubmit
+      const priceOverride = 0;
+
+      await addRepairPart(id, selectedPartForAdd.id, quantity, priceOverride);
       // Re-fetch to get updated state
       const updatedTicket = await getRepair(id);
       setTicket(updatedTicket);
@@ -316,17 +350,29 @@ const RepairDetail = () => {
     }
   };
 
-  const handleRemovePart = async (linkId) => {
-    if (!window.confirm("Remove this part from the ticket?")) return;
+  const [deletePartModal, setDeletePartModal] = useState({
+    isOpen: false,
+    linkId: null
+  });
+
+  const confirmDeletePart = async () => {
+    if (!deletePartModal.linkId) return;
+    
     try {
-      await removeRepairPart(id, linkId);
+      await removeRepairPart(id, deletePartModal.linkId);
       setTicket(prev => ({
         ...prev,
-        parts: prev.parts.filter(p => p.id !== linkId)
+        parts: prev.parts.filter(p => p.id !== deletePartModal.linkId)
       }));
+      setDeletePartModal({ isOpen: false, linkId: null });
     } catch (error) {
       console.error("Failed to remove part:", error);
+      alert("Failed to remove part.");
     }
+  };
+
+  const handleRemovePart = (linkId) => {
+    setDeletePartModal({ isOpen: true, linkId });
   };
 
   const addNote = async (e) => {
@@ -350,14 +396,12 @@ const RepairDetail = () => {
   const startInvoiceWizard = () => {
     setShowInvoiceWizard(true);
     setWizardStep(1);
-    setIsAddingPart(true); // Auto-open parts search for convenience in step 1
   };
 
   const handleInvoiceNext = async () => {
     try {
       // Step 1: Parts (Already handled by standard part add/remove)
       if (wizardStep === 1) {
-        setIsAddingPart(false); // Close search when leaving step 1
         setWizardStep(2);
         return;
       }
@@ -417,6 +461,15 @@ const RepairDetail = () => {
     if (e.key === 'Enter') {
       e.preventDefault();
       handleInvoiceNext();
+    }
+  };
+
+  const handleWizardSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault(); // Prevent wizard step navigation
+      if (e.shiftKey) {
+        triggerPartsSearch();
+      }
     }
   };
 
@@ -704,9 +757,9 @@ const RepairDetail = () => {
                title="Log client approval"
              >
                <ThumbsUp size={14} /> Approved
-             </button>
-           </div>
-        </div>
+              </button>
+               </div>
+            </div>
       </div>
 
       <div className="grid grid-cols-3 gap-6">
@@ -715,8 +768,36 @@ const RepairDetail = () => {
           
           {/* Issue Description */}
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
-            <h3 className="text-amber-600 dark:text-amber-500 font-semibold mb-3">Reported Issue</h3>
-            <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">{ticket.issue}</p>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-amber-600 dark:text-amber-500 font-semibold">Reported Issue</h3>
+              {!isEditingIssue && (
+                <button 
+                  onClick={() => {
+                    setTempIssue(ticket.issue || '');
+                    setIsEditingIssue(true);
+                  }}
+                  className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                >
+                  <Edit2 size={16} />
+                </button>
+              )}
+            </div>
+            
+            {isEditingIssue ? (
+              <div>
+                <textarea
+                  value={tempIssue}
+                  onChange={(e) => setTempIssue(e.target.value)}
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg p-3 text-zinc-700 dark:text-zinc-300 focus:border-amber-500 outline-none min-h-[100px]"
+                />
+                <div className="flex justify-end gap-2 mt-2">
+                  <button onClick={() => setIsEditingIssue(false)} className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">Cancel</button>
+                  <button onClick={handleSaveIssue} className="text-sm bg-amber-600 hover:bg-amber-700 dark:hover:bg-amber-500 text-white px-3 py-1 rounded">Save</button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">{ticket.issue}</p>
+            )}
           </div>
 
           {/* Work Performed Section */}
@@ -781,12 +862,16 @@ const RepairDetail = () => {
                     onKeyDown={handlePartsSearchKeyDown}
                     className="flex-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
                   />
+                  {/* Cancel Button */}
                   <button
-                    onClick={() => setShowCustomPartModal(true)}
-                    className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-3 rounded border border-zinc-300 dark:border-zinc-700 transition-colors flex items-center gap-2 text-xs font-medium"
-                    title="Add Custom Item"
+                    onClick={() => {
+                      setIsAddingPart(false);
+                      setPartsSearch('');
+                    }}
+                    className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-500 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 px-3 rounded transition-colors"
+                    title="Cancel Adding Part"
                   >
-                    <Plus size={14} /> Custom Item
+                    <X size={18} />
                   </button>
                 </div>
                 <div className="max-h-40 overflow-y-auto space-y-1">
@@ -802,7 +887,8 @@ const RepairDetail = () => {
                           In Stock: {part.quantityInStock}
                         </span>
                       </div>
-                      <span className="text-emerald-600 dark:text-emerald-500">${part.retailPrice.toFixed(2)}</span>
+                      <span className="text-zinc-400 dark:text-zinc-500 text-xs mr-2">${part.retailPrice.toFixed(2)}</span>
+                      <span className="text-emerald-600 dark:text-emerald-500">$0.00</span>
                     </div>
                   ))}
                   {partsList.length === 0 && partsSearch && (
@@ -824,7 +910,20 @@ const RepairDetail = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-mono text-zinc-700 dark:text-zinc-300">${part.total.toFixed(2)}</span>
+                      {part.total > 0 ? (
+                        <span className="text-sm font-mono text-zinc-700 dark:text-zinc-300">${part.total.toFixed(2)}</span>
+                      ) : (
+                        <div className="flex flex-col items-end">
+                          {part.retailPrice > 0 && (
+                            <span className="text-[10px] text-zinc-400">
+                              Retail: ${part.retailPrice.toFixed(2)}
+                            </span>
+                          )}
+                          <span className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
+                            Cost: ${part.wholesalePrice ? part.wholesalePrice.toFixed(2) : '0.00'}
+                          </span>
+                        </div>
+                      )}
                       <button 
                         onClick={() => handleRemovePart(part.id)}
                         className="text-zinc-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
@@ -1140,13 +1239,74 @@ const RepairDetail = () => {
           </div>
 
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
-             <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider mb-4">Unit Specs</h3>
-             <div className="space-y-4">
-              <div>
-                <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Serial Number</label>
-                <div className="text-zinc-800 dark:text-zinc-200 font-mono">{ticket.serial || 'N/A'}</div>
-              </div>
-              {ticket.modelVersion && (
+             <div className="flex justify-between items-center mb-4">
+               <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider">Unit Specs</h3>
+               {!isEditingSpecs && (
+                 <button 
+                   onClick={() => {
+                     setTempSpecs({
+                       brand: ticket.brand || '',
+                       model: ticket.model || '',
+                       serial: ticket.serial || ''
+                     });
+                     setIsEditingSpecs(true);
+                   }}
+                   className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                 >
+                   <Edit2 size={14} />
+                 </button>
+               )}
+             </div>
+
+             {isEditingSpecs ? (
+               <div className="space-y-4">
+                 <div>
+                   <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Make / Brand</label>
+                   <input
+                     type="text"
+                     value={tempSpecs.brand}
+                     onChange={(e) => setTempSpecs(prev => ({ ...prev, brand: e.target.value }))}
+                     className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                   />
+                 </div>
+                 <div>
+                   <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Model</label>
+                   <input
+                     type="text"
+                     value={tempSpecs.model}
+                     onChange={(e) => setTempSpecs(prev => ({ ...prev, model: e.target.value }))}
+                     className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                   />
+                 </div>
+                 <div>
+                   <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Serial Number</label>
+                   <input
+                     type="text"
+                     value={tempSpecs.serial}
+                     onChange={(e) => setTempSpecs(prev => ({ ...prev, serial: e.target.value }))}
+                     className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none font-mono"
+                   />
+                 </div>
+                 <div className="flex justify-end gap-2 pt-2">
+                   <button onClick={() => setIsEditingSpecs(false)} className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">Cancel</button>
+                   <button onClick={handleSaveSpecs} className="text-xs bg-amber-600 hover:bg-amber-700 dark:hover:bg-amber-500 text-white px-3 py-1 rounded">Save</button>
+                 </div>
+               </div>
+             ) : (
+               <div className="space-y-4">
+                <div>
+                  <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Make</label>
+                  <div className="text-zinc-800 dark:text-zinc-200">{ticket.brand || 'N/A'}</div>
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Model</label>
+                  <div className="text-zinc-800 dark:text-zinc-200">{ticket.model || 'N/A'}</div>
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Serial Number</label>
+                  <div className="text-zinc-800 dark:text-zinc-200 font-mono">{ticket.serial || 'N/A'}</div>
+                </div>
+                {ticket.modelVersion && (
                 <div>
                   <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Model Version</label>
                   <div className="text-zinc-800 dark:text-zinc-200">{ticket.modelVersion}</div>
@@ -1168,7 +1328,8 @@ const RepairDetail = () => {
                  </div>
               </div>
              </div>
-          </div>
+            )}
+           </div>
 
           {ticket.isShippedIn && (
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
@@ -1364,15 +1525,24 @@ const RepairDetail = () => {
                   
                   {/* Re-use Parts Search UI */}
                   <div className="mb-4 bg-zinc-50 dark:bg-zinc-950 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                    <input 
-                      type="text" 
-                      autoFocus
-                      placeholder="Search parts inventory to add..."
-                      value={partsSearch}
-                      onChange={(e) => setPartsSearch(e.target.value)}
-                      onKeyDown={handleWizardKeyDown}
-                      className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 text-sm text-zinc-900 dark:text-white mb-2 focus:border-amber-500 outline-none"
-                    />
+                    <div className="flex gap-2 mb-2">
+                      <input 
+                        type="text" 
+                        autoFocus
+                        placeholder="Search parts inventory... (Shift+Enter to Search)"
+                        value={partsSearch}
+                        onChange={(e) => setPartsSearch(e.target.value)}
+                        onKeyDown={handleWizardSearchKeyDown}
+                        className="flex-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                      />
+                      <button
+                        onClick={() => setShowCustomPartModal(true)}
+                        className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-3 rounded border border-zinc-300 dark:border-zinc-700 transition-colors flex items-center gap-2 text-xs font-medium"
+                        title="Add Custom Item"
+                      >
+                        <Plus size={14} /> Custom Item
+                      </button>
+                    </div>
                     {partsSearch && (
                       <div className="max-h-40 overflow-y-auto space-y-1">
                         {partsList.map(part => (
@@ -1398,7 +1568,30 @@ const RepairDetail = () => {
                     {ticket.parts?.map(part => (
                       <div key={part.id} className="flex justify-between items-center bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded border border-zinc-300 dark:border-zinc-700">
                         <span className="text-zinc-800 dark:text-zinc-200">{part.name} (x{part.quantity})</span>
-                        <span className="text-zinc-700 dark:text-zinc-300 font-mono">${part.total.toFixed(2)}</span>
+                        <div className="flex items-center gap-3">
+                          <div className="flex flex-col items-end">
+                            {part.total > 0 ? (
+                              <span className="text-zinc-700 dark:text-zinc-300 font-mono">${part.total.toFixed(2)}</span>
+                            ) : (
+                              <>
+                                {part.retailPrice > 0 && (
+                                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                                    Retail: ${part.retailPrice.toFixed(2)}
+                                  </span>
+                                )}
+                                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
+                                  Cost: ${part.wholesalePrice ? part.wholesalePrice.toFixed(2) : '0.00'}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <button 
+                            onClick={() => handleRemovePart(part.id)}
+                            className="text-zinc-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                     {(!ticket.parts || ticket.parts.length === 0) && (
@@ -1648,6 +1841,41 @@ const RepairDetail = () => {
             </p>
           </div>
         )}
+      </Modal>
+
+      {/* Delete Part Confirmation Modal */}
+      <Modal
+        isOpen={deletePartModal.isOpen}
+        onClose={() => setDeletePartModal({ isOpen: false, linkId: null })}
+        title="Confirm Remove Part"
+        footer={
+          <>
+            <button 
+              onClick={() => setDeletePartModal({ isOpen: false, linkId: null })}
+              className="px-4 py-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={confirmDeletePart}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium"
+            >
+              Remove Part
+            </button>
+          </>
+        }
+      >
+        <div className="p-4 text-center">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4 mx-auto">
+            <Trash2 className="text-red-600 dark:text-red-500" size={32} />
+          </div>
+          <p className="text-lg text-zinc-800 dark:text-zinc-200 mb-2">
+            Are you sure you want to remove this part?
+          </p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            This action will remove the part from the ticket and restore inventory quantity.
+          </p>
+        </div>
       </Modal>
 
     </div>

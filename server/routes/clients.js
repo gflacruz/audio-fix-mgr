@@ -250,4 +250,25 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
+// DELETE /api/clients/:id - Delete client
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Check if client exists
+    const checkResult = await db.query('SELECT id FROM clients WHERE id = $1', [id]);
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
+    // Delete (Cascade will handle phones, repairs, photos, notes)
+    await db.query('DELETE FROM clients WHERE id = $1', [id]);
+    
+    res.json({ message: 'Client deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting client:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

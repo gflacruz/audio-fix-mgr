@@ -162,7 +162,8 @@ const Payroll = () => {
                         <th className="px-6 py-3">Unit</th>
                         <th className="px-6 py-3 text-right">Labor</th>
                         <th className="px-6 py-3 text-right">Parts</th>
-                        <th className="px-6 py-3 text-right">Diag Fee</th>
+                        <th className="px-6 py-3 text-right">Tax</th>
+                        <th className="px-6 py-3 text-right">Deposit</th>
                         <th className="px-6 py-3 text-right">Total Ticket</th>
                         <th className="px-6 py-3 text-right text-emerald-600 dark:text-emerald-500">Commission (50%)</th>
                       </tr>
@@ -197,6 +198,7 @@ const Payroll = () => {
                           <td className="px-6 py-4 text-zinc-900 dark:text-white font-medium">{repair.brand} {repair.model}</td>
                           <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-400">${repair.laborCost.toFixed(2)}</td>
                           <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-400">${repair.partsCost.toFixed(2)}</td>
+                          <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-400">${(repair.tax || 0).toFixed(2)}</td>
                           <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-400">${repair.diagnosticFee.toFixed(2)}</td>
                           <td className="px-6 py-4 text-right text-zinc-700 dark:text-zinc-200 font-bold">${repair.totalCost.toFixed(2)}</td>
                           <td className="px-6 py-4 text-right text-emerald-600 dark:text-emerald-400 font-bold font-mono text-base">

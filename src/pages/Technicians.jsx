@@ -174,10 +174,10 @@ const Technicians = () => {
             <div className="relative z-10 flex justify-between items-start mb-3 pointer-events-none">
               <div className="pointer-events-auto">
                 <div className="flex items-center gap-3 mb-1">
-                  <span className="font-bold text-lg text-zinc-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-500 transition-colors">
+                  <Link to={`/repair/${ticket.id}`} className="font-bold text-lg text-zinc-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-500 transition-colors">
                     <span className="text-zinc-500 mr-2">#{ticket.claimNumber || ticket.id}</span>
                     {ticket.brand} {ticket.model}
-                  </span>
+                  </Link>
                   <StatusBadge status={ticket.status} />
                   {ticket.priority === 'rush' && (
                     <span className="flex items-center gap-1 text-red-500 text-xs font-bold uppercase">
