@@ -91,21 +91,32 @@ const RepairDetail = () => {
     loadData();
   }, [id]);
 
-  useEffect(() => {
-    if (isAddingPart) {
-      const searchParts = async () => {
-        try {
-          const results = await getParts(partsSearch);
-          setPartsList(results);
-        } catch (error) {
-          console.error("Failed to search parts:", error);
-        }
-      };
-      // Debounce could be added here, but direct call is okay for now
-      const timeoutId = setTimeout(searchParts, 300);
-      return () => clearTimeout(timeoutId);
+  const triggerPartsSearch = async () => {
+    if (!partsSearch.trim()) {
+        setPartsList([]);
+        return;
     }
-  }, [partsSearch, isAddingPart]);
+    
+    try {
+      // When adding parts to a repair, we don't paginate, just get the first 50 matches
+      const response = await getParts(partsSearch, 1, 50);
+      
+      if (Array.isArray(response)) {
+         setPartsList(response);
+      } else {
+         setPartsList(response.data || []);
+      }
+    } catch (error) {
+      console.error("Failed to search parts:", error);
+    }
+  };
+
+  const handlePartsSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        triggerPartsSearch();
+    }
+  };
 
   const handleStatusChange = async (newStatus) => {
     try {
@@ -764,9 +775,10 @@ const RepairDetail = () => {
                   <input 
                     type="text" 
                     autoFocus
-                    placeholder="Search parts inventory..."
+                    placeholder="Search parts inventory... (Press Enter)"
                     value={partsSearch}
                     onChange={(e) => setPartsSearch(e.target.value)}
+                    onKeyDown={handlePartsSearchKeyDown}
                     className="flex-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
                   />
                   <button

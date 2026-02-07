@@ -141,10 +141,14 @@ export const getTechnicians = async () => {
 };
 
 // Parts / Inventory
-export const getParts = async (search = '') => {
+export const getParts = async (search = '', page = 1, limit = 50) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
-  const query = search ? `?search=${encodeURIComponent(search)}` : '';
-  return fetchJSON(`/parts${query}`, {
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  params.append('page', page);
+  params.append('limit', limit);
+  
+  return fetchJSON(`/parts?${params.toString()}`, {
     headers: { Authorization: `Bearer ${user?.token}` }
   });
 };

@@ -41,13 +41,16 @@ const formatPart = (row) => ({
   lastUsedDate: row.last_used_date || null
 });
 
-// GET /api/parts - List all parts (Searchable)
+// GET /api/parts - List all parts (Searchable & Paginated)
 router.get('/', verifyToken, async (req, res) => {
   try {
-    const { search } = req.query;
+    const { search, page = 1, limit = 50 } = req.query;
+    const offset = (page - 1) * limit;
+
     let query = `
       SELECT p.*, 
-             COALESCE(json_agg(pa.alias) FILTER (WHERE pa.alias IS NOT NULL), '[]') as aliases
+             COALESCE(json_agg(pa.alias) FILTER (WHERE pa.alias IS NOT NULL), '[]') as aliases,
+             COUNT(*) OVER() as full_count
       FROM parts p
       LEFT JOIN part_aliases pa ON p.id = pa.part_id
     `;
@@ -64,13 +67,32 @@ router.get('/', verifyToken, async (req, res) => {
     }
 
     query += ` GROUP BY p.id ORDER BY p.name ASC`;
+    
+    // Add pagination
+    query += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(limit, offset);
 
     const result = await db.query(query, params);
     
     // Format response (camelCase)
-    const parts = result.rows.map(formatPart);
+    const parts = result.rows.map(row => {
+        // Remove full_count from individual part object to keep it clean
+        const { full_count, ...partData } = row; 
+        return formatPart(partData);
+    });
 
-    res.json(parts);
+    const totalCount = result.rows.length > 0 ? parseInt(result.rows[0].full_count) : 0;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    res.json({
+        data: parts,
+        pagination: {
+            total: totalCount,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            totalPages
+        }
+    });
   } catch (error) {
     console.error('Error fetching parts:', error);
     res.status(500).json({ error: 'Internal server error' });

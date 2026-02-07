@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Package, Search, Plus, Edit, Trash2, X, Save, Upload, Image as ImageIcon, MapPin } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Package, Search, Plus, Edit, Trash2, X, Save, Upload, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getParts, createPart, updatePart, deletePart } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -9,7 +9,11 @@ const Inventory = () => {
   const navigate = useNavigate();
   const [parts, setParts] = useState([]);
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const debounceTimer = useRef(null);
+
   const [showModal, setShowModal] = useState(false);
   const [editingPart, setEditingPart] = useState(null);
 
@@ -27,11 +31,31 @@ const Inventory = () => {
     previewUrl: null
   });
 
-  const loadParts = async () => {
+  const loadParts = async (pageToLoad = 1) => {
+    // If search is empty, do not fetch parts
+    if (!search.trim()) {
+        setParts([]);
+        setTotalPages(1);
+        setLoading(false);
+        return;
+    }
+
     try {
       setLoading(true);
-      const data = await getParts(search);
-      setParts(data);
+      // If we are searching (and it's not a pagination click), we might want to reset page to 1
+      // But here we pass pageToLoad explicitly.
+      
+      const response = await getParts(search, pageToLoad, 50);
+      
+      // Handle both old array format (safety) and new object format
+      if (Array.isArray(response)) {
+          setParts(response);
+          setTotalPages(1);
+      } else {
+          setParts(response.data || []);
+          setTotalPages(response.pagination?.totalPages || 1);
+          setPage(response.pagination?.page || 1);
+      }
     } catch (error) {
       console.error('Failed to load parts:', error);
     } finally {
@@ -39,9 +63,33 @@ const Inventory = () => {
     }
   };
 
+  // Debounce Search Effect
   useEffect(() => {
-    loadParts();
+    if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+    }
+
+    // If search is empty (initial load or cleared), load immediately
+    if (!search.trim()) {
+        loadParts(1);
+        return;
+    }
+
+    debounceTimer.current = setTimeout(() => {
+        loadParts(1); // Always reset to page 1 on new search
+    }, 2000);
+
+    return () => {
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
   }, [search]);
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        loadParts(1);
+    }
+  };
 
   const handleOpenModal = (part = null) => {
     if (part) {
@@ -113,11 +161,12 @@ const Inventory = () => {
 
       if (editingPart) {
         await updatePart(editingPart.id, data);
+        loadParts(page);
       } else {
         await createPart(data);
+        loadParts(1);
       }
       handleCloseModal();
-      loadParts();
     } catch (error) {
       alert('Failed to save part: ' + error.message);
     }
@@ -127,7 +176,7 @@ const Inventory = () => {
     if (!window.confirm('Are you sure you want to delete this part?')) return;
     try {
       await deletePart(id);
-      loadParts();
+      loadParts(page);
     } catch (error) {
       alert('Failed to delete part: ' + error.message);
     }
@@ -162,6 +211,7 @@ const Inventory = () => {
           placeholder="Search parts by name or alias..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={handleSearchKeyDown}
           className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:border-amber-500 transition-colors shadow-sm dark:shadow-none"
         />
       </div>
@@ -184,7 +234,11 @@ const Inventory = () => {
             {loading ? (
               <tr><td colSpan="6" className="px-6 py-8 text-center text-zinc-500">Loading inventory...</td></tr>
             ) : parts.length === 0 ? (
-              <tr><td colSpan="6" className="px-6 py-8 text-center text-zinc-500">No parts found matching your search.</td></tr>
+              <tr>
+                <td colSpan="6" className="px-6 py-8 text-center text-zinc-500">
+                    {!search.trim() ? "Enter a search term to find parts." : "No parts found matching your search."}
+                </td>
+              </tr>
             ) : (
               parts.map((part) => (
                 <tr key={part.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
@@ -252,6 +306,29 @@ const Inventory = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Controls */}
+      {parts.length > 0 && (
+        <div className="flex justify-center items-center gap-4 mt-6 mb-8">
+          <button
+            onClick={() => loadParts(Math.max(1, page - 1))}
+            disabled={page === 1 || loading}
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+          >
+            <ChevronLeft size={16} /> Previous
+          </button>
+          <span className="text-zinc-600 dark:text-zinc-400 font-medium">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => loadParts(page + 1)}
+            disabled={page >= totalPages || loading}
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+          >
+            Next <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Edit/Add Modal */}
       {showModal && (
