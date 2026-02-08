@@ -1186,6 +1186,7 @@ router.delete("/:id", verifyToken, async (req, res) => {
     await client.query("DELETE FROM repair_parts WHERE repair_id = $1", [id]);
     await client.query("DELETE FROM repair_notes WHERE repair_id = $1", [id]);
     await client.query("DELETE FROM repair_photos WHERE repair_id = $1", [id]);
+    await client.query("DELETE FROM estimates WHERE repair_id = $1", [id]);
 
     // 3. Delete Repair
     const result = await client.query("DELETE FROM repairs WHERE id = $1 RETURNING id", [id]);
