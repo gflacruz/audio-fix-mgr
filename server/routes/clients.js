@@ -15,6 +15,7 @@ const formatClient = (row, phones = []) => ({
   state: row.state,
   zip: row.zip,
   primaryNotification: row.primary_notification || 'Phone',
+  remarks: row.remarks,
   dateAdded: row.created_at
 });
 
@@ -114,7 +115,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/clients - Create new client
 router.post('/', async (req, res) => {
   try {
-    const { name, companyName, phones, email, address, city, state, zip, primaryNotification } = req.body;
+    const { name, companyName, phones, email, address, city, state, zip, primaryNotification, remarks } = req.body;
 
     // Backward compatibility: if "phone" string is sent instead of "phones" array
     let phoneList = phones;
@@ -129,10 +130,10 @@ router.post('/', async (req, res) => {
     const primaryPhone = phoneList[0].number;
 
     const result = await db.query(
-      `INSERT INTO clients (name, company_name, phone, email, address, city, state, zip, primary_notification) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+      `INSERT INTO clients (name, company_name, phone, email, address, city, state, zip, primary_notification, remarks) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
        RETURNING *`,
-      [name, companyName, primaryPhone, email, address, city, state, zip, primaryNotification || 'Phone']
+      [name, companyName, primaryPhone, email, address, city, state, zip, primaryNotification || 'Phone', remarks || '']
     );
 
     const clientId = result.rows[0].id;
@@ -174,7 +175,7 @@ router.patch('/:id', async (req, res) => {
     const updates = req.body;
     
     // Whitelist allowed fields
-    const allowedFields = ['name', 'companyName', 'email', 'address', 'city', 'state', 'zip', 'primaryNotification'];
+    const allowedFields = ['name', 'companyName', 'email', 'address', 'city', 'state', 'zip', 'primaryNotification', 'remarks'];
     const fieldsToUpdate = [];
     const values = [];
     let paramIndex = 1;

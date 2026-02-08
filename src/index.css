@@ -31,7 +31,7 @@
 }
 
 body {
-    user-select: none; /* App-like feel */
+    /* user-select: none; Removed to allow text selection */
 }
 
 input, textarea {

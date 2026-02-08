@@ -11,6 +11,7 @@ import Workbench from './pages/Workbench';
 import Clients from './pages/Clients';
 import ClientDetail from './pages/ClientDetail';
 import RepairDetail from './pages/RepairDetail';
+import EstimateDetail from './pages/EstimateDetail';
 import SearchPage from './pages/SearchPage';
 import Technicians from './pages/Technicians';
 import AdminUsers from './pages/AdminUsers';
@@ -36,6 +37,7 @@ function App() {
             <Route path="/intake" element={<Intake />} />
             <Route path="/workbench" element={<Workbench />} />
             <Route path="/repair/:id" element={<RepairDetail />} />
+            <Route path="/repair/:repairId/estimate/:estimateId" element={<EstimateDetail />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/client/:id" element={<ClientDetail />} />
             <Route path="/inventory" element={<Inventory />} />

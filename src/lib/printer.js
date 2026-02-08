@@ -73,6 +73,17 @@ export const printDiagnosticReceipt = (ticket, client) => {
         </div>
       </div>
 
+      <div style="text-align: center; margin-bottom: 30px;">
+        <div style="display: inline-block; padding: 10px 40px; border: 3px solid #000; border-radius: 8px;">
+          <div style="font-size: 14px; text-transform: uppercase; letter-spacing: 2px; color: #666; margin-bottom: 5px;">
+            Claim Number
+          </div>
+          <div style="font-size: 42px; font-weight: 800; line-height: 1; color: #000;">
+            ${ticket.claimNumber || ticket.id}
+          </div>
+        </div>
+      </div>
+
       <div class="info-grid">
         <div>
           <div class="label">Client</div>
@@ -85,8 +96,6 @@ export const printDiagnosticReceipt = (ticket, client) => {
         <div style="text-align: right;">
           <div class="label">Receipt Date</div>
           <div class="value">${new Date().toLocaleDateString()}</div>
-          <div class="label" style="margin-top: 10px;">Ticket #</div>
-          <div class="value">${ticket.claimNumber || ticket.id}</div>
         </div>
       </div>
 
@@ -161,8 +170,8 @@ export const printRepairInvoice = (ticket, client) => {
     ticket.parts?.reduce((sum, p) => sum + (p.total || 0), 0) || 0;
   const laborTotal = ticket.laborCost || 0;
   const shippingTotal = ticket.returnShippingCost || 0;
-  const onSiteFee = ticket.isOnSite ? 125.00 : 0;
-  const rushFee = ticket.priority === 'rush' ? 100.00 : 0;
+  const onSiteFee = parseFloat(ticket.onSiteFee) || 0;
+  const rushFee = parseFloat(ticket.rushFee) || 0;
 
   // Tax 7.5% on parts and labor
   const tax = ticket.isTaxExempt ? 0 : (partsTotal + laborTotal) * 0.075;
@@ -246,6 +255,17 @@ export const printRepairInvoice = (ticket, client) => {
         </div>
       </div>
 
+      <div style="text-align: center; margin-bottom: 30px;">
+        <div style="display: inline-block; padding: 10px 40px; border: 3px solid #000; border-radius: 8px;">
+          <div style="font-size: 14px; text-transform: uppercase; letter-spacing: 2px; color: #666; margin-bottom: 5px;">
+            Claim Number
+          </div>
+          <div style="font-size: 42px; font-weight: 800; line-height: 1; color: #000;">
+            ${ticket.claimNumber || ticket.id}
+          </div>
+        </div>
+      </div>
+
       <div class="info-grid">
         <div>
           <div class="label">Bill To</div>
@@ -259,8 +279,6 @@ export const printRepairInvoice = (ticket, client) => {
         <div style="text-align: right;">
           <div class="label">Invoice Date</div>
           <div class="value">${new Date().toLocaleDateString()}</div>
-          <div class="label" style="margin-top: 10px;">Ticket #</div>
-          <div class="value">${ticket.claimNumber || ticket.id}</div>
         </div>
       </div>
 

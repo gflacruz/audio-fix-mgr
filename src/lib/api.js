@@ -129,6 +129,10 @@ export const deleteRepair = async (id) => {
   });
 };
 
+export const getRepairNotes = async (id) => {
+  return fetchJSON(`/repairs/${id}/notes`);
+};
+
 export const addRepairNote = async (id, noteData) => {
   return fetchJSON(`/repairs/${id}/notes`, {
     method: 'POST',
@@ -354,6 +358,47 @@ export const updateSuggestion = async (id, status) => {
   return fetchJSON(`/suggestions/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ status }),
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+// Estimates
+export const getEstimates = async (repairId) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/estimates/repair/${repairId}`, {
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const getEstimate = async (id) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/estimates/${id}`, {
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const createEstimate = async (estimateData) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON('/estimates', {
+    method: 'POST',
+    body: JSON.stringify(estimateData),
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const updateEstimate = async (id, updates) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/estimates/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const deleteEstimate = async (id) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/estimates/${id}`, {
+    method: 'DELETE',
     headers: { Authorization: `Bearer ${user?.token}` }
   });
 };

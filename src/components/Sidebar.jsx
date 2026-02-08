@@ -1,15 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, PenTool, Wrench, Users, Search, UserCog, LogOut, Shield, Package, DollarSign, MessageSquarePlus, X, Sun, Moon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { createSuggestion } from '@/lib/api';
+import pkg from '../../package.json';
 
 const Sidebar = () => {
   const { user, logout, isAdmin } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [showSuggestionModal, setShowSuggestionModal] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'F1') {
+        e.preventDefault();
+        navigate('/intake');
+      } else if (e.key === 'F2') {
+        e.preventDefault();
+        navigate('/search');
+      } else if (e.key === 'F3') {
+        e.preventDefault();
+        navigate('/inventory');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate]);
+
   const [suggestionContent, setSuggestionContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -44,12 +64,15 @@ const Sidebar = () => {
 
   return (
     <>
-      <div className="w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 h-screen flex flex-col p-4 pt-8 transition-colors duration-200">
-        <div className="mb-10 px-2 flex items-center gap-2">
-          <div className="w-8 h-8 bg-amber-500 rounded flex items-center justify-center">
-            <Wrench className="text-white dark:text-zinc-900 w-5 h-5" />
+      <div className="w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 h-screen flex flex-col p-4 pt-8 transition-colors duration-200 select-none">
+        <div className="mb-10 px-2">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-amber-500 rounded flex items-center justify-center">
+              <Wrench className="text-white dark:text-zinc-900 w-5 h-5" />
+            </div>
+            <h1 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">AudioFix<span className="text-amber-500">Mgr</span></h1>
           </div>
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">AudioFix<span className="text-amber-500">Mgr</span></h1>
+          <div className="text-xs text-zinc-500 dark:text-zinc-500 mt-1 pl-10">v{pkg.version}</div>
         </div>
 
         <nav className="space-y-2 flex-1 overflow-y-auto">
@@ -57,17 +80,24 @@ const Sidebar = () => {
             <LayoutDashboard size={20} />
             <span>Dashboard</span>
           </NavLink>
+          <NavLink to="/intake" className={navClass}>
+            <PenTool size={20} />
+            <span>Intake</span>
+            <span className="ml-auto text-xs opacity-60 border border-current px-1.5 rounded">F1</span>
+          </NavLink>
           <NavLink to="/search" className={navClass}>
             <Search size={20} />
             <span>Search</span>
+            <span className="ml-auto text-xs opacity-60 border border-current px-1.5 rounded">F2</span>
+          </NavLink>
+          <NavLink to="/inventory" className={navClass}>
+            <Package size={20} />
+            <span>Inventory</span>
+            <span className="ml-auto text-xs opacity-60 border border-current px-1.5 rounded">F3</span>
           </NavLink>
           <NavLink to="/technicians" className={navClass}>
             <UserCog size={20} />
             <span>Technicians</span>
-          </NavLink>
-          <NavLink to="/intake" className={navClass}>
-            <PenTool size={20} />
-            <span>Intake</span>
           </NavLink>
           <NavLink to="/workbench" className={navClass}>
             <Wrench size={20} />
@@ -76,11 +106,6 @@ const Sidebar = () => {
           <NavLink to="/clients" className={navClass}>
             <Users size={20} />
             <span>Clients</span>
-          </NavLink>
-
-          <NavLink to="/inventory" className={navClass}>
-            <Package size={20} />
-            <span>Inventory</span>
           </NavLink>
           
           {isAdmin && (

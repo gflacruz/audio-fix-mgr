@@ -102,6 +102,8 @@ router.get("/", async (req, res) => {
       diagnosticFeeCollected: row.diagnostic_fee_collected,
       diagnosticFee: parseFloat(row.diagnostic_fee) || 0,
       depositAmount: parseFloat(row.deposit_amount) || 0,
+      rushFee: parseFloat(row.rush_fee) || 0,
+      onSiteFee: parseFloat(row.on_site_fee) || 0,
       partsCost: parseFloat(row.parts_cost) || 0,
       laborCost: parseFloat(row.labor_cost) || 0,
       isOnSite: row.is_on_site,
@@ -393,6 +395,8 @@ router.get("/:id", async (req, res) => {
       diagnosticFeeCollected: row.diagnostic_fee_collected,
       diagnosticFee: parseFloat(row.diagnostic_fee) || 0,
       depositAmount: parseFloat(row.deposit_amount) || 0,
+      rushFee: parseFloat(row.rush_fee) || 0,
+      onSiteFee: parseFloat(row.on_site_fee) || 0,
       isOnSite: row.is_on_site,
       isTaxExempt: row.is_tax_exempt,
       isShippedIn: row.is_shipped_in,
@@ -451,6 +455,8 @@ router.post("/", async (req, res) => {
       technician,
       diagnosticFeeCollected,
       diagnosticFee,
+      rushFee,
+      onSiteFee,
       isOnSite,
       isShippedIn,
       shippingCarrier,
@@ -460,6 +466,7 @@ router.post("/", async (req, res) => {
       modelVersion,
       accessoriesIncluded,
       checkedInBy,
+      status,
     } = req.body;
 
     if (!clientId || !brand || !model || !issue) {
@@ -490,8 +497,8 @@ router.post("/", async (req, res) => {
 
     const result = await db.query(
       `INSERT INTO repairs 
-       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, diagnostic_fee, is_shipped_in, shipping_carrier, box_height, box_length, box_width, model_version, accessories_included, is_on_site, claim_number, checked_in_by) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) 
+       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, diagnostic_fee, rush_fee, on_site_fee, is_shipped_in, shipping_carrier, box_height, box_length, box_width, model_version, accessories_included, is_on_site, claim_number, checked_in_by, status) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) 
        RETURNING *`,
       [
         clientId,
@@ -504,6 +511,8 @@ router.post("/", async (req, res) => {
         technician || "Unassigned",
         diagnosticFeeCollected || false,
         diagnosticFee || 0,
+        rushFee || 0,
+        onSiteFee || 0,
         isShippedIn || false,
         shippingCarrier || null,
         boxHeight || null,
@@ -513,7 +522,8 @@ router.post("/", async (req, res) => {
         accessoriesIncluded || null,
         isOnSite || false,
         newClaimNumber,
-        checkedInBy || null
+        checkedInBy || null,
+        status || 'queued'
       ],
     );
 
@@ -546,6 +556,8 @@ router.patch("/:id", async (req, res) => {
       "diagnosticFeeCollected",
       "diagnosticFee",
       "depositAmount",
+      "rushFee",
+      "onSiteFee",
       "isOnSite",
       "issue",
       "modelVersion",
@@ -619,6 +631,29 @@ router.patch("/:id", async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error updating repair:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+// GET /api/repairs/:id/notes - Get only notes (lightweight)
+router.get("/:id/notes", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query(
+      "SELECT * FROM repair_notes WHERE repair_id = $1 ORDER BY created_at ASC",
+      [id]
+    );
+
+    const notes = result.rows.map((n) => ({
+      id: n.id,
+      text: n.text,
+      author: n.author,
+      date: n.created_at,
+    }));
+
+    res.json(notes);
+  } catch (error) {
+    console.error("Error fetching repair notes:", error);
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
@@ -883,8 +918,8 @@ const calculateTotals = (repair, parts) => {
   );
   const laborTotal = parseFloat(repair.labor_cost) || 0;
   const shippingTotal = parseFloat(repair.return_shipping_cost) || 0;
-  const onSiteFee = repair.is_on_site ? 125.0 : 0;
-  const rushFee = repair.priority === "rush" ? 100.0 : 0;
+  const onSiteFee = parseFloat(repair.on_site_fee) || 0;
+  const rushFee = parseFloat(repair.rush_fee) || 0;
 
   const tax = repair.is_tax_exempt ? 0 : (partsTotal + laborTotal) * 0.075;
   const total =

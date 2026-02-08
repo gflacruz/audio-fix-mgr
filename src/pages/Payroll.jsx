@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Modal from '@/components/Modal';
 import { getPayroll, processPayout } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -11,6 +12,7 @@ const Payroll = () => {
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [processing, setProcessing] = useState(false);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -52,15 +54,17 @@ const Payroll = () => {
     setSelectedIds(newSelected);
   };
 
-  const handlePayout = async () => {
+  const handlePayout = () => {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(`Mark ${selectedIds.size} repairs as paid?`)) return;
+    setShowPayoutModal(true);
+  };
 
+  const executePayout = async () => {
     setProcessing(true);
     try {
       await processPayout(Array.from(selectedIds));
       await loadData();
-      alert('Payout recorded successfully.');
+      setShowPayoutModal(false);
     } catch (error) {
       console.error("Payout failed:", error);
       alert('Failed to process payout.');
@@ -214,6 +218,49 @@ const Payroll = () => {
           })}
         </div>
       )}
+
+      <Modal
+        isOpen={showPayoutModal}
+        onClose={() => setShowPayoutModal(false)}
+        title="Confirm Payout"
+        footer={
+          <>
+            <button
+              onClick={() => setShowPayoutModal(false)}
+              className="px-4 py-2 text-zinc-400 hover:text-white transition-colors"
+              disabled={processing}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={executePayout}
+              disabled={processing}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2"
+            >
+              {processing ? 'Processing...' : 'Confirm Payment'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-4 text-emerald-500 mb-4">
+            <CheckCircle2 size={32} />
+            <h4 className="text-xl font-bold">Ready to payout?</h4>
+          </div>
+          <p className="text-zinc-300">
+            You are about to mark <strong>{selectedIds.size}</strong> repairs as paid.
+          </p>
+          <div className="bg-zinc-950 p-4 rounded-lg border border-zinc-800">
+            <div className="text-sm text-zinc-500">Total Commission</div>
+            <div className="text-2xl font-mono text-emerald-500 font-bold">
+              ${totalCommissionOwed.toFixed(2)}
+            </div>
+          </div>
+          <p className="text-sm text-zinc-500">
+            This action will update the status of these repairs to 'Paid'.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 };

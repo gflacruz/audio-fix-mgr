@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getClient, updateClient, getRepairs, deleteClient } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import Modal from '@/components/Modal';
-import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy, Plus, Trash2, Building2, MessageSquare, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy, Plus, Trash2, Building2, MessageSquare, AlertTriangle, StickyNote } from 'lucide-react';
 
 const ClientDetail = () => {
   const { id } = useParams();
@@ -27,9 +27,6 @@ const ClientDetail = () => {
         getClient(id),
         getRepairs({ clientId: id })
       ]);
-      setClient(foundClient);
-      setFormData(foundClient);
-      
       // Sort: Non-closed first, then by date (newest first)
       const sortedTickets = clientTickets.sort((a, b) => {
         const isClosedA = a.status === 'closed';
@@ -40,6 +37,20 @@ const ClientDetail = () => {
         }
         return new Date(b.dateIn) - new Date(a.dateIn);
       });
+
+      // Handle legacy clients with single phone number
+      const data = { ...foundClient };
+      if ((!data.phones || data.phones.length === 0) && data.phone) {
+        data.phones = [{
+          number: data.phone,
+          type: 'Cell',
+          isPrimary: true,
+          extension: ''
+        }];
+      }
+      
+      setClient(data);
+      setFormData(data);
       
       setTickets(sortedTickets);
     } catch (error) {
@@ -124,7 +135,7 @@ const ClientDetail = () => {
   if (!client) return <div className="p-8 text-zinc-500">Client not found.</div>;
 
   return (
-    <div className="max-w-4xl mx-auto pb-10">
+    <div className="w-full pb-10">
       <button 
         onClick={() => navigate('/clients')} 
         className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white mb-6 transition-colors"
@@ -287,6 +298,17 @@ const ClientDetail = () => {
                    <input name="zip" value={formData.zip} onChange={handleChange} maxLength={5}
                     className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded p-2 text-zinc-900 dark:text-white text-sm focus:border-amber-500 outline-none" />
                 </div>
+                
+                <div>
+                   <label className="text-xs text-zinc-500 mb-1 block">Remarks</label>
+                   <textarea 
+                     name="remarks" 
+                     value={formData.remarks || ''} 
+                     onChange={handleChange}
+                     rows={3}
+                     className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded p-2 text-zinc-900 dark:text-white text-sm focus:border-amber-500 outline-none resize-none" 
+                   />
+                </div>
               </form>
             ) : (
               <div className="space-y-6">
@@ -391,6 +413,18 @@ const ClientDetail = () => {
                     <div className="text-xs text-zinc-500 dark:text-zinc-600">Billing Address</div>
                   </div>
                 </div>
+
+                {client.remarks && (
+                  <div className="flex items-start gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800/50">
+                    <StickyNote size={18} className="text-amber-600 mt-0.5" />
+                    <div>
+                      <div className="text-zinc-900 dark:text-zinc-200 whitespace-pre-wrap text-sm">
+                        {client.remarks}
+                      </div>
+                      <div className="text-xs text-zinc-500 dark:text-zinc-600 mt-1">Remarks</div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getRepair, updateRepair, deleteRepair, addRepairNote, getTechnicians, getParts, addRepairPart, removeRepairPart, addCustomRepairPart, uploadRepairPhoto, deleteRepairPhoto, sendEstimateEmail, sendPickupEmail, sendEstimateText, sendPickupText } from '@/lib/api';
+import { getRepair, updateRepair, deleteRepair, getRepairNotes, addRepairNote, getTechnicians, getParts, addRepairPart, removeRepairPart, addCustomRepairPart, uploadRepairPhoto, deleteRepairPhoto, sendEstimateEmail, sendPickupEmail, sendEstimateText, sendPickupText, getEstimates } from '@/lib/api';
 import { printDiagnosticReceipt, printRepairInvoice } from '@/lib/printer';
 import Modal from '@/components/Modal';
-import { ArrowLeft, Save, Clock, User, CheckCircle2, MessageSquare, ThumbsUp, Printer, Package, Plus, Trash2, X, FileText, DollarSign, Truck, Edit2, Camera, Image as ImageIcon, Loader2, Mail, Send, ClipboardCheck } from 'lucide-react';
+import EstimateWizard from '@/components/EstimateWizard';
+import { ArrowLeft, ArrowRight, Save, Clock, User, CheckCircle2, MessageSquare, ThumbsUp, Printer, Package, Plus, Trash2, X, FileText, DollarSign, Truck, Edit2, Camera, Image as ImageIcon, Loader2, Mail, Send, ClipboardCheck, StickyNote } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useError } from '@/context/ErrorContext';
 
@@ -43,6 +44,10 @@ const RepairDetail = () => {
   // Close Claim Modal State
   const [showCloseModal, setShowCloseModal] = useState(false);
 
+  // Estimate State
+  const [showEstimateWizard, setShowEstimateWizard] = useState(false);
+  const [estimates, setEstimates] = useState([]);
+
   // Photo State
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
@@ -63,6 +68,14 @@ const RepairDetail = () => {
   // Diagnostic Fee Edit State
   const [isEditingFee, setIsEditingFee] = useState(false);
   const [tempFee, setTempFee] = useState('');
+  
+  // Rush Fee Edit State
+  const [isEditingRushFee, setIsEditingRushFee] = useState(false);
+  const [tempRushFee, setTempRushFee] = useState('');
+
+  // On-Site Fee Edit State
+  const [isEditingOnSiteFee, setIsEditingOnSiteFee] = useState(false);
+  const [tempOnSiteFee, setTempOnSiteFee] = useState('');
 
   // Issue Edit State
   const [isEditingIssue, setIsEditingIssue] = useState(false);
@@ -113,6 +126,50 @@ const RepairDetail = () => {
       setLoading(false);
     };
     loadData();
+  }, [id]);
+
+  // Load Estimates
+  const loadEstimates = async () => {
+    try {
+      const data = await getEstimates(id);
+      setEstimates(data);
+    } catch (error) {
+      console.error("Failed to load estimates:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (id) {
+      loadEstimates();
+    }
+  }, [id]);
+
+  // Real-time Notes Polling
+  useEffect(() => {
+    if (!id) return;
+
+    const pollNotes = async () => {
+      try {
+        const notes = await getRepairNotes(id);
+        setTicket(prev => {
+          if (!prev) return prev;
+          
+          // Simple check to avoid unnecessary re-renders
+          if (JSON.stringify(prev.notes) === JSON.stringify(notes)) {
+            return prev;
+          }
+
+          return { ...prev, notes };
+        });
+      } catch (error) {
+        // Silent fail for polling to avoid console spam
+        // console.error("Failed to poll notes:", error);
+      }
+    };
+
+    // Initial delay to avoid double-fetch on mount, then poll every 5s
+    const intervalId = setInterval(pollNotes, 5000);
+    return () => clearInterval(intervalId);
   }, [id]);
 
   const triggerPartsSearch = async () => {
@@ -285,8 +342,17 @@ const RepairDetail = () => {
   const handleOnSiteToggle = async () => {
     try {
       const newStatus = !ticket.isOnSite;
-      await updateRepair(id, { isOnSite: newStatus });
-      setTicket(prev => ({ ...prev, isOnSite: newStatus }));
+      const newOnSiteFee = newStatus ? 125.00 : 0.00;
+
+      await updateRepair(id, { 
+        isOnSite: newStatus,
+        onSiteFee: newOnSiteFee
+      });
+      setTicket(prev => ({ 
+        ...prev, 
+        isOnSite: newStatus,
+        onSiteFee: newOnSiteFee 
+      }));
     } catch (error) {
       console.error("Failed to toggle on site:", error);
     }
@@ -315,10 +381,52 @@ const RepairDetail = () => {
   const handleRushToggle = async () => {
     try {
       const newPriority = ticket.priority === 'rush' ? 'normal' : 'rush';
-      await updateRepair(id, { priority: newPriority });
-      setTicket(prev => ({ ...prev, priority: newPriority }));
+      // If switching TO rush, set default $100. If switching OFF, set $0.
+      const newRushFee = newPriority === 'rush' ? 100.00 : 0.00;
+      
+      await updateRepair(id, { 
+        priority: newPriority,
+        rushFee: newRushFee
+      });
+      setTicket(prev => ({ 
+        ...prev, 
+        priority: newPriority,
+        rushFee: newRushFee
+      }));
     } catch (error) {
       console.error("Failed to toggle rush priority:", error);
+    }
+  };
+
+  const handleSaveRushFee = async () => {
+    try {
+      const newFee = parseFloat(tempRushFee);
+      if (isNaN(newFee) || newFee < 0) {
+        alert("Please enter a valid rush fee.");
+        return;
+      }
+      
+      await updateRepair(id, { rushFee: newFee });
+      setTicket(prev => ({ ...prev, rushFee: newFee }));
+      setIsEditingRushFee(false);
+    } catch (error) {
+      console.error("Failed to save rush fee:", error);
+    }
+  };
+
+  const handleSaveOnSiteFee = async () => {
+    try {
+      const newFee = parseFloat(tempOnSiteFee);
+      if (isNaN(newFee) || newFee < 0) {
+        alert("Please enter a valid on-site fee.");
+        return;
+      }
+      
+      await updateRepair(id, { onSiteFee: newFee });
+      setTicket(prev => ({ ...prev, onSiteFee: newFee }));
+      setIsEditingOnSiteFee(false);
+    } catch (error) {
+      console.error("Failed to save on-site fee:", error);
     }
   };
 
@@ -683,8 +791,8 @@ const RepairDetail = () => {
   const partsTotal = ticket.parts?.reduce((sum, p) => sum + p.total, 0) || 0;
   const laborTotal = ticket.laborCost || 0;
   const shippingTotal = ticket.returnShippingCost || 0;
-  const onSiteFee = ticket.isOnSite ? 125.00 : 0;
-  const rushFee = ticket.priority === 'rush' ? 100.00 : 0;
+  const onSiteFee = ticket.onSiteFee || 0;
+  const rushFee = ticket.rushFee || 0;
   
   const tax = ticket.isTaxExempt ? 0 : (partsTotal + laborTotal) * 0.075;
   const total = partsTotal + laborTotal + shippingTotal + onSiteFee + rushFee + tax;
@@ -715,6 +823,13 @@ const RepairDetail = () => {
             <span className="flex items-center gap-1"><User size={16} /> {client?.name}</span>
             {ticket.unitType && <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">{ticket.unitType}</span>}
           </div>
+
+          {client?.remarks && (
+            <div className="mb-3 text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 p-2 rounded border border-amber-200 dark:border-amber-800/50 flex items-start gap-2 max-w-lg">
+              <StickyNote size={14} className="shrink-0 mt-0.5" />
+              <span className="whitespace-pre-wrap font-medium">{client.remarks}</span>
+            </div>
+          )}
 
           <div className="flex items-center gap-x-6 gap-y-2 text-zinc-500 dark:text-zinc-400 mb-3 overflow-x-auto no-scrollbar">
             {ticket.checkedInBy && (
@@ -816,7 +931,7 @@ const RepairDetail = () => {
             </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-4 gap-6">
         {/* Left Column: Details */}
         <div className="col-span-2 space-y-6">
           
@@ -939,10 +1054,10 @@ const RepairDetail = () => {
                      <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Model</label>
                      <div className="text-zinc-800 dark:text-zinc-200 truncate" title={ticket.model}>{ticket.model || 'N/A'}</div>
                    </div>
-                   <div>
-                     <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Serial Number</label>
-                     <div className="text-zinc-800 dark:text-zinc-200 font-mono truncate" title={ticket.serial}>{ticket.serial || 'N/A'}</div>
-                   </div>
+                    <div>
+                      <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Serial Number</label>
+                      <div className="text-zinc-800 dark:text-zinc-200 font-mono" title={ticket.serial}>{ticket.serial || 'N/A'}</div>
+                    </div>
                    <div>
                      <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Priority</label>
                      <div className={`inline-block px-2 py-1 rounded text-xs font-bold uppercase ${
@@ -1279,6 +1394,7 @@ const RepairDetail = () => {
                   <option value="diagnosing">Diagnosing</option>
                   <option value="estimate">Awaiting Estimate</option>
                   <option value="parts">Waiting for Parts</option>
+                  <option value="shipping">Shipping</option>
                   <option value="repairing">Repairing</option>
                   <option value="testing">Testing</option>
                   <option value="ready">Ready for Pickup</option>
@@ -1349,6 +1465,36 @@ const RepairDetail = () => {
                  <label htmlFor="isOnSite" className="text-xs text-zinc-500 dark:text-zinc-400 select-none cursor-pointer">
                    On Site Service ($125)
                  </label>
+                 
+                 {ticket.isOnSite && (
+                   <>
+                     {!isEditingOnSiteFee && (
+                       <button 
+                         onClick={() => {
+                           setTempOnSiteFee(ticket.onSiteFee || 0);
+                           setIsEditingOnSiteFee(true);
+                         }}
+                         className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                       >
+                         <Edit2 size={12} />
+                       </button>
+                     )}
+                     
+                     {isEditingOnSiteFee && (
+                       <div className="flex items-center gap-1 ml-auto">
+                          <input
+                            type="number"
+                            value={tempOnSiteFee}
+                            onChange={(e) => setTempOnSiteFee(e.target.value)}
+                            className="w-16 px-1 py-0.5 text-xs text-right bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded focus:border-amber-500 outline-none"
+                            autoFocus
+                          />
+                          <button onClick={handleSaveOnSiteFee} className="text-green-600 hover:text-green-500"><CheckCircle2 size={14} /></button>
+                          <button onClick={() => setIsEditingOnSiteFee(false)} className="text-red-500 hover:text-red-400"><X size={14} /></button>
+                       </div>
+                     )}
+                   </>
+                 )}
               </div>
               <div className="flex items-center gap-2">
                  <input 
@@ -1361,6 +1507,36 @@ const RepairDetail = () => {
                  <label htmlFor="isRush" className="text-xs text-zinc-500 dark:text-zinc-400 select-none cursor-pointer">
                    Rush Fee ($100)
                  </label>
+
+                 {ticket.priority === 'rush' && (
+                   <>
+                     {!isEditingRushFee && (
+                       <button 
+                         onClick={() => {
+                           setTempRushFee(ticket.rushFee || 0);
+                           setIsEditingRushFee(true);
+                         }}
+                         className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                       >
+                         <Edit2 size={12} />
+                       </button>
+                     )}
+                     
+                     {isEditingRushFee && (
+                       <div className="flex items-center gap-1 ml-auto">
+                          <input
+                            type="number"
+                            value={tempRushFee}
+                            onChange={(e) => setTempRushFee(e.target.value)}
+                            className="w-16 px-1 py-0.5 text-xs text-right bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded focus:border-amber-500 outline-none"
+                            autoFocus
+                          />
+                          <button onClick={handleSaveRushFee} className="text-green-600 hover:text-green-500"><CheckCircle2 size={14} /></button>
+                          <button onClick={() => setIsEditingRushFee(false)} className="text-red-500 hover:text-red-400"><X size={14} /></button>
+                       </div>
+                     )}
+                   </>
+                 )}
               </div>
               <div className="flex items-center gap-2">
                  <input 
@@ -1375,6 +1551,48 @@ const RepairDetail = () => {
                  </label>
               </div>
           </div>
+
+           <button
+             onClick={() => setShowEstimateWizard(true)}
+             className="w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 dark:hover:bg-amber-500 text-white px-4 py-3 rounded-xl font-bold transition-colors shadow-sm mb-4"
+           >
+             <DollarSign size={20} /> Estimate Wizard
+           </button>
+
+           {/* Estimates List */}
+           {estimates.length > 0 && (
+             <div className="mb-6 space-y-2">
+               <h4 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">Estimates</h4>
+               {estimates.map((est, index) => (
+                 <div 
+                   key={est.id} 
+                   onClick={() => navigate(`/repair/${id}/estimate/${est.id}`)}
+                   className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-3 rounded-lg shadow-sm cursor-pointer hover:border-amber-500 dark:hover:border-amber-500 transition-all group"
+                 >
+                   <div className="flex justify-between items-start mb-1">
+                     <span className="text-sm font-medium text-zinc-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-500 transition-colors">
+                       Proposal #{estimates.length - index}
+                     </span>
+                     <span className={`text-xs px-2 py-0.5 rounded-full ${
+                       est.status === 'approved' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400' :
+                       est.status === 'declined' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400' :
+                       'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                     }`}>
+                       {est.status}
+                     </span>
+                   </div>
+                   <div className="flex justify-between text-xs text-zinc-500 mb-2">
+                     <span>{new Date(est.createdAt).toLocaleDateString()}</span>
+                     <span>by {est.createdTechnician}</span>
+                   </div>
+                   <div className="flex justify-between items-center border-t border-zinc-100 dark:border-zinc-800 pt-2">
+                     <span className="font-bold text-zinc-900 dark:text-white">${est.totalCost.toFixed(2)}</span>
+                     <ArrowRight size={14} className="text-zinc-400 group-hover:text-amber-600 dark:group-hover:text-amber-500 transition-colors" />
+                   </div>
+                 </div>
+               ))}
+             </div>
+           )}
 
            <button
              onClick={startInvoiceWizard}
@@ -1399,18 +1617,18 @@ const RepairDetail = () => {
                 <span className="text-zinc-500 dark:text-zinc-400">Sales Tax (7.5%)</span>
                 <span className="text-zinc-800 dark:text-zinc-200 font-mono">${tax.toFixed(2)}</span>
               </div>
-              {ticket.isOnSite && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-500 dark:text-zinc-400">On Site Service Fee</span>
-                  <span className="text-zinc-800 dark:text-zinc-200 font-mono">${onSiteFee.toFixed(2)}</span>
-                </div>
-              )}
-              {ticket.priority === 'rush' && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-500 dark:text-zinc-400">Rush Service Fee</span>
-                  <span className="text-zinc-800 dark:text-zinc-200 font-mono">${rushFee.toFixed(2)}</span>
-                </div>
-              )}
+               {ticket.isOnSite && (
+                 <div className="flex justify-between text-sm">
+                   <span className="text-zinc-500 dark:text-zinc-400">On Site Service Fee</span>
+                   <span className="text-zinc-800 dark:text-zinc-200 font-mono">${onSiteFee.toFixed(2)}</span>
+                 </div>
+               )}
+               {ticket.priority === 'rush' && (
+                 <div className="flex justify-between text-sm">
+                   <span className="text-zinc-500 dark:text-zinc-400">Rush Service Fee</span>
+                   <span className="text-zinc-800 dark:text-zinc-200 font-mono">${rushFee.toFixed(2)}</span>
+                 </div>
+               )}
               {ticket.isShippedIn && (
                 <div className="flex justify-between text-sm">
                   <span className="text-zinc-500 dark:text-zinc-400">Return Shipping</span>
@@ -1424,6 +1642,12 @@ const RepairDetail = () => {
                 </div>
               )}
               <div className="border-t border-zinc-200 dark:border-zinc-800 pt-3 mt-2">
+                {ticket.diagnosticFeeCollected && (
+                   <div className="flex justify-between text-sm mb-2">
+                     <span className="text-zinc-500 dark:text-zinc-400">Total Cost</span>
+                     <span className="text-zinc-800 dark:text-zinc-200 font-mono">${(total + diagnosticFee).toFixed(2)}</span>
+                   </div>
+                )}
                 <div className="flex justify-between text-lg font-bold text-zinc-900 dark:text-white">
                   <span>{ticket.diagnosticFeeCollected ? 'Amount Due' : 'Total'}</span>
                   <span>${amountDue.toFixed(2)}</span>
@@ -1432,68 +1656,7 @@ const RepairDetail = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
-            <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider mb-4">Client Details</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Name</label>
-                <Link to={`/client/${client?.id}`} className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline">
-                  {client?.name}
-                </Link>
-              </div>
-              {client?.companyName && (
-                <div>
-                  <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Company</label>
-                  <div className="text-zinc-800 dark:text-zinc-200">{client?.companyName}</div>
-                </div>
-              )}
-              <div>
-                <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Phone Numbers</label>
-                {(client?.phones && client.phones.length > 0) ? (
-                  <div className="space-y-1 mt-1">
-                    {client.phones.map((phone, idx) => (
-                      <div key={idx} className="flex flex-col">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-zinc-800 dark:text-zinc-200 ${phone.isPrimary ? 'font-medium' : ''}`}>
-                            {formatPhoneNumber(phone.number)}
-                          </span>
-                          {phone.extension && <span className="text-zinc-500 text-xs">x{phone.extension}</span>}
-                          <span className="text-xs text-zinc-500 dark:text-zinc-400 px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded border border-zinc-300 dark:border-zinc-700">
-                            {phone.type}
-                          </span>
-                          {phone.isPrimary && <span className="text-[10px] text-amber-600 dark:text-amber-500 font-medium">Primary</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-zinc-800 dark:text-zinc-200">{formatPhoneNumber(client?.phone)}</div>
-                )}
-              </div>
-              <div>
-                <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Email</label>
-                <div className="text-zinc-800 dark:text-zinc-200 truncate" title={client?.email}>{client?.email || '-'}</div>
-              </div>
-              <div>
-                <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Primary Notification</label>
-                <div className="text-zinc-800 dark:text-zinc-200">{client?.primaryNotification || 'Phone'}</div>
-              </div>
-              <div>
-                <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Address</label>
-                <div className="text-zinc-800 dark:text-zinc-200 text-sm">
-                  {client?.address && <div>{client.address}</div>}
-                  {(client?.city || client?.state || client?.zip) && (
-                    <div>
-                      {client.city}{client.city && client.state && ', '}
-                      {client.state} {client.zip}
-                    </div>
-                  )}
-                  {!client?.address && !client?.city && '-'}
-                </div>
-              </div>
-            </div>
-          </div>
+
 
 
 
@@ -1595,6 +1758,73 @@ const RepairDetail = () => {
                 )}
              </div>
            )}
+
+        </div>
+
+        {/* Right Column: Client & Admin */}
+        <div className="col-span-1 space-y-6">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+            <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider mb-4">Client Details</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Name</label>
+                <Link to={`/client/${client?.id}`} className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline">
+                  {client?.name}
+                </Link>
+              </div>
+              {client?.companyName && (
+                <div>
+                  <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Company</label>
+                  <div className="text-zinc-800 dark:text-zinc-200">{client?.companyName}</div>
+                </div>
+              )}
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Phone Numbers</label>
+                {(client?.phones && client.phones.length > 0) ? (
+                  <div className="space-y-1 mt-1">
+                    {client.phones.map((phone, idx) => (
+                      <div key={idx} className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-zinc-800 dark:text-zinc-200 ${phone.isPrimary ? 'font-medium' : ''}`}>
+                            {formatPhoneNumber(phone.number)}
+                          </span>
+                          {phone.extension && <span className="text-zinc-500 text-xs">x{phone.extension}</span>}
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400 px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded border border-zinc-300 dark:border-zinc-700">
+                            {phone.type}
+                          </span>
+                          {phone.isPrimary && <span className="text-[10px] text-amber-600 dark:text-amber-500 font-medium">Primary</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-zinc-800 dark:text-zinc-200">{formatPhoneNumber(client?.phone)}</div>
+                )}
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Email</label>
+                <div className="text-zinc-800 dark:text-zinc-200 truncate" title={client?.email}>{client?.email || '-'}</div>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Primary Notification</label>
+                <div className="text-zinc-800 dark:text-zinc-200">{client?.primaryNotification || 'Phone'}</div>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Address</label>
+                <div className="text-zinc-800 dark:text-zinc-200 text-sm">
+                  {client?.address && <div>{client.address}</div>}
+                  {(client?.city || client?.state || client?.zip) && (
+                    <div>
+                      {client.city}{client.city && client.state && ', '}
+                      {client.state} {client.zip}
+                    </div>
+                  )}
+                  {!client?.address && !client?.city && '-'}
+                </div>
+              </div>
+            </div>
+          </div>
 
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
             <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider mb-4">Documents</h3>
@@ -2133,6 +2363,15 @@ const RepairDetail = () => {
           </p>
         </div>
       </Modal>
+
+      {/* Estimate Wizard Modal */}
+      <EstimateWizard
+        isOpen={showEstimateWizard}
+        onClose={() => setShowEstimateWizard(false)}
+        repairId={id}
+        technicianName={user?.name || 'Technician'}
+        onEstimateCreated={loadEstimates}
+      />
 
       {/* Delete Repair Confirmation Modal */}
       <Modal

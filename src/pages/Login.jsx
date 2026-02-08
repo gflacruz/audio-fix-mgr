@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Wrench, Settings, Loader2, ChevronDown } from 'lucide-react';
+import pkg from '../../package.json';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -136,6 +137,7 @@ const Login = () => {
             <Wrench className="text-zinc-900 w-10 h-10" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">AudioFix<span className="text-amber-500">Mgr</span></h1>
+          <div className="text-xs text-zinc-600 mt-1">v{pkg.version}</div>
           <p className="text-zinc-500 mt-2">Sign in to access the workbench</p>
         </div>
 

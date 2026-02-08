@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getRepairs, getTechnicians, updateRepair } from '@/lib/api';
 import { Link } from 'react-router-dom';
-import { Clock, AlertTriangle, CheckCircle, UserCog, UserMinus } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle, UserCog, UserMinus, Loader } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const StatusBadge = ({ status }) => {
@@ -24,8 +24,8 @@ const StatusBadge = ({ status }) => {
 };
 
 const Technicians = () => {
-  const { isAdmin } = useAuth();
-  const [selectedTech, setSelectedTech] = useState('Unassigned');
+  const { user, isAdmin } = useAuth();
+  const [selectedTech, setSelectedTech] = useState(null);
   const [tickets, setTickets] = useState([]);
   const [counts, setCounts] = useState({});
   const [technicians, setTechnicians] = useState([]);
@@ -36,18 +36,30 @@ const Technicians = () => {
     // Load technicians first
     getTechnicians().then(techs => {
       setTechnicians(techs);
-      setIsLoading(false);
-      // Don't force select first tech, default is Unassigned
+      
+      // Determine initial selection
+      let initialTech = 'Unassigned';
+      if (user?.name && techs.includes(user.name)) {
+        initialTech = user.name;
+      }
+      setSelectedTech(initialTech);
+      
     }).catch(err => {
       console.error(err);
       setIsLoading(false);
+      setSelectedTech('Unassigned');
     });
-  }, []);
+  }, [user]); // Add user to dependencies to ensure we have the latest user info
 
   useEffect(() => {
+    // Wait for initial selection
+    if (!selectedTech) return;
+
     // Check if we need to load data (Unassigned is always valid)
     // Always load data regardless of selection to populate counts
-    loadData();
+    if (technicians.length > 0 || selectedTech === 'Unassigned') {
+        loadData();
+    }
   }, [selectedTech, technicians]);
 
   const handleAssign = async (e, repairId) => {
@@ -94,10 +106,18 @@ const Technicians = () => {
       setTickets(techTickets);
     } catch (error) {
       console.error("Error loading technician data:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  if (isLoading) return <div className="p-8 text-zinc-500">Loading technicians...</div>;
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-[60vh]">
+        <Loader className="animate-spin text-zinc-500 dark:text-zinc-400" size={64} />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto">
