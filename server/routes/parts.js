@@ -95,7 +95,7 @@ router.get('/', verifyToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching parts:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 
@@ -121,8 +121,8 @@ router.get('/:id', verifyToken, async (req, res) => {
     const part = formatPart(result.rows[0]);
     res.json(part);
   } catch (error) {
-    console.error('Error fetching part details:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error fetching parts:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 
@@ -215,7 +215,7 @@ router.post('/', verifyToken, verifyAdmin, upload.single('image'), async (req, r
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error creating part:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message || 'Internal server error' });
   } finally {
     client.release();
   }
@@ -345,7 +345,7 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error updating part:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message || 'Internal server error' });
   } finally {
     client.release();
   }
@@ -362,7 +362,7 @@ router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
     if (error.code === '23503') {
        return res.status(400).json({ error: 'Cannot delete part because it is used in repair tickets.' });
     }
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 

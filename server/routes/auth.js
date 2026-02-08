@@ -10,14 +10,34 @@ router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    if (!(username && password)) {
-      return res.status(400).json({ error: "All input is required" });
+    // For admins, both username and password are required.
+    // For others, only username is strictly required to identify the user.
+    if (!username) {
+      return res.status(400).json({ error: "Username is required" });
     }
 
     const result = await db.query('SELECT * FROM users WHERE username = $1', [username]);
     const user = result.rows[0];
 
-    if (user && (await bcrypt.compare(password, user.password))) {
+    if (!user) {
+      return res.status(400).json({ error: "User not found" });
+    }
+
+    let isAuthenticated = false;
+
+    if (user.role === 'admin') {
+      if (!password) {
+        return res.status(400).json({ error: "Password is required for admins" });
+      }
+      if (await bcrypt.compare(password, user.password)) {
+        isAuthenticated = true;
+      }
+    } else {
+      // Non-admins (technicians) don't need a password
+      isAuthenticated = true;
+    }
+
+    if (isAuthenticated) {
       const token = jwt.sign(
         { id: user.id, username: user.username, role: user.role, name: user.name },
         process.env.JWT_SECRET || 'your_jwt_secret_key',
@@ -37,7 +57,7 @@ router.post('/login', async (req, res) => {
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
@@ -47,7 +67,7 @@ router.get('/me', verifyToken, async (req, res) => {
     const result = await db.query('SELECT id, username, name, role FROM users WHERE id = $1', [req.user.id]);
     res.json(result.rows[0]);
   } catch (error) {
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 

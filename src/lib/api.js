@@ -25,20 +25,36 @@ const getServerUrl = () => {
 const API_BASE = getServerUrl();
 
 const fetchJSON = async (endpoint, options = {}) => {
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `API Error: ${response.statusText}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const message = errorData.error || `API Error: ${response.statusText}`;
+      
+      // Dispatch global error event for database/server errors (500s)
+      if (response.status >= 500) {
+        window.dispatchEvent(new CustomEvent('api-error', { detail: message }));
+      }
+      
+      throw new Error(message);
+    }
+
+    return response.json();
+  } catch (error) {
+    // Catch network errors (fetch failed entirely)
+    if (error.message && (error.message.includes('Failed to fetch') || error.message.includes('NetworkError'))) {
+      const msg = "Network Error: Unable to reach the server. Please ensure the backend server is running.";
+      window.dispatchEvent(new CustomEvent('api-error', { detail: msg }));
+    }
+    throw error;
   }
-
-  return response.json();
 };
 
 // Clients
@@ -102,6 +118,14 @@ export const updateRepair = async (id, updates) => {
   return fetchJSON(`/repairs/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(updates),
+  });
+};
+
+export const deleteRepair = async (id) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/repairs/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${user?.token}` }
   });
 };
 

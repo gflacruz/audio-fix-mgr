@@ -52,7 +52,7 @@ router.get('/', async (req, res) => {
     res.json(result.rows.map(row => formatClient(row)));
   } catch (error) {
     console.error('Error fetching clients:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 
@@ -106,8 +106,8 @@ router.get('/:id', async (req, res) => {
 
     res.json(clientData);
   } catch (error) {
-    console.error('Error fetching client:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error fetching clients:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 
@@ -162,8 +162,8 @@ router.post('/', async (req, res) => {
 
     res.status(201).json(formatClient(result.rows[0], formattedPhones));
   } catch (error) {
-    console.error('Error creating client:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error deleting client:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 
@@ -246,7 +246,7 @@ router.patch('/:id', async (req, res) => {
     res.json(formatClient(clientRow, phones));
   } catch (error) {
     console.error('Error updating client:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 
@@ -266,8 +266,8 @@ router.delete('/:id', async (req, res) => {
     
     res.json({ message: 'Client deleted successfully' });
   } catch (error) {
-    console.error('Error deleting client:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error fetching client:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
   }
 });
 

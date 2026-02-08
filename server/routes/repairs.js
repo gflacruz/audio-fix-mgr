@@ -95,6 +95,7 @@ router.get("/", async (req, res) => {
       priority: row.priority,
       status: row.status,
       technician: row.technician,
+      checkedInBy: row.checked_in_by,
       dateIn: row.created_at, // Map created_at to dateIn
       completedDate: row.completed_date,
       closedDate: row.closed_date,
@@ -117,7 +118,7 @@ router.get("/", async (req, res) => {
     res.json(formatted);
   } catch (error) {
     console.error("Error fetching repairs:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
@@ -266,7 +267,7 @@ router.get("/payroll-history", async (req, res) => {
     res.json(formatted);
   } catch (error) {
     console.error("Error fetching payroll history:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
@@ -291,7 +292,7 @@ router.post("/payout", async (req, res) => {
     res.json({ message: "Repairs marked as paid" });
   } catch (error) {
     console.error("Error processing payout:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
@@ -385,6 +386,7 @@ router.get("/:id", async (req, res) => {
       priority: row.priority,
       status: row.status,
       technician: row.technician,
+      checkedInBy: row.checked_in_by,
       dateIn: row.created_at,
       completedDate: row.completed_date,
       closedDate: row.closed_date,
@@ -431,7 +433,7 @@ router.get("/:id", async (req, res) => {
     res.json(ticket);
   } catch (error) {
     console.error("Error fetching repair detail:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
@@ -457,6 +459,7 @@ router.post("/", async (req, res) => {
       boxWidth,
       modelVersion,
       accessoriesIncluded,
+      checkedInBy,
     } = req.body;
 
     if (!clientId || !brand || !model || !issue) {
@@ -487,8 +490,8 @@ router.post("/", async (req, res) => {
 
     const result = await db.query(
       `INSERT INTO repairs 
-       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, diagnostic_fee, is_shipped_in, shipping_carrier, box_height, box_length, box_width, model_version, accessories_included, is_on_site, claim_number) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) 
+       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, diagnostic_fee, is_shipped_in, shipping_carrier, box_height, box_length, box_width, model_version, accessories_included, is_on_site, claim_number, checked_in_by) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) 
        RETURNING *`,
       [
         clientId,
@@ -509,7 +512,8 @@ router.post("/", async (req, res) => {
         modelVersion || null,
         accessoriesIncluded || null,
         isOnSite || false,
-        newClaimNumber
+        newClaimNumber,
+        checkedInBy || null
       ],
     );
 
@@ -524,7 +528,7 @@ router.post("/", async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating repair:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
@@ -556,6 +560,9 @@ router.patch("/:id", async (req, res) => {
       "returnShippingCost",
       "returnShippingCarrier",
       "isTaxExempt",
+      "brand",
+      "model",
+      "serial",
     ];
 
     // Auto-update dates based on status changes
@@ -612,7 +619,7 @@ router.patch("/:id", async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error updating repair:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
@@ -642,7 +649,7 @@ router.post("/:id/notes", async (req, res) => {
     });
   } catch (error) {
     console.error("Error adding note:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
@@ -722,7 +729,7 @@ router.post("/:id/parts", async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error adding part to repair:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   } finally {
     client.release();
   }
@@ -763,7 +770,7 @@ router.delete("/:id/parts/:linkId", async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error removing part:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   } finally {
     client.release();
   }
@@ -815,7 +822,7 @@ router.post("/:id/photos", upload.single("photo"), async (req, res) => {
     bufferStream.pipe(uploadStream);
   } catch (error) {
     console.error("Error handling photo upload:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
@@ -845,7 +852,7 @@ router.delete("/:id/photos/:photoId", async (req, res) => {
     res.json({ message: "Photo deleted" });
   } catch (error) {
     console.error("Error deleting photo:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
@@ -1113,6 +1120,64 @@ router.post("/:id/text-pickup", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Error sending pickup text:", error);
     res.status(500).json({ error: "Failed to send text: " + error.message });
+  }
+});
+
+// DELETE /api/repairs/:id - Delete a repair ticket
+router.delete("/:id", verifyToken, async (req, res) => {
+  const client = await db.pool.connect();
+  try {
+    const { id } = req.params;
+
+    // Fetch photos to delete from Cloudinary later
+    const photosRes = await client.query("SELECT public_id FROM repair_photos WHERE repair_id = $1", [id]);
+    const publicIds = photosRes.rows.map(p => p.public_id).filter(pid => pid);
+
+    await client.query("BEGIN");
+
+    // 1. Restore Inventory
+    // Get all parts for this repair
+    const partsRes = await client.query("SELECT part_id, quantity FROM repair_parts WHERE repair_id = $1 AND part_id IS NOT NULL", [id]);
+    
+    // Iterate and restore
+    for (const part of partsRes.rows) {
+       await client.query(
+         "UPDATE parts SET quantity_in_stock = quantity_in_stock + $1 WHERE id = $2",
+         [part.quantity, part.part_id]
+       );
+    }
+
+    // 2. Delete Dependencies
+    await client.query("DELETE FROM repair_parts WHERE repair_id = $1", [id]);
+    await client.query("DELETE FROM repair_notes WHERE repair_id = $1", [id]);
+    await client.query("DELETE FROM repair_photos WHERE repair_id = $1", [id]);
+
+    // 3. Delete Repair
+    const result = await client.query("DELETE FROM repairs WHERE id = $1 RETURNING id", [id]);
+
+    if (result.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Repair not found" });
+    }
+
+    await client.query("COMMIT");
+
+    // 4. Cleanup Cloudinary (Best effort)
+    for (const pid of publicIds) {
+        try {
+            await cloudinary.uploader.destroy(pid);
+        } catch (e) {
+            console.warn(`Failed to delete image ${pid}`, e);
+        }
+    }
+
+    res.json({ message: "Repair deleted successfully" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error deleting repair:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  } finally {
+    client.release();
   }
 });
 

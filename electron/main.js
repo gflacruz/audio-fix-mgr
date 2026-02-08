@@ -12,11 +12,6 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-    },
-    titleBarStyle: 'hidden',
-    titleBarOverlay: {
-      color: '#18181b',
-      symbolColor: '#f4f4f5'
     }
   });
 

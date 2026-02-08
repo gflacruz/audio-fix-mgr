@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getRepair, updateRepair, addRepairNote, getTechnicians, getParts, addRepairPart, removeRepairPart, addCustomRepairPart, uploadRepairPhoto, deleteRepairPhoto, sendEstimateEmail, sendPickupEmail, sendEstimateText, sendPickupText } from '@/lib/api';
+import { getRepair, updateRepair, deleteRepair, addRepairNote, getTechnicians, getParts, addRepairPart, removeRepairPart, addCustomRepairPart, uploadRepairPhoto, deleteRepairPhoto, sendEstimateEmail, sendPickupEmail, sendEstimateText, sendPickupText } from '@/lib/api';
 import { printDiagnosticReceipt, printRepairInvoice } from '@/lib/printer';
 import Modal from '@/components/Modal';
-import { ArrowLeft, Save, Clock, User, CheckCircle2, MessageSquare, ThumbsUp, Printer, Package, Plus, Trash2, X, FileText, DollarSign, Truck, Edit2, Camera, Image as ImageIcon, Loader2, Mail, Send } from 'lucide-react';
+import { ArrowLeft, Save, Clock, User, CheckCircle2, MessageSquare, ThumbsUp, Printer, Package, Plus, Trash2, X, FileText, DollarSign, Truck, Edit2, Camera, Image as ImageIcon, Loader2, Mail, Send, ClipboardCheck } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useError } from '@/context/ErrorContext';
 
 const RepairDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const { showError } = useError();
   const [ticket, setTicket] = useState(null);
   const [client, setClient] = useState(null);
   const [newNote, setNewNote] = useState('');
@@ -54,6 +56,10 @@ const RepairDetail = () => {
     error: null
   });
 
+  // Delete Repair State
+  const [showDeleteRepairModal, setShowDeleteRepairModal] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+
   // Diagnostic Fee Edit State
   const [isEditingFee, setIsEditingFee] = useState(false);
   const [tempFee, setTempFee] = useState('');
@@ -64,7 +70,17 @@ const RepairDetail = () => {
 
   // Specs Edit State
   const [isEditingSpecs, setIsEditingSpecs] = useState(false);
-  const [tempSpecs, setTempSpecs] = useState({ brand: '', model: '', serial: '' });
+  const [tempSpecs, setTempSpecs] = useState({ unitType: '', brand: '', model: '', serial: '', priority: 'normal', accessoriesIncluded: '' });
+
+  // Shipment Edit State
+  const [isEditingShipment, setIsEditingShipment] = useState(false);
+  const [tempShipment, setTempShipment] = useState({ 
+    shippingCarrier: '', 
+    boxLength: '', 
+    boxWidth: '', 
+    boxHeight: '',
+    returnShippingCarrier: '' 
+  });
 
   useEffect(() => {
     const loadData = async () => {
@@ -243,7 +259,26 @@ const RepairDetail = () => {
       setIsEditingSpecs(false);
     } catch (error) {
       console.error("Failed to update specs:", error);
-      alert("Failed to update specs.");
+      showError("Failed to update specs: " + error.message);
+    }
+  };
+
+  const handleSaveShipment = async () => {
+    try {
+      // Convert empty strings to null for integer fields
+      const sanitizedShipment = {
+        ...tempShipment,
+        boxLength: tempShipment.boxLength === '' ? null : parseInt(tempShipment.boxLength),
+        boxWidth: tempShipment.boxWidth === '' ? null : parseInt(tempShipment.boxWidth),
+        boxHeight: tempShipment.boxHeight === '' ? null : parseInt(tempShipment.boxHeight),
+      };
+
+      await updateRepair(id, sanitizedShipment);
+      setTicket(prev => ({ ...prev, ...sanitizedShipment }));
+      setIsEditingShipment(false);
+    } catch (error) {
+      console.error("Failed to update shipment:", error);
+      showError("Failed to update shipment: " + error.message);
     }
   };
 
@@ -254,6 +289,16 @@ const RepairDetail = () => {
       setTicket(prev => ({ ...prev, isOnSite: newStatus }));
     } catch (error) {
       console.error("Failed to toggle on site:", error);
+    }
+  };
+
+  const handleShippedInToggle = async () => {
+    try {
+      const newStatus = !ticket.isShippedIn;
+      await updateRepair(id, { isShippedIn: newStatus });
+      setTicket(prev => ({ ...prev, isShippedIn: newStatus }));
+    } catch (error) {
+      console.error("Failed to toggle shipped in:", error);
     }
   };
 
@@ -617,6 +662,21 @@ const RepairDetail = () => {
     setEmailModal(prev => ({ ...prev, isOpen: false, step: 'idle' }));
   };
 
+  const handleDeleteRepair = async () => {
+    if (deleteConfirmation !== 'DELETE') {
+      alert("Please type 'DELETE' to confirm.");
+      return;
+    }
+
+    try {
+      await deleteRepair(id);
+      navigate('/workbench'); // or wherever is appropriate
+    } catch (error) {
+      console.error("Failed to delete repair:", error);
+      showError("Failed to delete repair: " + error.message);
+    }
+  };
+
   if (loading) return <div className="p-8 text-zinc-500">Loading...</div>;
   if (!ticket) return <div className="p-8 text-zinc-500">Ticket not found.</div>;
 
@@ -633,104 +693,82 @@ const RepairDetail = () => {
   const amountDue = ticket.diagnosticFeeCollected ? Math.max(0, total - diagnosticFee) : total;
   
   return (
-    <div className="max-w-4xl mx-auto pb-10">
+    <div className="max-w-7xl mx-auto pb-10">
       <button 
-        onClick={() => navigate(-1)} 
+        onClick={() => navigate(-1)}
         className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white mb-6 transition-colors"
       >
         <ArrowLeft size={20} /> Back to Workbench
       </button>
 
       {/* Header / Title */}
-      <div className="flex justify-between items-start mb-8">
-        <div>
+      <div className="flex flex-col xl:flex-row justify-between items-start gap-6 mb-8">
+        <div className="w-full xl:w-auto">
           <h1 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2 flex items-center gap-3">
             <span>
               <span className="text-amber-600 dark:text-amber-500 mr-3">#{ticket.claimNumber || ticket.id}</span>
               {ticket.brand} {ticket.model}
             </span>
           </h1>
-          <div className="flex items-center gap-4 text-zinc-500 dark:text-zinc-400">
+          
+          <div className="flex items-center gap-4 text-zinc-500 dark:text-zinc-400 mb-2">
             <span className="flex items-center gap-1"><User size={16} /> {client?.name}</span>
-            <span className="flex items-center gap-1"><Clock size={16} /> In: {new Date(ticket.dateIn).toLocaleDateString()}</span>
-            {ticket.completedDate && <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-500" title="Completed Date"><CheckCircle2 size={16} /> Done: {new Date(ticket.completedDate).toLocaleDateString()}</span>}
-            {ticket.closedDate && <span className="flex items-center gap-1 text-zinc-500" title="Closed Date"><Clock size={16} /> Closed: {new Date(ticket.closedDate).toLocaleDateString()}</span>}
             {ticket.unitType && <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">{ticket.unitType}</span>}
           </div>
-        </div>
 
-        <div className="flex flex-col items-end gap-2">
-           <div className="flex items-center gap-2">
+          <div className="flex items-center gap-x-6 gap-y-2 text-zinc-500 dark:text-zinc-400 mb-3 overflow-x-auto no-scrollbar">
+            {ticket.checkedInBy && (
+              <span className="flex items-center gap-1.5 whitespace-nowrap" title="Checked In By">
+                <ClipboardCheck size={22} className="shrink-0" /> 
+                <span>By: {ticket.checkedInBy}</span>
+              </span>
+            )}
+            <span className="flex items-center gap-1.5 whitespace-nowrap">
+              <Clock size={22} className="shrink-0" /> 
+              <span>In: {new Date(ticket.dateIn).toLocaleDateString()}</span>
+            </span>
+            {ticket.completedDate && (
+              <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500 whitespace-nowrap" title="Completed Date">
+                <CheckCircle2 size={22} className="shrink-0" /> 
+                <span>Done: {new Date(ticket.completedDate).toLocaleDateString()}</span>
+              </span>
+            )}
+            {ticket.closedDate && (
+              <span className="flex items-center gap-1.5 text-zinc-500 whitespace-nowrap" title="Closed Date">
+                <Clock size={22} className="shrink-0" /> 
+                <span>Closed: {new Date(ticket.closedDate).toLocaleDateString()}</span>
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
              {ticket.isShippedIn && (
-               <span className="inline-flex items-center justify-center w-28 bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300 text-sm py-1 rounded-full border border-purple-200 dark:border-purple-800/50 font-medium">
+               <span className="inline-flex items-center justify-center px-3 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300 text-sm rounded-full border border-purple-200 dark:border-purple-800/50 font-medium">
                  Shipped In
                </span>
              )}
              {ticket.isOnSite && (
-               <span className="inline-flex items-center justify-center w-28 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-sm py-1 rounded-full border border-blue-200 dark:border-blue-800/50 font-medium">
+               <span className="inline-flex items-center justify-center px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 text-sm rounded-full border border-blue-200 dark:border-blue-800/50 font-medium">
                  On Site
                </span>
              )}
              {ticket.priority === 'rush' && (
-               <span className="inline-flex items-center justify-center w-28 bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300 text-sm py-1 rounded-full border border-red-200 dark:border-red-800/50 font-medium">
+               <span className="inline-flex items-center justify-center px-3 py-1 bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300 text-sm rounded-full border border-red-200 dark:border-red-800/50 font-medium">
                  Rush
                </span>
              )}
              {ticket.priority === 'warranty' && (
-               <span className="inline-flex items-center justify-center w-28 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 text-sm py-1 rounded-full border border-emerald-200 dark:border-emerald-800/50 font-medium">
+               <span className="inline-flex items-center justify-center px-3 py-1 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 text-sm rounded-full border border-emerald-200 dark:border-emerald-800/50 font-medium">
                  Warranty
                </span>
              )}
-             <button
-               onClick={startInvoiceWizard}
-               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-             >
-               <FileText size={18} /> Invoice
-             </button>
+          </div>
+        </div>
 
-             <select 
-                value={ticket.technician || 'Unassigned'} 
-                onChange={(e) => handleTechnicianChange(e.target.value)}
-                className="bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-3 py-2 rounded-lg focus:border-amber-500 outline-none text-sm"
-              >
-                <option value="Unassigned">Unassigned</option>
-                {technicians.map(tech => (
-                  <option key={tech} value={tech}>{tech}</option>
-                ))}
-              </select>
-
-              <select 
-                value={ticket.status} 
-                onChange={(e) => handleStatusChange(e.target.value)}
-                className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white px-4 py-2 rounded-lg focus:border-amber-500 outline-none"
-              >
-                <option value="queued">Queued</option>
-                <option value="diagnosing">Diagnosing</option>
-                <option value="estimate">Awaiting Estimate</option>
-                <option value="parts">Waiting for Parts</option>
-                <option value="repairing">Repairing</option>
-                <option value="testing">Testing</option>
-                <option value="ready">Ready for Pickup</option>
-                <option value="closed">Closed</option>
-              </select>
-
-              {/* Pickup Notification Button - Only show if ready or closed */}
-              {(ticket.status === 'ready' || ticket.status === 'closed') && (
-                <button
-                  onClick={handleSendPickupEmail}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 ${
-                    client?.primaryNotification === 'Text' 
-                      ? 'bg-emerald-700 hover:bg-emerald-800 dark:hover:bg-emerald-600 text-white' 
-                      : 'bg-emerald-600 hover:bg-emerald-700 dark:hover:bg-emerald-500 text-white'
-                  }`}
-                  title={client?.primaryNotification === 'Text' ? "Text Ready for Pickup" : "Email Ready for Pickup"}
-                >
-                  {client?.primaryNotification === 'Text' ? <MessageSquare size={18} /> : <Send size={18} />}
-                </button>
-              )}
-           </div>
+        <div className="flex flex-col items-end gap-2 w-full xl:w-auto">
+           {/* Main Actions moved to Right Sidebar */}
            
-           {/* Estimate Actions */}
+           {/* Estimate & Notification Actions */}
            <div className="flex gap-2 mt-2">
              <button
                onClick={handleSendEstimateEmail}
@@ -758,6 +796,22 @@ const RepairDetail = () => {
              >
                <ThumbsUp size={14} /> Approved
               </button>
+
+              {/* Pickup Notification Button - Only show if ready or closed */}
+              {(ticket.status === 'ready' || ticket.status === 'closed') && (
+                <button
+                  onClick={handleSendPickupEmail}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded transition-colors disabled:opacity-50 ${
+                    client?.primaryNotification === 'Text' 
+                      ? 'bg-emerald-100 dark:bg-emerald-700/30 hover:bg-emerald-200 dark:hover:bg-emerald-700/40 text-emerald-800 dark:text-emerald-400 border-emerald-200 dark:border-emerald-600/50'
+                      : 'bg-emerald-50 dark:bg-emerald-600/20 hover:bg-emerald-100 dark:hover:bg-emerald-600/30 text-emerald-600 dark:text-emerald-500 border-emerald-200 dark:border-emerald-600/30'
+                  }`}
+                  title={client?.primaryNotification === 'Text' ? "Text Ready for Pickup" : "Email Ready for Pickup"}
+                >
+                  {client?.primaryNotification === 'Text' ? <MessageSquare size={14} /> : <Send size={14} />}
+                  {client?.primaryNotification === 'Text' ? "Text Ready" : "Email Ready"}
+                </button>
+              )}
                </div>
             </div>
       </div>
@@ -766,7 +820,157 @@ const RepairDetail = () => {
         {/* Left Column: Details */}
         <div className="col-span-2 space-y-6">
           
-          {/* Issue Description */}
+          {/* Unit Specs */}
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+             <div className="flex justify-between items-center mb-4">
+               <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider">Unit Specs</h3>
+               {!isEditingSpecs && (
+                 <button 
+                   onClick={() => {
+                    setTempSpecs({
+                        unitType: ticket.unitType || 'Receiver',
+                        brand: ticket.brand || '',
+                        model: ticket.model || '',
+                        serial: ticket.serial || '',
+                        priority: ticket.priority || 'normal',
+                        accessoriesIncluded: ticket.accessoriesIncluded || ''
+                      });
+                     setIsEditingSpecs(true);
+                   }}
+                   className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                 >
+                   <Edit2 size={14} />
+                 </button>
+               )}
+             </div>
+
+             {isEditingSpecs ? (
+               <div className="space-y-4">
+                 <div className="grid grid-cols-5 gap-4">
+                   <div>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Unit Type</label>
+                      <select
+                       value={tempSpecs.unitType}
+                       onChange={(e) => setTempSpecs(prev => ({ ...prev, unitType: e.target.value }))}
+                       className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                      >
+                         <option value="Receiver">Receiver</option>
+                         <option value="Power Amp">Power Amp</option>
+                         <option value="Integrated Amp">Integrated Amp</option>
+                         <option value="Preamp">Preamp</option>
+                         <option value="Turntable">Turntable</option>
+                         <option value="Speaker">Speaker</option>
+                         <option value="Cassette Deck">Cassette Deck</option>
+                         <option value="Reel-to-Reel">Reel-to-Reel</option>
+                         <option value="Mixer">Mixer</option>
+                         <option value="Effect Unit">Effect Unit</option>
+                         <option value="Other">Other</option>
+                      </select>
+                   </div>
+                   <div>
+                     <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Make / Brand</label>
+                     <input
+                       type="text"
+                       value={tempSpecs.brand}
+                       onChange={(e) => setTempSpecs(prev => ({ ...prev, brand: e.target.value }))}
+                       className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                     />
+                   </div>
+                   <div>
+                     <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Model</label>
+                     <input
+                       type="text"
+                       value={tempSpecs.model}
+                       onChange={(e) => setTempSpecs(prev => ({ ...prev, model: e.target.value }))}
+                       className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                     />
+                   </div>
+                   <div>
+                     <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Serial Number</label>
+                     <input
+                       type="text"
+                       value={tempSpecs.serial}
+                       onChange={(e) => setTempSpecs(prev => ({ ...prev, serial: e.target.value }))}
+                       className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none font-mono"
+                     />
+                   </div>
+                   <div>
+                     <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Priority</label>
+                     <select
+                       value={tempSpecs.priority}
+                       onChange={(e) => setTempSpecs(prev => ({ ...prev, priority: e.target.value }))}
+                       className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                     >
+                       <option value="normal">Normal</option>
+                       <option value="rush">Rush</option>
+                       <option value="warranty">Warranty</option>
+                     </select>
+                   </div>
+                 </div>
+
+                 <div className="pt-2">
+                    <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Accessories Included</label>
+                    <input
+                       type="text"
+                       value={tempSpecs.accessoriesIncluded}
+                       onChange={(e) => setTempSpecs(prev => ({ ...prev, accessoriesIncluded: e.target.value }))}
+                       placeholder="e.g. Power Cord, Remote, Original Box"
+                       className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                     />
+                 </div>
+
+                 <div className="flex justify-end gap-2 pt-2">
+                   <button onClick={() => setIsEditingSpecs(false)} className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">Cancel</button>
+                   <button onClick={handleSaveSpecs} className="text-xs bg-amber-600 hover:bg-amber-700 dark:hover:bg-amber-500 text-white px-3 py-1 rounded">Save</button>
+                 </div>
+               </div>
+             ) : (
+               <div className="space-y-4">
+                 <div className="grid grid-cols-5 gap-4">
+                    <div>
+                     <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Unit Type</label>
+                     <div className="text-zinc-800 dark:text-zinc-200 truncate" title={ticket.unitType}>{ticket.unitType || 'N/A'}</div>
+                   </div>
+                   <div>
+                     <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Make</label>
+                     <div className="text-zinc-800 dark:text-zinc-200 truncate" title={ticket.brand}>{ticket.brand || 'N/A'}</div>
+                   </div>
+                   <div>
+                     <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Model</label>
+                     <div className="text-zinc-800 dark:text-zinc-200 truncate" title={ticket.model}>{ticket.model || 'N/A'}</div>
+                   </div>
+                   <div>
+                     <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Serial Number</label>
+                     <div className="text-zinc-800 dark:text-zinc-200 font-mono truncate" title={ticket.serial}>{ticket.serial || 'N/A'}</div>
+                   </div>
+                   <div>
+                     <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Priority</label>
+                     <div className={`inline-block px-2 py-1 rounded text-xs font-bold uppercase ${
+                       ticket.priority === 'rush' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-500' : 
+                       ticket.priority === 'warranty' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
+                     }`}>
+                       {ticket.priority}
+                     </div>
+                   </div>
+                 </div>
+
+                 {ticket.modelVersion && (
+                   <div>
+                     <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Model Version</label>
+                     <div className="text-zinc-800 dark:text-zinc-200">{ticket.modelVersion}</div>
+                   </div>
+                 )}
+                 {ticket.accessoriesIncluded && (
+                   <div>
+                     <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Accessories</label>
+                     <div className="text-zinc-800 dark:text-zinc-200">{ticket.accessoriesIncluded}</div>
+                   </div>
+                 )}
+               </div>
+             )}
+           </div>
+           
+           {/* Issue Description */}
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-amber-600 dark:text-amber-500 font-semibold">Reported Issue</h3>
@@ -1048,6 +1252,40 @@ const RepairDetail = () => {
 
         {/* Right Column: Info Card */}
         <div className="col-span-1 space-y-6">
+          {/* Status & Tech Assignment */}
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-4">
+             <div className="flex flex-col gap-1">
+               <label className="text-xs text-zinc-500 dark:text-zinc-400 font-medium ml-1">Assigned Technician</label>
+               <select 
+                  value={ticket.technician || 'Unassigned'} 
+                  onChange={(e) => handleTechnicianChange(e.target.value)}
+                  className="w-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 px-3 py-2 rounded-lg focus:border-amber-500 outline-none text-sm"
+                >
+                  <option value="Unassigned">Unassigned</option>
+                  {technicians.map(tech => (
+                    <option key={tech} value={tech}>{tech}</option>
+                  ))}
+                </select>
+             </div>
+
+             <div className="flex flex-col gap-1">
+               <label className="text-xs text-zinc-500 dark:text-zinc-400 font-medium ml-1">Repair Status</label>
+               <select 
+                  value={ticket.status} 
+                  onChange={(e) => handleStatusChange(e.target.value)}
+                  className="w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white px-3 py-2 rounded-lg focus:border-amber-500 outline-none text-sm"
+                >
+                  <option value="queued">Queued</option>
+                  <option value="diagnosing">Diagnosing</option>
+                  <option value="estimate">Awaiting Estimate</option>
+                  <option value="parts">Waiting for Parts</option>
+                  <option value="repairing">Repairing</option>
+                  <option value="testing">Testing</option>
+                  <option value="ready">Ready for Pickup</option>
+                  <option value="closed">Closed</option>
+                </select>
+             </div>
+          </div>
           
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-3">
                <div className="flex items-center gap-2">
@@ -1091,6 +1329,18 @@ const RepairDetail = () => {
                <div className="flex items-center gap-2">
                  <input 
                    type="checkbox" 
+                   id="isShippedIn"
+                   checked={ticket.isShippedIn || false}
+                   onChange={handleShippedInToggle}
+                   className="w-4 h-4 rounded border-zinc-600 bg-zinc-100 dark:bg-zinc-800 text-amber-600 focus:ring-amber-500 focus:ring-offset-zinc-900"
+                 />
+                 <label htmlFor="isShippedIn" className="text-xs text-zinc-500 dark:text-zinc-400 select-none cursor-pointer">
+                   Shipped In
+                 </label>
+              </div>
+               <div className="flex items-center gap-2">
+                 <input 
+                   type="checkbox" 
                    id="isOnSite"
                    checked={ticket.isOnSite || false}
                    onChange={handleOnSiteToggle}
@@ -1126,9 +1376,16 @@ const RepairDetail = () => {
               </div>
           </div>
 
-          {/* Cost Breakdown */}
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
-            <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider mb-4">Cost Summary</h3>
+           <button
+             onClick={startInvoiceWizard}
+             className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 text-white px-4 py-3 rounded-xl font-bold transition-colors shadow-sm"
+           >
+             <FileText size={20} /> Invoice Wizard
+           </button>
+
+           {/* Cost Breakdown */}
+           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+             <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider mb-4">Cost Summary</h3>
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-500 dark:text-zinc-400">Parts</span>
@@ -1238,122 +1495,106 @@ const RepairDetail = () => {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
-             <div className="flex justify-between items-center mb-4">
-               <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider">Unit Specs</h3>
-               {!isEditingSpecs && (
-                 <button 
-                   onClick={() => {
-                     setTempSpecs({
-                       brand: ticket.brand || '',
-                       model: ticket.model || '',
-                       serial: ticket.serial || ''
-                     });
-                     setIsEditingSpecs(true);
-                   }}
-                   className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-                 >
-                   <Edit2 size={14} />
-                 </button>
-               )}
-             </div>
 
-             {isEditingSpecs ? (
-               <div className="space-y-4">
-                 <div>
-                   <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Make / Brand</label>
-                   <input
-                     type="text"
-                     value={tempSpecs.brand}
-                     onChange={(e) => setTempSpecs(prev => ({ ...prev, brand: e.target.value }))}
-                     className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
-                   />
-                 </div>
-                 <div>
-                   <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Model</label>
-                   <input
-                     type="text"
-                     value={tempSpecs.model}
-                     onChange={(e) => setTempSpecs(prev => ({ ...prev, model: e.target.value }))}
-                     className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
-                   />
-                 </div>
-                 <div>
-                   <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Serial Number</label>
-                   <input
-                     type="text"
-                     value={tempSpecs.serial}
-                     onChange={(e) => setTempSpecs(prev => ({ ...prev, serial: e.target.value }))}
-                     className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none font-mono"
-                   />
-                 </div>
-                 <div className="flex justify-end gap-2 pt-2">
-                   <button onClick={() => setIsEditingSpecs(false)} className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">Cancel</button>
-                   <button onClick={handleSaveSpecs} className="text-xs bg-amber-600 hover:bg-amber-700 dark:hover:bg-amber-500 text-white px-3 py-1 rounded">Save</button>
-                 </div>
-               </div>
-             ) : (
-               <div className="space-y-4">
-                <div>
-                  <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Make</label>
-                  <div className="text-zinc-800 dark:text-zinc-200">{ticket.brand || 'N/A'}</div>
-                </div>
-                <div>
-                  <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Model</label>
-                  <div className="text-zinc-800 dark:text-zinc-200">{ticket.model || 'N/A'}</div>
-                </div>
-                <div>
-                  <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Serial Number</label>
-                  <div className="text-zinc-800 dark:text-zinc-200 font-mono">{ticket.serial || 'N/A'}</div>
-                </div>
-                {ticket.modelVersion && (
-                <div>
-                  <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Model Version</label>
-                  <div className="text-zinc-800 dark:text-zinc-200">{ticket.modelVersion}</div>
-                </div>
-              )}
-              {ticket.accessoriesIncluded && (
-                <div>
-                  <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Accessories</label>
-                  <div className="text-zinc-800 dark:text-zinc-200">{ticket.accessoriesIncluded}</div>
-                </div>
-              )}
-              <div>
-                 <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Priority</label>
-                 <div className={`inline-block px-2 py-1 rounded text-xs font-bold uppercase ${
-                   ticket.priority === 'rush' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-500' : 
-                   ticket.priority === 'warranty' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
-                 }`}>
-                   {ticket.priority}
-                 </div>
-              </div>
-             </div>
-            )}
-           </div>
 
-          {ticket.isShippedIn && (
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
-               <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider mb-4">Shipment Details</h3>
-               <div className="space-y-4">
-                <div>
-                  <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Inbound Carrier</label>
-                  <div className="text-zinc-800 dark:text-zinc-200">{ticket.shippingCarrier || 'N/A'}</div>
+           {ticket.isShippedIn && (
+             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider">Shipment Details</h3>
+                  {!isEditingShipment && (
+                    <button 
+                      onClick={() => {
+                        setTempShipment({
+                          shippingCarrier: ticket.shippingCarrier || '',
+                          boxLength: ticket.boxLength || '',
+                          boxWidth: ticket.boxWidth || '',
+                          boxHeight: ticket.boxHeight || '',
+                          returnShippingCarrier: ticket.returnShippingCarrier || ''
+                        });
+                        setIsEditingShipment(true);
+                      }}
+                      className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                  )}
                 </div>
-                <div>
-                  <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Box Dimensions</label>
-                  <div className="text-zinc-800 dark:text-zinc-200 font-mono text-sm">
-                    {ticket.boxLength || '?'}L x {ticket.boxWidth || '?'}W x {ticket.boxHeight || '?'}H
+
+                {isEditingShipment ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Inbound Carrier</label>
+                      <input
+                        type="text"
+                        value={tempShipment.shippingCarrier}
+                        onChange={(e) => setTempShipment(prev => ({ ...prev, shippingCarrier: e.target.value }))}
+                        placeholder="e.g. UPS, FedEx, USPS"
+                        className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Box Dimensions (L x W x H)</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <input
+                          type="number"
+                          value={tempShipment.boxLength}
+                          onChange={(e) => setTempShipment(prev => ({ ...prev, boxLength: e.target.value }))}
+                          placeholder="L"
+                          className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                        />
+                        <input
+                          type="number"
+                          value={tempShipment.boxWidth}
+                          onChange={(e) => setTempShipment(prev => ({ ...prev, boxWidth: e.target.value }))}
+                          placeholder="W"
+                          className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                        />
+                        <input
+                          type="number"
+                          value={tempShipment.boxHeight}
+                          onChange={(e) => setTempShipment(prev => ({ ...prev, boxHeight: e.target.value }))}
+                          placeholder="H"
+                          className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Return Carrier</label>
+                      <input
+                        type="text"
+                        value={tempShipment.returnShippingCarrier}
+                        onChange={(e) => setTempShipment(prev => ({ ...prev, returnShippingCarrier: e.target.value }))}
+                        placeholder="e.g. UPS Ground"
+                        className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <button onClick={() => setIsEditingShipment(false)} className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">Cancel</button>
+                      <button onClick={handleSaveShipment} className="text-xs bg-amber-600 hover:bg-amber-700 dark:hover:bg-amber-500 text-white px-3 py-1 rounded">Save</button>
+                    </div>
                   </div>
-                </div>
-                {ticket.returnShippingCarrier && (
-                  <div>
-                    <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Return Carrier</label>
-                    <div className="text-zinc-800 dark:text-zinc-200">{ticket.returnShippingCarrier}</div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Inbound Carrier</label>
+                      <div className="text-zinc-800 dark:text-zinc-200">{ticket.shippingCarrier || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Box Dimensions</label>
+                      <div className="text-zinc-800 dark:text-zinc-200 font-mono text-sm">
+                        {ticket.boxLength || '?'}L x {ticket.boxWidth || '?'}W x {ticket.boxHeight || '?'}H
+                      </div>
+                    </div>
+                    {ticket.returnShippingCarrier && (
+                      <div>
+                        <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Return Carrier</label>
+                        <div className="text-zinc-800 dark:text-zinc-200">{ticket.returnShippingCarrier}</div>
+                      </div>
+                    )}
                   </div>
                 )}
-               </div>
-            </div>
-          )}
+             </div>
+           )}
 
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
             <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider mb-4">Documents</h3>
@@ -1374,6 +1615,19 @@ const RepairDetail = () => {
               </button>
             </div>
           </div>
+
+          {isAdmin && (
+            <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-xl p-6">
+              <h3 className="text-red-600 dark:text-red-500 font-semibold text-sm uppercase tracking-wider mb-4">Admin Actions</h3>
+              <button 
+                onClick={() => setShowDeleteRepairModal(true)}
+                className="w-full flex items-center justify-center gap-2 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 py-2.5 rounded-lg transition-colors border border-red-200 dark:border-red-800"
+              >
+                <Trash2 size={18} />
+                Delete Repair Ticket
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1556,7 +1810,9 @@ const RepairDetail = () => {
                               <span className={`text-xs ${part.quantityInStock > 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-red-600 dark:text-red-500'}`}>
                                 In Stock: {part.quantityInStock}
                               </span>
-                            </div>
+
+
+    </div>
                             <span className="text-emerald-600 dark:text-emerald-500">${part.retailPrice.toFixed(2)}</span>
                           </div>
                         ))}
@@ -1875,6 +2131,54 @@ const RepairDetail = () => {
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             This action will remove the part from the ticket and restore inventory quantity.
           </p>
+        </div>
+      </Modal>
+
+      {/* Delete Repair Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteRepairModal}
+        onClose={() => setShowDeleteRepairModal(false)}
+        title="Delete Repair Ticket"
+        footer={
+          <>
+            <button 
+              onClick={() => setShowDeleteRepairModal(false)}
+              className="px-4 py-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleDeleteRepair}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium"
+            >
+              Delete Permanently
+            </button>
+          </>
+        }
+      >
+        <div className="p-4">
+          <div className="flex flex-col items-center text-center mb-6">
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4">
+              <Trash2 className="text-red-600 dark:text-red-500" size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">Delete Repair Ticket?</h3>
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm">
+              This action cannot be undone. This will permanently delete the repair ticket, all associated notes, and photos.
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Type <span className="font-mono font-bold text-red-600">DELETE</span> to confirm
+            </label>
+            <input
+              type="text"
+              value={deleteConfirmation}
+              onChange={(e) => setDeleteConfirmation(e.target.value)}
+              placeholder="DELETE"
+              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:border-red-500 focus:outline-none"
+            />
+          </div>
         </div>
       </Modal>
 

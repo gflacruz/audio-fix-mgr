@@ -21,18 +21,39 @@ const SearchPage = () => {
 
   // Perform search when debouncedQuery changes
   useEffect(() => {
-    const performSearch = async () => {
-      if (!debouncedQuery.trim()) {
-        setResults({ clients: [], repairs: [] });
-        setHasSearched(false);
-        return;
-      }
+      const performSearch = async () => {
+        if (!debouncedQuery.trim()) {
+          setResults({ clients: [], repairs: [] });
+          setHasSearched(false);
+          return;
+        }
 
-      try {
-        const [foundClients, foundRepairs] = await Promise.all([
-          getClients(debouncedQuery),
-          getRepairs({ search: debouncedQuery, includeClosed })
-        ]);
+        const trimmed = debouncedQuery.trim();
+        // Auto-include closed tickets if searching by specific Claim # format (6 digits or YY-NNNN)
+        const isClaimSearch = /^\d{6}$/.test(trimmed) || /^\d{2}-\d{4}$/.test(trimmed);
+        const effectiveIncludeClosed = isClaimSearch ? true : includeClosed;
+
+        try {
+          // Prepare promises
+          const clientPromise = getClients(debouncedQuery);
+          const repairPromises = [getRepairs({ search: debouncedQuery, includeClosed: effectiveIncludeClosed })];
+
+          // Attempt to auto-format 6-digit inputs as New Claim Numbers (YY-NNNN)
+          // while still searching for the raw input (Old Claim Numbers)
+          if (/^\d{6}$/.test(trimmed)) {
+            const formatted = `${trimmed.slice(0, 2)}-${trimmed.slice(2)}`;
+            repairPromises.push(getRepairs({ search: formatted, includeClosed: effectiveIncludeClosed }));
+          }
+
+          const [foundClients, ...repairResults] = await Promise.all([
+            clientPromise,
+            ...repairPromises
+          ]);
+
+        // Merge and deduplicate repairs
+        const uniqueRepairs = new Map();
+        repairResults.flat().forEach(r => uniqueRepairs.set(r.id, r));
+        const foundRepairs = Array.from(uniqueRepairs.values());
 
         // Apply Sorting (Client-side for now as API sorting is fixed)
         if (sortOrder === 'newest') {

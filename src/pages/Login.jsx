@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Wrench, Settings, Loader2 } from 'lucide-react';
+import { Wrench, Settings, Loader2, ChevronDown } from 'lucide-react';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -10,6 +10,8 @@ const Login = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [serverUrl, setServerUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
   
   const navigate = useNavigate();
   const { login, user } = useAuth();
@@ -27,13 +29,54 @@ const Login = () => {
     if (saved) {
       setServerUrl(saved);
     } else {
-      setServerUrl(`http://${window.location.hostname}:3001`);
+      setServerUrl(`http://192.168.1.25:3001`);
     }
   }, []);
+
+  // Fetch users when serverUrl is ready
+  useEffect(() => {
+    if (!serverUrl) return;
+
+    const fetchUsers = async () => {
+      let loginUrl = serverUrl.replace(/\/$/, '');
+      if (!loginUrl.startsWith('http')) loginUrl = `http://${loginUrl}`;
+      if (!loginUrl.includes(':') && !loginUrl.includes('https')) loginUrl = `${loginUrl}:3001`; 
+      
+      try {
+        const response = await fetch(`${loginUrl}/api/users/public-list`);
+        if (response.ok) {
+          const data = await response.json();
+          setUsers(data);
+          if (data.length > 0) {
+            // Default to first user
+            const firstUser = data[0];
+            setSelectedUser(firstUser);
+            setUsername(firstUser.username);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch user list", err);
+        // Fail silently, dropdown will be empty
+      }
+    };
+
+    fetchUsers();
+  }, [serverUrl]);
 
   const handleServerUrlChange = (e) => {
     setServerUrl(e.target.value);
     localStorage.setItem('server_url', e.target.value);
+  };
+
+  const handleUserChange = (e) => {
+    const selectedUsername = e.target.value;
+    const userObj = users.find(u => u.username === selectedUsername);
+    if (userObj) {
+      setSelectedUser(userObj);
+      setUsername(userObj.username);
+      // Clear password when switching users
+      setPassword('');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -73,6 +116,8 @@ const Login = () => {
       setIsLoading(false);
     }
   };
+
+  const isPasswordRequired = selectedUser?.role === 'admin';
 
   return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
@@ -118,29 +163,51 @@ const Login = () => {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-1">Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-3 text-white focus:border-amber-500 focus:outline-none transition-colors"
-              placeholder="Enter username"
-              required
-              disabled={isLoading}
-            />
+            <label className="block text-sm font-medium text-zinc-400 mb-1">Select User</label>
+            {users.length > 0 ? (
+              <div className="relative">
+                <select
+                  value={username}
+                  onChange={handleUserChange}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-3 pr-10 text-white focus:border-amber-500 focus:outline-none transition-colors appearance-none cursor-pointer"
+                  disabled={isLoading}
+                >
+                  {users.map((u) => (
+                    <option key={u.id} value={u.username}>
+                      {u.name} ({u.role})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-zinc-500 pointer-events-none w-5 h-5" />
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-3 text-white focus:border-amber-500 focus:outline-none transition-colors"
+                placeholder="Enter username"
+                required
+                disabled={isLoading}
+              />
+            )}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-3 text-white focus:border-amber-500 focus:outline-none transition-colors"
-              placeholder="Enter password"
-              required
-              disabled={isLoading}
-            />
-          </div>
+          
+          {isPasswordRequired && (
+            <div className="animate-in fade-in slide-in-from-top-1">
+              <label className="block text-sm font-medium text-zinc-400 mb-1">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-3 text-white focus:border-amber-500 focus:outline-none transition-colors"
+                placeholder="Enter password"
+                required
+                disabled={isLoading}
+              />
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={isLoading}

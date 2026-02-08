@@ -4,6 +4,17 @@ const db = require('../db');
 const bcrypt = require('bcryptjs');
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
 
+// GET /api/users/public-list - Public list of users for login dropdown
+router.get('/public-list', async (req, res) => {
+  try {
+    const result = await db.query('SELECT id, username, name, role FROM users ORDER BY name ASC');
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
 // GET /api/users - List users (Admin only or for technician list)
 // For security, if not admin, only return minimal technician info
 router.get('/', verifyToken, async (req, res) => {
@@ -26,7 +37,7 @@ router.get('/', verifyToken, async (req, res) => {
     res.json(result.rows);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
@@ -56,7 +67,7 @@ router.post('/', verifyToken, verifyAdmin, async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
@@ -74,7 +85,7 @@ router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
     res.json({ message: "User deleted" });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 
@@ -96,7 +107,7 @@ router.put('/:id/password', verifyToken, verifyAdmin, async (req, res) => {
     res.json({ message: "Password updated successfully" });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 

@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getClients, createClient, updateClient, createRepair } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { Save, Plus, Trash2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 const Intake = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const phoneInputRef = useRef(null);
 
   useEffect(() => {
@@ -263,7 +265,8 @@ const Intake = () => {
         shippingCarrier: formData.isShippedIn ? formData.shippingCarrier : null,
         boxHeight: formData.isShippedIn ? formData.boxHeight : null,
         boxLength: formData.isShippedIn ? formData.boxLength : null,
-        boxWidth: formData.isShippedIn ? formData.boxWidth : null
+        boxWidth: formData.isShippedIn ? formData.boxWidth : null,
+        checkedInBy: user?.name
       };
 
       const ticket = await createRepair(repairData);

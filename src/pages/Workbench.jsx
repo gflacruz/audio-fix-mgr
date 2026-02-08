@@ -25,6 +25,7 @@ const StatusBadge = ({ status }) => {
 const Workbench = () => {
   const [tickets, setTickets] = useState([]);
   const [filter, setFilter] = useState('');
+  const [sortOrder, setSortOrder] = useState('newest');
   const searchInputRef = useRef(null);
 
   const loadData = async () => {
@@ -59,22 +60,36 @@ const Workbench = () => {
     ((t.clientName || '').toLowerCase().includes(filter.toLowerCase()) ||
     (t.brand || '').toLowerCase().includes(filter.toLowerCase()) ||
     (t.model || '').toLowerCase().includes(filter.toLowerCase()))
-  );
+  ).sort((a, b) => {
+    const dateA = new Date(a.dateIn || 0);
+    const dateB = new Date(b.dateIn || 0);
+    return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+  });
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">Repair Workbench</h2>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
-          <input 
-            ref={searchInputRef}
-            type="text" 
-            placeholder="Search tickets..." 
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 pl-10 pr-4 py-2 rounded-lg text-sm text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none w-64 shadow-sm dark:shadow-none"
-          />
+        <div className="flex items-center gap-3">
+          <select 
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 rounded-lg text-sm text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none shadow-sm dark:shadow-none cursor-pointer"
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+          </select>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+            <input 
+              ref={searchInputRef}
+              type="text" 
+              placeholder="Search tickets..." 
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 pl-10 pr-4 py-2 rounded-lg text-sm text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none w-64 shadow-sm dark:shadow-none"
+            />
+          </div>
         </div>
       </div>
 
