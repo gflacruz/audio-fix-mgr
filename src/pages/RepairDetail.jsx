@@ -980,20 +980,6 @@ const RepairDetail = () => {
              >
                {client?.primaryNotification === 'Text' ? <MessageSquare size={14} /> : <Mail size={14} />}
                {client?.primaryNotification === 'Text' ? "Text Estimate" : "Email Estimate"}
-             </button>
-             <button
-               onClick={() => addSystemNote('Client has been notified of estimate.')}
-               className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-medium rounded transition-colors"
-               title="Log that client was notified"
-             >
-               <MessageSquare size={14} /> Notified
-             </button>
-             <button
-               onClick={() => addSystemNote('Client has approved estimate.')}
-               className="flex items-center gap-1.5 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 hover:bg-green-900/50 text-green-800 dark:text-green-400 border border-green-200 dark:border-green-900/50 text-xs font-medium rounded transition-colors"
-               title="Log client approval"
-             >
-               <ThumbsUp size={14} /> Approved
               </button>
 
               {/* Pickup Notification Button - Only show if ready or closed */}
