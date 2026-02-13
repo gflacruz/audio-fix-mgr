@@ -29,8 +29,8 @@ const SearchPage = () => {
         }
 
         const trimmed = debouncedQuery.trim();
-        // Auto-include closed tickets if searching by specific Claim # format (6 digits or YY-NNNN)
-        const isClaimSearch = /^\d{6}$/.test(trimmed) || /^\d{2}-\d{4}$/.test(trimmed);
+        // Auto-include closed tickets if searching by specific Claim # format (6 digits, YY-NNNN, or YYL####)
+        const isClaimSearch = /^\d{6}$/.test(trimmed) || /^\d{2}-\d{4}$/.test(trimmed) || /^\d{2}[A-La-l]\d{4}$/.test(trimmed);
         const effectiveIncludeClosed = isClaimSearch ? true : includeClosed;
 
         try {

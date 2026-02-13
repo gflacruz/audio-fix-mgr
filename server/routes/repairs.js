@@ -473,27 +473,29 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Generate Claim Number (YY-NNNN)
+    // Generate Claim Number (YYL####)
     const date = new Date();
     const year = date.getFullYear().toString().slice(-2);
-    const searchPattern = `${year}-%`;
+    const monthLetters = 'ABCDEFGHIJKL';
+    const monthLetter = monthLetters[date.getMonth()];
 
+    // Find highest sequence this year across all months (new format: YYL####)
     const lastClaimResult = await db.query(
-      `SELECT claim_number FROM repairs WHERE claim_number LIKE $1 ORDER BY id DESC LIMIT 1`,
-      [searchPattern]
+      `SELECT claim_number FROM repairs
+       WHERE claim_number ~ $1
+       ORDER BY SUBSTRING(claim_number, 4)::INTEGER DESC
+       LIMIT 1`,
+      [`^${year}[A-L]\\d{4}$`]
     );
 
     let nextSequence = 1;
     if (lastClaimResult.rows.length > 0) {
       const lastClaim = lastClaimResult.rows[0].claim_number;
-      // Ensure we are parsing a format we expect (YY-NNNN)
-      const parts = lastClaim.split('-');
-      if (parts.length === 2 && !isNaN(parts[1])) {
-        nextSequence = parseInt(parts[1], 10) + 1;
-      }
+      const seqPart = lastClaim.substring(3); // last 4 digits
+      nextSequence = parseInt(seqPart, 10) + 1;
     }
 
-    const newClaimNumber = `${year}-${nextSequence.toString().padStart(4, '0')}`;
+    const newClaimNumber = `${year}${monthLetter}${nextSequence.toString().padStart(4, '0')}`;
 
     const result = await db.query(
       `INSERT INTO repairs 
