@@ -107,3 +107,95 @@ Starting Audio Fix Server at Fri 02/13/2026  2:46:38.23
 
 Server running on port 3001
 Network access enabled: http://0.0.0.0:3001
+-------------------------------------------------- 
+Starting Audio Fix Server at Fri 02/13/2026  8:45:40.19 
+
+> audio-fix-backend@1.0.1 start
+> node index.js
+
+Server running on port 3001
+Network access enabled: http://0.0.0.0:3001
+-------------------------------------------------- 
+Starting Audio Fix Server at Sat 02/14/2026  2:46:41.20 
+
+> audio-fix-backend@1.0.1 start
+> node index.js
+
+Server running on port 3001
+Network access enabled: http://0.0.0.0:3001
+-------------------------------------------------- 
+Starting Audio Fix Server at Sat 02/14/2026  7:20:46.17 
+
+> audio-fix-backend@1.0.1 start
+> node index.js
+
+Server running on port 3001
+Network access enabled: http://0.0.0.0:3001
+Error fetching repair detail: error: invalid input syntax for type integer: "reports"
+    at C:\Users\SoundTech\Server\audio-fix-manager\server\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async C:\Users\SoundTech\Server\audio-fix-manager\server\routes\repairs.js:319:26 {
+  length: 145,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $1 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '232',
+  routine: 'pg_strtoint32'
+}
+Error fetching repair detail: error: invalid input syntax for type integer: "reports"
+    at C:\Users\SoundTech\Server\audio-fix-manager\server\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async C:\Users\SoundTech\Server\audio-fix-manager\server\routes\repairs.js:319:26 {
+  length: 145,
+  severity: 'ERROR',
+  code: '22P02',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: "unnamed portal parameter $1 = '...'",
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'numutils.c',
+  line: '232',
+  routine: 'pg_strtoint32'
+}
+-------------------------------------------------- 
+Starting Audio Fix Server at Sat 02/14/2026  7:47:07.44 
+
+> audio-fix-backend@1.0.1 start
+> node index.js
+
+Server running on port 3001
+Network access enabled: http://0.0.0.0:3001
+-------------------------------------------------- 
+Starting Audio Fix Server at Sat 02/14/2026  8:46:19.25 
+
+> audio-fix-backend@1.0.1 start
+> node index.js
+
+Server running on port 3001
+Network access enabled: http://0.0.0.0:3001
+-------------------------------------------------- 
+Starting Audio Fix Server at Sat 02/14/2026  9:36:55.49 
+
+> audio-fix-backend@1.0.1 start
+> node index.js
+
+Server running on port 3001
+Network access enabled: http://0.0.0.0:3001

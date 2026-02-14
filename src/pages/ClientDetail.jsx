@@ -105,10 +105,11 @@ const ClientDetail = () => {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    
+    const { name, value, type, checked } = e.target;
+    const val = type === 'checkbox' ? checked : value;
+
     setFormData(prev => {
-      const newData = { ...prev, [name]: value };
+      const newData = { ...prev, [name]: val };
       
       // Logic to revert notification preference if email is cleared
       if (name === 'email' && !value && prev.primaryNotification === 'Email') {
@@ -301,14 +302,24 @@ const ClientDetail = () => {
                 
                 <div>
                    <label className="text-xs text-zinc-500 mb-1 block">Remarks</label>
-                   <textarea 
-                     name="remarks" 
-                     value={formData.remarks || ''} 
+                   <textarea
+                     name="remarks"
+                     value={formData.remarks || ''}
                      onChange={handleChange}
                      rows={3}
-                     className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded p-2 text-zinc-900 dark:text-white text-sm focus:border-amber-500 outline-none resize-none" 
+                     className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded p-2 text-zinc-900 dark:text-white text-sm focus:border-amber-500 outline-none resize-none"
                    />
                 </div>
+                <label className="flex items-center gap-2 cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    name="taxExempt"
+                    checked={formData.taxExempt || false}
+                    onChange={handleChange}
+                    className="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-amber-600 focus:ring-zinc-500"
+                  />
+                  <span className="text-zinc-700 dark:text-zinc-300 text-sm font-medium">Tax Exempt</span>
+                </label>
               </form>
             ) : (
               <div className="space-y-6">
@@ -423,6 +434,14 @@ const ClientDetail = () => {
                       </div>
                       <div className="text-xs text-zinc-500 dark:text-zinc-600 mt-1">Remarks</div>
                     </div>
+                  </div>
+                )}
+
+                {client.taxExempt && (
+                  <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800/50">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-500">
+                      Tax Exempt
+                    </span>
                   </div>
                 )}
               </div>

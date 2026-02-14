@@ -15,6 +15,7 @@ const formatClient = (row, phones = []) => ({
   state: row.state,
   zip: row.zip,
   primaryNotification: row.primary_notification || 'Phone',
+  taxExempt: row.tax_exempt || false,
   remarks: row.remarks,
   dateAdded: row.created_at
 });
@@ -115,7 +116,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/clients - Create new client
 router.post('/', async (req, res) => {
   try {
-    const { name, companyName, phones, email, address, city, state, zip, primaryNotification, remarks } = req.body;
+    const { name, companyName, phones, email, address, city, state, zip, primaryNotification, remarks, taxExempt } = req.body;
 
     // Backward compatibility: if "phone" string is sent instead of "phones" array
     let phoneList = phones;
@@ -130,10 +131,10 @@ router.post('/', async (req, res) => {
     const primaryPhone = phoneList[0].number;
 
     const result = await db.query(
-      `INSERT INTO clients (name, company_name, phone, email, address, city, state, zip, primary_notification, remarks) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+      `INSERT INTO clients (name, company_name, phone, email, address, city, state, zip, primary_notification, remarks, tax_exempt)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
-      [name, companyName, primaryPhone, email, address, city, state, zip, primaryNotification || 'Phone', remarks || '']
+      [name, companyName, primaryPhone, email, address, city, state, zip, primaryNotification || 'Phone', remarks || '', taxExempt || false]
     );
 
     const clientId = result.rows[0].id;
@@ -175,7 +176,7 @@ router.patch('/:id', async (req, res) => {
     const updates = req.body;
     
     // Whitelist allowed fields
-    const allowedFields = ['name', 'companyName', 'email', 'address', 'city', 'state', 'zip', 'primaryNotification', 'remarks'];
+    const allowedFields = ['name', 'companyName', 'email', 'address', 'city', 'state', 'zip', 'primaryNotification', 'remarks', 'taxExempt'];
     const fieldsToUpdate = [];
     const values = [];
     let paramIndex = 1;
@@ -185,6 +186,7 @@ router.patch('/:id', async (req, res) => {
         let dbField = key;
         if (key === 'companyName') dbField = 'company_name';
         if (key === 'primaryNotification') dbField = 'primary_notification';
+        if (key === 'taxExempt') dbField = 'tax_exempt';
         
         fieldsToUpdate.push(`${dbField} = $${paramIndex}`);
         values.push(value);

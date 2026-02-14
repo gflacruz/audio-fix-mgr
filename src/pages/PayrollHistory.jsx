@@ -63,7 +63,7 @@ const PayrollHistory = () => {
     setFilters(prev => ({ ...prev, [name]: value }));
   };
 
-  const totalPaid = repairs.reduce((sum, r) => sum + r.commission, 0);
+  const totalPaid = repairs.reduce((sum, r) => sum + (r.payoutAmount || 0), 0);
 
   return (
     <div className="max-w-6xl mx-auto pb-10">
@@ -80,7 +80,7 @@ const PayrollHistory = () => {
             <History className="text-blue-600 dark:text-blue-500" size={32} />
             Payroll History
           </h1>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-1">View past commission payouts.</p>
+          <p className="text-zinc-500 dark:text-zinc-400 mt-1">View past payouts.</p>
         </div>
       </div>
 
@@ -161,7 +161,7 @@ const PayrollHistory = () => {
                   <th className="px-6 py-3 text-right">Tax</th>
                   <th className="px-6 py-3 text-right">Deposit</th>
                   <th className="px-6 py-3 text-right">Total Ticket</th>
-                  <th className="px-6 py-3 text-right text-emerald-600 dark:text-emerald-500">Commission Paid</th>
+                  <th className="px-6 py-3 text-right text-emerald-600 dark:text-emerald-500">Payout Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
@@ -187,7 +187,7 @@ const PayrollHistory = () => {
                     <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-500">${repair.diagnosticFee.toFixed(2)}</td>
                     <td className="px-6 py-4 text-right text-zinc-600 dark:text-zinc-400">${repair.totalCost.toFixed(2)}</td>
                     <td className="px-6 py-4 text-right text-emerald-600 dark:text-emerald-400 font-bold font-mono">
-                      ${repair.commission.toFixed(2)}
+                      ${(repair.payoutAmount || 0).toFixed(2)}
                     </td>
                   </tr>
                 ))}

@@ -20,6 +20,7 @@ import PartDetail from './pages/PartDetail';
 import Payroll from './pages/Payroll';
 import PayrollHistory from './pages/PayrollHistory';
 import Suggestions from './pages/Suggestions';
+import Reports from './pages/Reports';
 
 function App() {
   return (
@@ -42,6 +43,7 @@ function App() {
             <Route path="/client/:id" element={<ClientDetail />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/inventory/:id" element={<PartDetail />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/payroll" element={<Payroll />} />
             <Route path="/payroll/history" element={<PayrollHistory />} />
             <Route path="/admin" element={<AdminUsers />} />

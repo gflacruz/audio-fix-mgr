@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import Modal from '@/components/Modal';
 import { getPayroll, processPayout } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
@@ -13,6 +13,7 @@ const Payroll = () => {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [processing, setProcessing] = useState(false);
   const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutAmount, setPayoutAmount] = useState('');
 
   useEffect(() => {
     loadData();
@@ -45,10 +46,8 @@ const Payroll = () => {
     const allSelected = techRepairs.every(r => selectedIds.has(r.id));
 
     if (allSelected) {
-      // Deselect all for this tech
       techRepairs.forEach(r => newSelected.delete(r.id));
     } else {
-      // Select all for this tech
       techRepairs.forEach(r => newSelected.add(r.id));
     }
     setSelectedIds(newSelected);
@@ -56,15 +55,31 @@ const Payroll = () => {
 
   const handlePayout = () => {
     if (selectedIds.size === 0) return;
+    setPayoutAmount('');
     setShowPayoutModal(true);
   };
 
+  const breakdown = useMemo(() => {
+    const selected = repairs.filter(r => selectedIds.has(r.id));
+    return {
+      count: selected.length,
+      labor: selected.reduce((sum, r) => sum + r.laborCost, 0),
+      parts: selected.reduce((sum, r) => sum + r.partsCost, 0),
+      tax: selected.reduce((sum, r) => sum + (r.tax || 0), 0),
+      deposit: selected.reduce((sum, r) => sum + r.diagnosticFee, 0),
+      total: selected.reduce((sum, r) => sum + r.totalCost, 0),
+    };
+  }, [repairs, selectedIds]);
+
   const executePayout = async () => {
+    const amount = parseFloat(payoutAmount);
+    if (!amount || amount <= 0) return;
     setProcessing(true);
     try {
-      await processPayout(Array.from(selectedIds));
+      await processPayout(Array.from(selectedIds), amount);
       await loadData();
       setShowPayoutModal(false);
+      setPayoutAmount('');
     } catch (error) {
       console.error("Payout failed:", error);
       alert('Failed to process payout.');
@@ -82,10 +97,8 @@ const Payroll = () => {
 
   if (loading) return <div className="p-8 text-zinc-500">Loading payroll data...</div>;
 
-  const totalCommissionOwed = Array.from(selectedIds).reduce((sum, id) => {
-    const repair = repairs.find(r => r.id === id);
-    return sum + (repair ? repair.commission : 0);
-  }, 0);
+  const parsedAmount = parseFloat(payoutAmount);
+  const isAmountValid = !isNaN(parsedAmount) && parsedAmount > 0;
 
   return (
     <div className="max-w-6xl mx-auto pb-10">
@@ -95,7 +108,7 @@ const Payroll = () => {
             <DollarSign className="text-emerald-600 dark:text-emerald-500" size={32} />
             Technician Payroll
           </h1>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-1">Review and payout commissions for closed tickets.</p>
+          <p className="text-zinc-500 dark:text-zinc-400 mt-1">Review and process payouts for closed tickets.</p>
         </div>
 
         <div className="flex items-center gap-4">
@@ -107,12 +120,11 @@ const Payroll = () => {
             History
           </button>
 
-          <div className="text-right mr-4">
-            <div className="text-sm text-zinc-500 dark:text-zinc-400">Selected Payout</div>
-            <div className="text-2xl font-mono text-emerald-600 dark:text-emerald-400 font-bold">
-              ${totalCommissionOwed.toFixed(2)}
+          {selectedIds.size > 0 && (
+            <div className="text-right mr-4">
+              <div className="text-sm text-zinc-500 dark:text-zinc-400">{selectedIds.size} selected</div>
             </div>
-          </div>
+          )}
           <button
             onClick={handlePayout}
             disabled={selectedIds.size === 0 || processing}
@@ -133,7 +145,6 @@ const Payroll = () => {
       ) : (
         <div className="space-y-8">
           {Object.entries(grouped).map(([tech, techRepairs]) => {
-            const techTotal = techRepairs.reduce((sum, r) => sum + r.commission, 0);
             const allSelected = techRepairs.every(r => selectedIds.has(r.id));
 
             return (
@@ -145,15 +156,12 @@ const Payroll = () => {
                       {techRepairs.length} tickets
                     </span>
                   </div>
-                  <div className="flex items-center gap-4">
-                     <span className="text-zinc-500 dark:text-zinc-400 text-sm">Total Pending: <span className="text-zinc-900 dark:text-white font-mono ml-1">${techTotal.toFixed(2)}</span></span>
-                     <button 
-                       onClick={() => handleSelectTechnician(tech, techRepairs)}
-                       className="text-xs text-amber-600 dark:text-amber-500 hover:text-amber-500 dark:hover:text-amber-400 font-medium uppercase tracking-wider"
-                     >
-                       {allSelected ? 'Deselect All' : 'Select All'}
-                     </button>
-                  </div>
+                  <button
+                    onClick={() => handleSelectTechnician(tech, techRepairs)}
+                    className="text-xs text-amber-600 dark:text-amber-500 hover:text-amber-500 dark:hover:text-amber-400 font-medium uppercase tracking-wider"
+                  >
+                    {allSelected ? 'Deselect All' : 'Select All'}
+                  </button>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -169,26 +177,25 @@ const Payroll = () => {
                         <th className="px-6 py-3 text-right">Tax</th>
                         <th className="px-6 py-3 text-right">Deposit</th>
                         <th className="px-6 py-3 text-right">Total Ticket</th>
-                        <th className="px-6 py-3 text-right text-emerald-600 dark:text-emerald-500">Commission (50%)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
                       {techRepairs.map(repair => (
-                        <tr 
-                          key={repair.id} 
+                        <tr
+                          key={repair.id}
                           className={`hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors ${selectedIds.has(repair.id) ? 'bg-emerald-50 dark:bg-emerald-900/10' : ''}`}
                           onClick={() => handleSelect(repair.id)}
                         >
                           <td className="px-6 py-4">
-                            <input 
-                              type="checkbox" 
+                            <input
+                              type="checkbox"
                               checked={selectedIds.has(repair.id)}
                               onChange={() => handleSelect(repair.id)}
                               className="w-5 h-5 rounded border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-zinc-900 cursor-pointer"
                             />
                           </td>
                           <td className="px-6 py-4 text-zinc-600 dark:text-zinc-300 font-mono">
-                            <button 
+                            <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigate(`/repair/${repair.id}`);
@@ -205,9 +212,6 @@ const Payroll = () => {
                           <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-400">${(repair.tax || 0).toFixed(2)}</td>
                           <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-400">${repair.diagnosticFee.toFixed(2)}</td>
                           <td className="px-6 py-4 text-right text-zinc-700 dark:text-zinc-200 font-bold">${repair.totalCost.toFixed(2)}</td>
-                          <td className="px-6 py-4 text-right text-emerald-600 dark:text-emerald-400 font-bold font-mono text-base">
-                            ${repair.commission.toFixed(2)}
-                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -222,7 +226,7 @@ const Payroll = () => {
       <Modal
         isOpen={showPayoutModal}
         onClose={() => setShowPayoutModal(false)}
-        title="Confirm Payout"
+        title="Process Payout"
         footer={
           <>
             <button
@@ -234,8 +238,8 @@ const Payroll = () => {
             </button>
             <button
               onClick={executePayout}
-              disabled={processing}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2"
+              disabled={processing || !isAmountValid}
+              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2"
             >
               {processing ? 'Processing...' : 'Confirm Payment'}
             </button>
@@ -245,19 +249,51 @@ const Payroll = () => {
         <div className="space-y-4">
           <div className="flex items-center gap-4 text-emerald-500 mb-4">
             <CheckCircle2 size={32} />
-            <h4 className="text-xl font-bold">Ready to payout?</h4>
+            <h4 className="text-xl font-bold">{breakdown.count} repairs selected</h4>
           </div>
-          <p className="text-zinc-300">
-            You are about to mark <strong>{selectedIds.size}</strong> repairs as paid.
-          </p>
-          <div className="bg-zinc-950 p-4 rounded-lg border border-zinc-800">
-            <div className="text-sm text-zinc-500">Total Commission</div>
-            <div className="text-2xl font-mono text-emerald-500 font-bold">
-              ${totalCommissionOwed.toFixed(2)}
+
+          <div className="bg-zinc-950 rounded-lg border border-zinc-800 divide-y divide-zinc-800">
+            <div className="flex justify-between px-4 py-2.5">
+              <span className="text-zinc-400">Total Labor</span>
+              <span className="text-zinc-200 font-mono">${breakdown.labor.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between px-4 py-2.5">
+              <span className="text-zinc-400">Total Parts</span>
+              <span className="text-zinc-200 font-mono">${breakdown.parts.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between px-4 py-2.5">
+              <span className="text-zinc-400">Total Tax</span>
+              <span className="text-zinc-200 font-mono">${breakdown.tax.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between px-4 py-2.5">
+              <span className="text-zinc-400">Total Deposit</span>
+              <span className="text-zinc-200 font-mono">${breakdown.deposit.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between px-4 py-3 bg-zinc-900/50">
+              <span className="text-white font-bold">Grand Total</span>
+              <span className="text-white font-mono font-bold">${breakdown.total.toFixed(2)}</span>
             </div>
           </div>
+
+          <div className="mt-4">
+            <label className="block text-sm text-zinc-400 mb-2">Payout Amount</label>
+            <div className="relative">
+              <span className="absolute left-3 top-2.5 text-zinc-500 font-mono text-lg">$</span>
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={payoutAmount}
+                onChange={(e) => setPayoutAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-zinc-950 border border-zinc-700 text-white pl-8 pr-4 py-2.5 rounded-lg focus:border-emerald-500 outline-none font-mono text-lg"
+                autoFocus
+              />
+            </div>
+          </div>
+
           <p className="text-sm text-zinc-500">
-            This action will update the status of these repairs to 'Paid'.
+            Enter the total amount to pay out. This will be recorded against the selected repairs.
           </p>
         </div>
       </Modal>

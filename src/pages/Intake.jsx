@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getClients, createClient, updateClient, createRepair } from '@/lib/api';
+import { getClients, getClient, createClient, updateClient, createRepair } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { Save, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -38,7 +38,9 @@ const Intake = () => {
     shippingCarrier: '',
     boxHeight: '',
     boxLength: '',
-    boxWidth: ''
+    boxWidth: '',
+    poNumber: '',
+    isTaxExempt: false
   });
 
   const [showFeeModal, setShowFeeModal] = useState(false);
@@ -71,71 +73,21 @@ const Intake = () => {
         const clients = await getClients(phone);
         if (clients.length > 0) {
           const client = clients[0];
-          // If the client from search has phones (which it should now), use them
-          // Otherwise fall back to the legacy phone field if needed, but the backend 
-          // should now return a phones array in the list view too (via formatClient).
-          // However, the search endpoint returns a list.
-          
-          // To be safe and get full details including all phones sorted correctly:
-          // We might want to fetch the full client detail, but the list object 
-          // returned by my updated search endpoint already calls formatClient 
-          // but strictly speaking the search endpoint didn't query client_phones 
-          // for *every* client to attach the list unless I did that in the list endpoint.
-          // Wait, in my backend update for GET /, I did NOT join client_phones 
-          // to attach the list. I only updated the WHERE clause. 
-          // The formatClient helper uses a passed-in array or empty.
-          // So the list endpoint returns empty phones array currently!
-          // I should fix the backend LIST endpoint to include phones, 
-          // OR I should fetch the specific client details here once found.
-          
-          // Let's fetch the full client details to be sure we get all phones.
-          // Actually, I can just use the client.id to fetch details.
-          
-          // Fetch full client details to get the phone list
-          const fullClient = await getClients(phone).then(res => res[0]); 
-          // Wait, getClients returns an array.
-          
-          if (fullClient) {
-             // We need to call the detail endpoint to get the phones list reliably
-             // if the search list doesn't provide it.
-             // Actually, let's just assume the user wants to populate data.
-             // I'll assume for now I need to fetch the detail.
-             // But wait, I can't import getClient (singular) here? Yes I can.
-             // But let's check if I can just use what I have.
-             
-             // Correction: My backend GET / endpoint does NOT fetch phones.
-             // So I should call getClient(client.id) to get the phones.
-             // But I don't want to import getClient if not needed.
-             // Let's just use what's there or update the backend.
-             
-             // Actually, I'll update this function to just use what's returned, 
-             // but since I know GET / doesn't return phones, I'll just put the 
-             // matched phone in the first slot? No, that's messy.
-             
-             // BETTER APPROACH: Update the backend GET / to include the primary phone 
-             // (which it does as 'phone') and maybe I should just use that for now?
-             // No, the requirement is to support multiple phones.
-             
-             // I will modify `lookupClientByPhone` to fetch the full client details.
-             // But first I need to import `getClient`.
-             // Actually, `getClients` (plural) is imported.
-             // I'll update the import to include `getClient`.
-          }
-          
+
+          // Fetch full client details to get phones and taxExempt status
+          const fullClient = await getClient(client.id);
+
           setFormData(prev => ({
             ...prev,
-            clientName: client.name,
-            companyName: client.companyName || '',
-            email: client.email || '',
-            primaryNotification: client.primaryNotification || 'Phone',
-            address: client.address || '',
-            city: client.city || '',
-            state: client.state || '',
-            zip: client.zip || '',
-            // We'll keep the phone numbers as is or update them?
-            // If we found a client, we should probably load their numbers.
-            // But since I didn't fetch the full list, I can't populate them all yet.
-            // I'll leave this for a moment and fix imports first.
+            clientName: fullClient.name,
+            companyName: fullClient.companyName || '',
+            email: fullClient.email || '',
+            primaryNotification: fullClient.primaryNotification || 'Phone',
+            address: fullClient.address || '',
+            city: fullClient.city || '',
+            state: fullClient.state || '',
+            zip: fullClient.zip || '',
+            isTaxExempt: fullClient.taxExempt || false,
           }));
         }
       } catch (error) {
@@ -269,7 +221,9 @@ const Intake = () => {
         boxHeight: formData.isShippedIn ? formData.boxHeight : null,
         boxLength: formData.isShippedIn ? formData.boxLength : null,
         boxWidth: formData.isShippedIn ? formData.boxWidth : null,
-        checkedInBy: user?.name
+        checkedInBy: user?.name,
+        poNumber: formData.poNumber || null,
+        isTaxExempt: formData.isTaxExempt
       };
 
       const ticket = await createRepair(repairData);
@@ -288,7 +242,19 @@ const Intake = () => {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Client Info Section */}
         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-sm dark:shadow-none">
-          <h3 className="text-lg font-semibold text-amber-600 dark:text-amber-500 mb-4">Client Information</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-amber-600 dark:text-amber-500">Client Information</h3>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                name="isTaxExempt"
+                checked={formData.isTaxExempt}
+                onChange={handleChange}
+                className="w-5 h-5 rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-amber-600 focus:ring-zinc-500"
+              />
+              <span className="text-zinc-700 dark:text-zinc-300 font-medium">Tax Exempt</span>
+            </label>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 space-y-3">
               <div className="flex justify-between items-center">
@@ -563,6 +529,11 @@ const Intake = () => {
                   <option value="rush">Rush (+Fee)</option>
                   <option value="warranty">Warranty</option>
                </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">PO # (Optional)</label>
+              <input name="poNumber" value={formData.poNumber} onChange={handleChange} placeholder="Purchase Order #"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none" />
             </div>
           </div>
         </div>

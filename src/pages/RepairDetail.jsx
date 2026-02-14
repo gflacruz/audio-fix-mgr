@@ -90,7 +90,7 @@ const RepairDetail = () => {
 
   // Specs Edit State
   const [isEditingSpecs, setIsEditingSpecs] = useState(false);
-  const [tempSpecs, setTempSpecs] = useState({ unitType: '', brand: '', model: '', serial: '', priority: 'normal', accessoriesIncluded: '' });
+  const [tempSpecs, setTempSpecs] = useState({ unitType: '', brand: '', model: '', serial: '', priority: 'normal', accessoriesIncluded: '', poNumber: '' });
 
   // Shipment Edit State
   const [isEditingShipment, setIsEditingShipment] = useState(false);
@@ -1018,7 +1018,8 @@ const RepairDetail = () => {
                         model: ticket.model || '',
                         serial: ticket.serial || '',
                         priority: ticket.priority || 'normal',
-                        accessoriesIncluded: ticket.accessoriesIncluded || ''
+                        accessoriesIncluded: ticket.accessoriesIncluded || '',
+                        poNumber: ticket.poNumber || ''
                       });
                      setIsEditingSpecs(true);
                    }}
@@ -1093,15 +1094,27 @@ const RepairDetail = () => {
                    </div>
                  </div>
 
-                 <div className="pt-2">
-                    <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Accessories Included</label>
-                    <input
-                       type="text"
-                       value={tempSpecs.accessoriesIncluded}
-                       onChange={(e) => setTempSpecs(prev => ({ ...prev, accessoriesIncluded: e.target.value }))}
-                       placeholder="e.g. Power Cord, Remote, Original Box"
-                       className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
-                     />
+                 <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Accessories Included</label>
+                      <input
+                         type="text"
+                         value={tempSpecs.accessoriesIncluded}
+                         onChange={(e) => setTempSpecs(prev => ({ ...prev, accessoriesIncluded: e.target.value }))}
+                         placeholder="e.g. Power Cord, Remote, Original Box"
+                         className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                       />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">PO #</label>
+                      <input
+                         type="text"
+                         value={tempSpecs.poNumber}
+                         onChange={(e) => setTempSpecs(prev => ({ ...prev, poNumber: e.target.value }))}
+                         placeholder="Purchase Order #"
+                         className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                       />
+                    </div>
                  </div>
 
                  <div className="flex justify-end gap-2 pt-2">
@@ -1149,6 +1162,12 @@ const RepairDetail = () => {
                    <div>
                      <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Accessories</label>
                      <div className="text-zinc-800 dark:text-zinc-200">{ticket.accessoriesIncluded}</div>
+                   </div>
+                 )}
+                 {ticket.poNumber && (
+                   <div>
+                     <label className="text-xs text-zinc-500 dark:text-zinc-400 block">PO #</label>
+                     <div className="text-zinc-800 dark:text-zinc-200">{ticket.poNumber}</div>
                    </div>
                  )}
                </div>

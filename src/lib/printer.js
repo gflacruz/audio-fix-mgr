@@ -72,6 +72,9 @@ export const printDiagnosticReceipt = async (ticket, client) => {
         .status-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; text-transform: uppercase; }
         .paid { background: #dcfce7; color: #166534; }
         .unpaid { background: #fee2e2; color: #991b1b; }
+        .terms { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 11px; line-height: 1.5; color: #555; }
+        .signature-line { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
+        .sig-box { border-top: 1px solid #333; padding-top: 5px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
         @media print {
           body {
             width: 100% !important;
@@ -159,7 +162,14 @@ export const printDiagnosticReceipt = async (ticket, client) => {
         </div>
       </div>
 
+      <div class="terms">
+        ST will call with a repair estimate. I understand there is a non refundable $89.00 diagnostic/estimate fee on all equipment left for service. Not responsible for FIRE/THEFT. Equipment left more than 15 days after completion incur a $10/day storage fee. After 6 months unit are sold or disposed of.
+      </div>
 
+      <div class="signature-line">
+        <div class="sig-box">Customer Signature</div>
+        <div class="sig-box">Date</div>
+      </div>
 
       <div class="footer">
         <p>Thank you for your business!</p>
@@ -254,6 +264,7 @@ export const printRepairInvoice = async (ticket, client) => {
         .grand-total { font-size: 16px; font-weight: bold; border-top: 2px solid #000; padding-top: 10px; margin-top: 10px; }
         .notes-box { background: #f9f9f9; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.4; margin-bottom: 20px; }
         .footer { margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px; font-size: 11px; color: #888; }
+        .terms { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 11px; line-height: 1.5; color: #555; }
         .signature-line { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
         .sig-box { border-top: 1px solid #333; padding-top: 5px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
         @media print {
@@ -406,8 +417,11 @@ export const printRepairInvoice = async (ticket, client) => {
 
 
 
+      <div class="terms">
+        All repairs come with a full 90 day parts and labor warranty on work completed.  This warranty does not cover improper connection, use, or acccidental damage. Repairs completed and not covered by Manufacturer/Extended Warranty are the customers responsiblity.
+      </div>
+
       <div class="footer">
-        <p>All repairs guaranteed for 90 days. Warranty covers labor and replaced parts only.</p>
         <p>Sound Technology Inc • (813) 985-1120 • www.soundtechnologyinc.com</p>
       </div>
       <script>

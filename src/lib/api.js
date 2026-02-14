@@ -159,11 +159,11 @@ export const getPayrollHistory = async (filters = {}) => {
   });
 };
 
-export const processPayout = async (repairIds) => {
+export const processPayout = async (repairIds, payoutAmount) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
   return fetchJSON('/repairs/payout', {
     method: 'POST',
-    body: JSON.stringify({ repairIds }),
+    body: JSON.stringify({ repairIds, payoutAmount }),
     headers: { Authorization: `Bearer ${user?.token}` }
   });
 };
@@ -332,6 +332,15 @@ export const sendPickupText = async (repairId) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
   return fetchJSON(`/repairs/${repairId}/text-pickup`, {
     method: 'POST',
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+// Reports
+export const getReports = async (year) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  const params = year ? `?year=${year}` : '';
+  return fetchJSON(`/repairs/reports${params}`, {
     headers: { Authorization: `Bearer ${user?.token}` }
   });
 };

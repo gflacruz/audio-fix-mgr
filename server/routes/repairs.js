@@ -7,7 +7,7 @@ const nodemailer = require("nodemailer");
 const dns = require("dns");
 const util = require("util");
 const twilio = require("twilio");
-const { verifyToken } = require("../middleware/auth");
+const { verifyToken, verifyAdmin } = require("../middleware/auth");
 
 const lookup = util.promisify(dns.lookup);
 
@@ -115,6 +115,7 @@ router.get("/", async (req, res) => {
       boxWidth: row.box_width,
       modelVersion: row.model_version,
       accessoriesIncluded: row.accessories_included,
+      poNumber: row.po_number,
     }));
 
     res.json(formatted);
@@ -173,7 +174,6 @@ router.get("/payroll", async (req, res) => {
         tax: tax,
         diagnosticFee: diagFee,
         totalCost: total,
-        commission: labor * 0.5,
         date: row.created_at,
       };
     });
@@ -195,7 +195,7 @@ router.get("/payroll-history", async (req, res) => {
       SELECT 
         r.id, r.claim_number, r.brand, r.model, 
         COALESCE(r.paid_to, r.technician) as technician_paid,
-        r.labor_cost, r.diagnostic_fee_collected, r.deposit_amount, r.diagnostic_fee, r.created_at, r.paid_out_date, r.is_tax_exempt,
+        r.labor_cost, r.diagnostic_fee_collected, r.deposit_amount, r.diagnostic_fee, r.created_at, r.paid_out_date, r.is_tax_exempt, r.payout_amount,
         COALESCE(SUM(rp.quantity * rp.unit_price), 0) as parts_cost
       FROM repairs r
       LEFT JOIN repair_parts rp ON r.id = rp.repair_id
@@ -260,7 +260,7 @@ router.get("/payroll-history", async (req, res) => {
         tax: tax,
         diagnosticFee: diagFee,
         totalCost: total,
-        commission: labor * 0.5,
+        payoutAmount: parseFloat(row.payout_amount) || 0,
         date: row.created_at,
         paidOutDate: row.paid_out_date,
       };
@@ -276,24 +276,95 @@ router.get("/payroll-history", async (req, res) => {
 // POST /api/repairs/payout - Mark repairs as paid
 router.post("/payout", async (req, res) => {
   try {
-    const { repairIds } = req.body;
+    const { repairIds, payoutAmount } = req.body;
     if (!repairIds || !Array.isArray(repairIds) || repairIds.length === 0) {
       return res.status(400).json({ error: "No repair IDs provided" });
     }
+    if (!payoutAmount || payoutAmount <= 0) {
+      return res.status(400).json({ error: "Payout amount must be a positive number" });
+    }
 
-    // Set paid_out, paid_out_date, and copy technician to paid_to
+    const amountPerRepair = payoutAmount / repairIds.length;
+
+    // Set paid_out, paid_out_date, payout_amount, and copy technician to paid_to
     const query = `
-      UPDATE repairs 
-      SET paid_out = TRUE, 
+      UPDATE repairs
+      SET paid_out = TRUE,
           paid_out_date = NOW(),
-          paid_to = technician
+          paid_to = technician,
+          payout_amount = $2
       WHERE id = ANY($1)
     `;
 
-    await db.query(query, [repairIds]);
+    await db.query(query, [repairIds, amountPerRepair]);
     res.json({ message: "Repairs marked as paid" });
   } catch (error) {
     console.error("Error processing payout:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+// GET /api/repairs/reports - Revenue & tax reports (admin only)
+router.get("/reports", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const year = parseInt(req.query.year) || new Date().getFullYear();
+
+    // Get available years
+    const yearsResult = await db.query(`
+      SELECT DISTINCT EXTRACT(YEAR FROM closed_date)::int AS year
+      FROM repairs WHERE closed_date IS NOT NULL ORDER BY year DESC
+    `);
+    const availableYears = yearsResult.rows.map(r => r.year);
+
+    // Get quarterly breakdown
+    const quartersResult = await db.query(`
+      SELECT
+        EXTRACT(QUARTER FROM closed_date)::int AS quarter,
+        COUNT(*)::int AS repair_count,
+        COALESCE(SUM(r.labor_cost), 0) AS total_labor,
+        COALESCE(SUM(parts_sub.parts_cost), 0) AS total_parts,
+        COALESCE(SUM(
+          CASE WHEN r.is_tax_exempt = false
+            THEN (COALESCE(r.labor_cost, 0) + COALESCE(parts_sub.parts_cost, 0)) * 0.075
+            ELSE 0
+          END
+        ), 0) AS total_tax
+      FROM repairs r
+      LEFT JOIN (
+        SELECT repair_id, SUM(quantity * unit_price) AS parts_cost
+        FROM repair_parts GROUP BY repair_id
+      ) parts_sub ON r.id = parts_sub.repair_id
+      WHERE r.status = 'closed'
+        AND EXTRACT(YEAR FROM closed_date) = $1
+      GROUP BY quarter
+      ORDER BY quarter
+    `, [year]);
+
+    const quarters = quartersResult.rows.map(row => {
+      const labor = parseFloat(row.total_labor) || 0;
+      const parts = parseFloat(row.total_parts) || 0;
+      const tax = parseFloat(row.total_tax) || 0;
+      return {
+        quarter: row.quarter,
+        repairCount: row.repair_count,
+        labor,
+        parts,
+        tax,
+        revenue: labor + parts + tax,
+      };
+    });
+
+    const totals = quarters.reduce((acc, q) => ({
+      repairCount: acc.repairCount + q.repairCount,
+      labor: acc.labor + q.labor,
+      parts: acc.parts + q.parts,
+      tax: acc.tax + q.tax,
+      revenue: acc.revenue + q.revenue,
+    }), { repairCount: 0, labor: 0, parts: 0, tax: 0, revenue: 0 });
+
+    res.json({ year, availableYears, quarters, totals });
+  } catch (error) {
+    console.error("Error fetching reports:", error);
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
@@ -406,6 +477,7 @@ router.get("/:id", async (req, res) => {
       boxWidth: row.box_width,
       modelVersion: row.model_version,
       accessoriesIncluded: row.accessories_included,
+      poNumber: row.po_number,
       workPerformed: row.work_performed,
       laborCost: parseFloat(row.labor_cost) || 0,
       returnShippingCost: parseFloat(row.return_shipping_cost) || 0,
@@ -467,6 +539,8 @@ router.post("/", async (req, res) => {
       accessoriesIncluded,
       checkedInBy,
       status,
+      poNumber,
+      isTaxExempt,
     } = req.body;
 
     if (!clientId || !brand || !model || !issue) {
@@ -498,9 +572,9 @@ router.post("/", async (req, res) => {
     const newClaimNumber = `${year}${monthLetter}${nextSequence.toString().padStart(4, '0')}`;
 
     const result = await db.query(
-      `INSERT INTO repairs 
-       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, diagnostic_fee, rush_fee, on_site_fee, is_shipped_in, shipping_carrier, box_height, box_length, box_width, model_version, accessories_included, is_on_site, claim_number, checked_in_by, status) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) 
+      `INSERT INTO repairs
+       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, diagnostic_fee, rush_fee, on_site_fee, is_shipped_in, shipping_carrier, box_height, box_length, box_width, model_version, accessories_included, is_on_site, claim_number, checked_in_by, status, po_number, is_tax_exempt)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
        RETURNING *`,
       [
         clientId,
@@ -525,7 +599,9 @@ router.post("/", async (req, res) => {
         isOnSite || false,
         newClaimNumber,
         checkedInBy || null,
-        status || 'queued'
+        status || 'queued',
+        poNumber || null,
+        isTaxExempt || false
       ],
     );
 
@@ -577,6 +653,7 @@ router.patch("/:id", async (req, res) => {
       "brand",
       "model",
       "serial",
+      "poNumber",
     ];
 
     // Auto-update dates based on status changes

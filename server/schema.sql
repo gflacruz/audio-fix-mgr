@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS clients (
   state VARCHAR(50),
   zip VARCHAR(20),
   primary_notification VARCHAR(50) DEFAULT 'Phone',
+  tax_exempt BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -46,6 +47,7 @@ CREATE TABLE IF NOT EXISTS repairs (
   box_width INTEGER,
   model_version VARCHAR(100),
   accessories_included TEXT,
+  po_number VARCHAR(100),
   work_performed TEXT,
   labor_cost DECIMAL(10, 2) DEFAULT 0.00,
   return_shipping_cost DECIMAL(10, 2) DEFAULT 0.00,
@@ -54,6 +56,7 @@ CREATE TABLE IF NOT EXISTS repairs (
   paid_out BOOLEAN DEFAULT FALSE,
   paid_out_date TIMESTAMP,
   paid_to VARCHAR(100),
+  payout_amount DECIMAL(10, 2),
   completed_date TIMESTAMP,
   closed_date TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
