@@ -9,10 +9,50 @@ const getLogoDataUri = () => {
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
       canvas.width = img.naturalWidth;
       canvas.height = img.naturalHeight;
-      canvas.getContext('2d').drawImage(img, 0, 0);
-      cachedLogoDataUri = canvas.toDataURL('image/png');
+      ctx.drawImage(img, 0, 0);
+
+      try {
+        // Auto-crop logic: Find bounding box of non-transparent pixels
+        const w = canvas.width;
+        const h = canvas.height;
+        const imageData = ctx.getImageData(0, 0, w, h);
+        const data = imageData.data;
+
+        let minX = w, minY = h, maxX = 0, maxY = 0;
+        let found = false;
+
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const alpha = data[(y * w + x) * 4 + 3];
+            if (alpha > 0) {
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+              found = true;
+            }
+          }
+        }
+
+        if (found) {
+          const cropWidth = maxX - minX + 1;
+          const cropHeight = maxY - minY + 1;
+          const croppedCanvas = document.createElement('canvas');
+          croppedCanvas.width = cropWidth;
+          croppedCanvas.height = cropHeight;
+          const croppedCtx = croppedCanvas.getContext('2d');
+          croppedCtx.drawImage(canvas, minX, minY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+          cachedLogoDataUri = croppedCanvas.toDataURL('image/png');
+        } else {
+          cachedLogoDataUri = canvas.toDataURL('image/png');
+        }
+      } catch (e) {
+        console.warn('Auto-crop failed, using original', e);
+        cachedLogoDataUri = canvas.toDataURL('image/png');
+      }
       resolve(cachedLogoDataUri);
     };
     img.onerror = () => resolve(logoUrl);
@@ -85,7 +125,7 @@ export const printDiagnosticReceipt = async (ticket, client) => {
     </head>
     <body>
       <div class="header">
-        <div><img src="${logoDataUri}" style="height: 120px; width: auto;" /></div>
+        <div><img src="${logoDataUri}" style="max-height: 90px; width: auto; max-width: 100%;" /></div>
         <div>
           <div class="claim-box">
             <div class="claim-label">Claim Number</div>
@@ -94,7 +134,7 @@ export const printDiagnosticReceipt = async (ticket, client) => {
         </div>
         <div class="shop-info">
           <div class="shop-name">Sound Technology Inc</div>
-          <div style="font-size: 14px; color: #666; margin-bottom: 5px;">4508 Oak Fair Blvd. Suite 104 Tampa, FL 33610</div>
+          <div style="font-size: 14px; color: #666; margin-bottom: 5px;">4508 Oak Fair Blvd.<br>Suite 104<br>Tampa, FL 33610</div>
           <div style="font-size: 14px; color: #666; margin-bottom: 10px;">(813) 985-1120</div>
           <div class="doc-title">Diagnostic Fee Receipt</div>
         </div>
@@ -277,7 +317,7 @@ export const printRepairInvoice = async (ticket, client) => {
     </head>
     <body>
       <div class="header">
-        <div><img src="${logoDataUri}" style="height: 120px; width: auto;" /></div>
+        <div><img src="${logoDataUri}" style="max-height: 90px; width: auto; max-width: 100%;" /></div>
         <div>
           <div class="claim-box">
             <div class="claim-label">Claim Number</div>
@@ -286,7 +326,7 @@ export const printRepairInvoice = async (ticket, client) => {
         </div>
         <div class="shop-info">
           <div class="shop-name">Sound Technology Inc</div>
-          <div style="font-size: 14px; color: #666; margin-bottom: 5px;">4508 Oak Fair Blvd. Suite 104 Tampa, FL 33610</div>
+          <div style="font-size: 14px; color: #666; margin-bottom: 5px;">4508 Oak Fair Blvd.<br>Suite 104<br>Tampa, FL 33610</div>
           <div style="font-size: 14px; color: #666; margin-bottom: 10px;">(813) 985-1120</div>
           <div class="doc-title">Repair Invoice</div>
         </div>
