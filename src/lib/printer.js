@@ -91,15 +91,14 @@ export const printDiagnosticReceipt = async (ticket, client) => {
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; color: #333; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
         .header > div:nth-child(1) { flex: 1; }
-        .header > div:nth-child(2) { text-align: center; flex: 0 0 auto; padding: 0 20px; }
-        .header > div:nth-child(3) { text-align: right; flex: 1; }
+        .header > div:nth-child(2) { text-align: right; flex: 1; }
         .shop-info { text-align: right; }
         .shop-name { font-size: 24px; font-weight: bold; color: #000; margin-bottom: 5px; }
         .doc-title { font-size: 18px; text-transform: uppercase; letter-spacing: 2px; color: #666; }
         .claim-box { display: inline-block; padding: 6px 24px; border: 2px solid #000; border-radius: 6px; }
         .claim-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666; margin-bottom: 3px; }
         .claim-number { font-size: 22px; font-weight: 800; line-height: 1; color: #000; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .info-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; margin-bottom: 20px; }
         .label { font-size: 11px; text-transform: uppercase; color: #888; margin-bottom: 2px; }
         .value { font-size: 14px; font-weight: 500; }
         .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
@@ -126,17 +125,11 @@ export const printDiagnosticReceipt = async (ticket, client) => {
     <body>
       <div class="header">
         <div><img src="${logoDataUri}" style="max-height: 90px; width: auto; max-width: 100%;" /></div>
-        <div>
-          <div class="claim-box">
-            <div class="claim-label">Claim Number</div>
-            <div class="claim-number">${ticket.claimNumber || ticket.id}</div>
-          </div>
-        </div>
         <div class="shop-info">
           <div class="shop-name">Sound Technology Inc</div>
           <div style="font-size: 14px; color: #666; margin-bottom: 5px;">4508 Oak Fair Blvd.<br>Suite 104<br>Tampa, FL 33610</div>
           <div style="font-size: 14px; color: #666; margin-bottom: 10px;">(813) 985-1120</div>
-          <div class="doc-title">Diagnostic Fee Receipt</div>
+          <div class="doc-title">Equipment Claim Check</div>
         </div>
       </div>
 
@@ -149,9 +142,15 @@ export const printDiagnosticReceipt = async (ticket, client) => {
             ${client?.email || ""}
           </div>
         </div>
+        <div style="text-align: center;">
+          <div class="label">Claim Number</div>
+          <div class="value" style="font-size: 18px; font-weight: 800;">${ticket.claimNumber || ticket.id}</div>
+        </div>
         <div style="text-align: right;">
           <div class="label">Receipt Date</div>
           <div class="value">${new Date().toLocaleDateString()}</div>
+          ${ticket.poNumber ? `<div class="label" style="margin-top: 8px;">PO Number</div><div class="value">${ticket.poNumber}</div>` : ''}
+          ${ticket.checkedInBy ? `<div class="label" style="margin-top: 8px;">Checked In By</div><div class="value">${ticket.checkedInBy}</div>` : ''}
         </div>
       </div>
 
@@ -178,6 +177,7 @@ export const printDiagnosticReceipt = async (ticket, client) => {
             <td>
               Diagnostic Fee - Standard Rate
               <div style="font-size: 12px; color: #888; margin-top: 4px;">Assessment and troubleshooting service</div>
+              <div style="font-size: 12px; color: #555; margin-top: 2px; font-style: italic;">If estimate approved, fee applied towards repair</div>
             </td>
             <td style="text-align: right;">$${feeAmount.toFixed(2)}</td>
           </tr>
@@ -208,7 +208,7 @@ export const printDiagnosticReceipt = async (ticket, client) => {
 
       <div class="signature-line">
         <div class="sig-box">Customer Signature</div>
-        <div class="sig-box">Date</div>
+
       </div>
 
       <div class="footer">
@@ -281,15 +281,14 @@ export const printRepairInvoice = async (ticket, client) => {
         body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 25px; max-width: 800px; margin: 0 auto; color: #333; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
         .header > div:nth-child(1) { flex: 1; }
-        .header > div:nth-child(2) { text-align: center; flex: 0 0 auto; padding: 0 20px; }
-        .header > div:nth-child(3) { text-align: right; flex: 1; }
+        .header > div:nth-child(2) { text-align: right; flex: 1; }
         .shop-info { text-align: right; }
         .shop-name { font-size: 22px; font-weight: bold; color: #000; margin-bottom: 5px; }
         .doc-title { font-size: 16px; text-transform: uppercase; letter-spacing: 2px; color: #666; }
         .claim-box { display: inline-block; padding: 6px 24px; border: 2px solid #000; border-radius: 6px; }
         .claim-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666; margin-bottom: 3px; }
         .claim-number { font-size: 22px; font-weight: 800; line-height: 1; color: #000; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .info-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; margin-bottom: 20px; }
         .label { font-size: 11px; text-transform: uppercase; color: #888; margin-bottom: 2px; }
         .value { font-size: 14px; font-weight: 500; }
         .section-title { font-size: 13px; font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin-bottom: 10px; text-transform: uppercase; }
@@ -318,12 +317,6 @@ export const printRepairInvoice = async (ticket, client) => {
     <body>
       <div class="header">
         <div><img src="${logoDataUri}" style="max-height: 90px; width: auto; max-width: 100%;" /></div>
-        <div>
-          <div class="claim-box">
-            <div class="claim-label">Claim Number</div>
-            <div class="claim-number">${ticket.claimNumber || ticket.id}</div>
-          </div>
-        </div>
         <div class="shop-info">
           <div class="shop-name">Sound Technology Inc</div>
           <div style="font-size: 14px; color: #666; margin-bottom: 5px;">4508 Oak Fair Blvd.<br>Suite 104<br>Tampa, FL 33610</div>
@@ -342,9 +335,17 @@ export const printRepairInvoice = async (ticket, client) => {
             ${formatPhone(client?.phone) || ""}
           </div>
         </div>
+        <div style="text-align: center;">
+          <div class="label">Claim Number</div>
+          <div class="value" style="font-size: 18px; font-weight: 800;">${ticket.claimNumber || ticket.id}</div>
+        </div>
         <div style="text-align: right;">
           <div class="label">Invoice Date</div>
           <div class="value">${new Date().toLocaleDateString()}</div>
+          ${ticket.completedDate ? `<div class="label" style="margin-top: 8px;">Completed Date</div><div class="value">${new Date(ticket.completedDate).toLocaleDateString()}</div>` : ''}
+          ${ticket.poNumber ? `<div class="label" style="margin-top: 8px;">PO Number</div><div class="value">${ticket.poNumber}</div>` : ''}
+          ${ticket.checkedInBy ? `<div class="label" style="margin-top: 8px;">Checked In By</div><div class="value">${ticket.checkedInBy}</div>` : ''}
+          ${ticket.technician && ticket.technician !== 'Unassigned' ? `<div class="label" style="margin-top: 8px;">Technician</div><div class="value">${ticket.technician}</div>` : ''}
         </div>
       </div>
 

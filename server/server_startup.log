@@ -199,3 +199,143 @@ Starting Audio Fix Server at Sat 02/14/2026  9:36:55.49
 
 Server running on port 3001
 Network access enabled: http://0.0.0.0:3001
+-------------------------------------------------- 
+Starting Audio Fix Server at Sat 02/14/2026  9:55:52.21 
+
+> audio-fix-backend@1.0.1 start
+> node index.js
+
+Server running on port 3001
+Network access enabled: http://0.0.0.0:3001
+Unexpected error on idle client error: terminating connection due to administrator command
+    at parseErrorMessage (C:\Users\SoundTech\Server\audio-fix-manager\server\node_modules\pg-protocol\dist\parser.js:305:11)
+    at Parser.handlePacket (C:\Users\SoundTech\Server\audio-fix-manager\server\node_modules\pg-protocol\dist\parser.js:143:27)
+    at Parser.parse (C:\Users\SoundTech\Server\audio-fix-manager\server\node_modules\pg-protocol\dist\parser.js:37:38)
+    at Socket.<anonymous> (C:\Users\SoundTech\Server\audio-fix-manager\server\node_modules\pg-protocol\dist\index.js:11:42)
+    at Socket.emit (node:events:508:28)
+    at addChunk (node:internal/streams/readable:559:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+    at Readable.push (node:internal/streams/readable:390:5)
+    at TCP.onStreamRead (node:internal/stream_base_commons:189:23) {
+  length: 116,
+  severity: 'FATAL',
+  code: '57P01',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'postgres.c',
+  line: '3211',
+  routine: 'ProcessInterrupts',
+  client: Client {
+    _events: [Object: null prototype] { error: [Function (anonymous)] },
+    _eventsCount: 1,
+    _maxListeners: undefined,
+    connectionParameters: ConnectionParameters {
+      user: 'admin',
+      database: 'audio_fix',
+      port: 5432,
+      host: 'localhost',
+      binary: false,
+      options: undefined,
+      ssl: false,
+      client_encoding: '',
+      replication: undefined,
+      isDomainSocket: false,
+      application_name: undefined,
+      fallback_application_name: undefined,
+      statement_timeout: false,
+      lock_timeout: false,
+      idle_in_transaction_session_timeout: false,
+      query_timeout: false,
+      connect_timeout: 0
+    },
+    user: 'admin',
+    database: 'audio_fix',
+    port: 5432,
+    host: 'localhost',
+    replication: undefined,
+    _Promise: [Function: Promise],
+    _types: TypeOverrides { _types: [Object], text: {}, binary: {} },
+    _ending: true,
+    _ended: false,
+    _connecting: false,
+    _connected: true,
+    _connectionError: false,
+    _queryable: false,
+    _activeQuery: null,
+    enableChannelBinding: false,
+    connection: Connection {
+      _events: [Object: null prototype],
+      _eventsCount: 23,
+      _maxListeners: undefined,
+      stream: [Socket],
+      _keepAlive: false,
+      _keepAliveInitialDelayMillis: 0,
+      parsedStatements: {},
+      ssl: false,
+      _ending: true,
+      _emitMessage: false,
+      _connecting: true,
+      Symbol(shapeMode): false,
+      Symbol(kCapture): false
+    },
+    _queryQueue: [],
+    binary: false,
+    processID: 604,
+    secretKey: -436046837,
+    ssl: false,
+    _connectionTimeoutMillis: 0,
+    _connectionCallback: null,
+    saslSession: null,
+    release: [Function (anonymous)],
+    readyForQuery: true,
+    hasExecuted: true,
+    _poolUseCount: 5395,
+    Symbol(shapeMode): false,
+    Symbol(kCapture): false
+  }
+}
+-------------------------------------------------- 
+Starting Audio Fix Server at Sun 02/15/2026  2:46:38.21 
+
+> audio-fix-backend@1.0.1 start
+> node index.js
+
+Server running on port 3001
+Network access enabled: http://0.0.0.0:3001
+-------------------------------------------------- 
+Starting Audio Fix Server at Sun 02/15/2026 12:40:36.53 
+
+> audio-fix-backend@1.0.1 start
+> node index.js
+
+Server running on port 3001
+Network access enabled: http://0.0.0.0:3001
+-------------------------------------------------- 
+Starting Audio Fix Server at Sun 02/15/2026 13:18:12.20 
+
+> audio-fix-backend@1.0.1 start
+> node index.js
+
+Server running on port 3001
+Network access enabled: http://0.0.0.0:3001
+Environment: production
+Database: postgresql://admin:securepassword@localhost:5432/audio_fix
+-------------------------------------------------- 
+Starting Audio Fix Server at Mon 02/16/2026  2:46:40.20 
+
+> audio-fix-backend@1.0.1 start
+> node index.js
+
+Server running on port 3001
+Network access enabled: http://0.0.0.0:3001
+Environment: production
+Database: postgresql://admin:securepassword@localhost:5432/audio_fix

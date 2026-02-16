@@ -33,7 +33,7 @@ Both frontend and backend must run simultaneously during development.
 - **Frontend:** React 18 + Vite + Tailwind CSS (dark mode via `class` strategy)
 - **Backend:** Express.js REST API + PostgreSQL 15 (via `pg` connection pool)
 - **Desktop:** Electron wrapper (optional)
-- **Auth:** JWT tokens (24h expiry) with role-based access (admin vs technician)
+- **Auth:** JWT tokens (no expiry) with role-based access (admin vs technician)
 - **Storage:** Cloudinary for images, Nodemailer for email, Twilio for SMS
 
 ### Client-Server Communication

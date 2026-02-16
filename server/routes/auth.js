@@ -40,8 +40,7 @@ router.post('/login', async (req, res) => {
     if (isAuthenticated) {
       const token = jwt.sign(
         { id: user.id, username: user.username, role: user.role, name: user.name },
-        process.env.JWT_SECRET || 'your_jwt_secret_key',
-        { expiresIn: "24h" }
+        process.env.JWT_SECRET || 'your_jwt_secret_key'
       );
 
       // Return user info and token

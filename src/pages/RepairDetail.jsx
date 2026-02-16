@@ -349,7 +349,7 @@ const RepairDetail = () => {
   const handleOnSiteToggle = async () => {
     try {
       const newStatus = !ticket.isOnSite;
-      const newOnSiteFee = newStatus ? 125.00 : 0.00;
+      const newOnSiteFee = newStatus ? (ticket.onSiteFee || 125.00) : 0.00;
 
       await updateRepair(id, { 
         isOnSite: newStatus,
@@ -1552,7 +1552,7 @@ const RepairDetail = () => {
                    className="w-4 h-4 rounded border-zinc-600 bg-zinc-100 dark:bg-zinc-800 text-amber-600 focus:ring-amber-500 focus:ring-offset-zinc-900"
                  />
                  <label htmlFor="isOnSite" className="text-xs text-zinc-500 dark:text-zinc-400 select-none cursor-pointer">
-                   On Site Service ($125)
+                   On Site Service {ticket.onSiteFee ? `($${Number(ticket.onSiteFee).toFixed(2)})` : ''}
                  </label>
                  
                  {ticket.isOnSite && (
@@ -1944,7 +1944,7 @@ const RepairDetail = () => {
                 className="w-full flex items-center justify-center gap-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 py-2.5 rounded-lg transition-colors border border-zinc-300 dark:border-zinc-700"
               >
                 <Printer size={18} />
-                Print Fee Receipt
+                Print Claim
               </button>
               <button 
                 onClick={handlePrintInvoice}

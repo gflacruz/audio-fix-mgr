@@ -35,6 +35,7 @@ const formatPart = (row) => ({
   unitOfIssue: row.unit_of_issue,
   lastSupplier: row.last_supplier,
   supplySource: row.supply_source,
+  category: row.category,
   remarks: row.remarks,
   // Calculated fields (might be undefined if not in query)
   issuedYtd: row.issued_ytd ? parseInt(row.issued_ytd) : 0,
@@ -132,7 +133,7 @@ router.post('/', verifyToken, verifyAdmin, upload.single('image'), async (req, r
   try {
     const { 
       name, nomenclature, retailPrice, wholesalePrice, quantityInStock, lowLimit, onOrder, 
-      aliases, location, description, bestPriceQuality, unitOfIssue, lastSupplier, supplySource, remarks 
+      aliases, location, description, bestPriceQuality, unitOfIssue, lastSupplier, supplySource, category, remarks
     } = req.body;
 
     if (!name) {
@@ -163,17 +164,17 @@ router.post('/', verifyToken, verifyAdmin, upload.single('image'), async (req, r
     // Insert Part
     const partResult = await client.query(
       `INSERT INTO parts (
-        name, nomenclature, retail_price, wholesale_price, quantity_in_stock, low_limit, on_order, 
-        location, description, best_price_quality, unit_of_issue, last_supplier, supply_source, remarks,
+        name, nomenclature, retail_price, wholesale_price, quantity_in_stock, low_limit, on_order,
+        location, description, best_price_quality, unit_of_issue, last_supplier, supply_source, category, remarks,
         image_url, image_public_id
-      ) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) 
+      )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING *`,
       [
-        name, 
+        name,
         nomenclature || null,
-        retailPrice || 0, 
-        wholesalePrice || 0, 
+        retailPrice || 0,
+        wholesalePrice || 0,
         quantityInStock || 0,
         lowLimit || 0,
         onOrder || 0,
@@ -183,6 +184,7 @@ router.post('/', verifyToken, verifyAdmin, upload.single('image'), async (req, r
         unitOfIssue || null,
         lastSupplier || null,
         supplySource || null,
+        category || null,
         remarks || null,
         imageUrl,
         imagePublicId
@@ -228,7 +230,7 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
     const { id } = req.params;
     const { 
       name, nomenclature, retailPrice, wholesalePrice, quantityInStock, lowLimit, onOrder,
-      aliases, location, description, bestPriceQuality, unitOfIssue, lastSupplier, supplySource, remarks 
+      aliases, location, description, bestPriceQuality, unitOfIssue, lastSupplier, supplySource, category, remarks
     } = req.body;
 
     // Fetch existing part to check for old image
@@ -262,40 +264,42 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
     await client.query('BEGIN');
 
     // Build Update Query
-    let query = `UPDATE parts SET 
-      name = $1, 
+    let query = `UPDATE parts SET
+      name = $1,
       nomenclature = $2,
-      retail_price = $3, 
-      wholesale_price = $4, 
-      quantity_in_stock = $5, 
+      retail_price = $3,
+      wholesale_price = $4,
+      quantity_in_stock = $5,
       low_limit = $6,
       on_order = $7,
-      location = $8, 
+      location = $8,
       description = $9,
       best_price_quality = $10,
       unit_of_issue = $11,
       last_supplier = $12,
       supply_source = $13,
-      remarks = $14
+      category = $14,
+      remarks = $15
     `;
-    
+
     const params = [
-      name, 
+      name,
       nomenclature || null,
-      retailPrice, 
-      wholesalePrice, 
-      quantityInStock, 
+      retailPrice,
+      wholesalePrice,
+      quantityInStock,
       lowLimit || 0,
       onOrder || 0,
-      location || null, 
+      location || null,
       description || null,
       bestPriceQuality || null,
       unitOfIssue || null,
       lastSupplier || null,
       supplySource || null,
+      category || null,
       remarks || null
     ];
-    let paramIndex = 15;
+    let paramIndex = 16;
 
     if (updateImage) {
         query += `, image_url = $${paramIndex}, image_public_id = $${paramIndex + 1}`;

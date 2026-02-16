@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS parts (
   unit_of_issue VARCHAR(50),
   last_supplier VARCHAR(255),
   supply_source VARCHAR(255),
+  category VARCHAR(100),
   remarks TEXT,
   image_url TEXT,
   image_public_id VARCHAR(255),

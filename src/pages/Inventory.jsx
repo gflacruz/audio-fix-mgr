@@ -30,6 +30,7 @@ const Inventory = () => {
   const [formData, setFormData] = useState({
     name: '',
     nomenclature: '',
+    category: '',
     retailPrice: '',
     wholesalePrice: '',
     quantityInStock: '',
@@ -106,6 +107,7 @@ const Inventory = () => {
       setFormData({
         name: part.name,
         nomenclature: part.nomenclature || '',
+        category: part.category || '',
         retailPrice: part.retailPrice,
         wholesalePrice: part.wholesalePrice,
         quantityInStock: part.quantityInStock,
@@ -120,6 +122,7 @@ const Inventory = () => {
       setFormData({
         name: '',
         nomenclature: '',
+        category: '',
         retailPrice: '',
         wholesalePrice: '',
         quantityInStock: '',
@@ -160,7 +163,8 @@ const Inventory = () => {
       data.append('quantityInStock', parseInt(formData.quantityInStock) || 0);
       data.append('location', formData.location);
       data.append('description', formData.description);
-      
+      data.append('category', formData.category);
+
       const aliasArray = formData.aliases.split(',').map(a => a.trim()).filter(a => a);
       data.append('aliases', JSON.stringify(aliasArray));
 
@@ -237,6 +241,7 @@ const Inventory = () => {
           <thead className="bg-zinc-50 dark:bg-zinc-950 text-zinc-500 dark:text-zinc-400 uppercase text-xs tracking-wider">
             <tr>
               <th className="px-6 py-4 font-medium">Part Name</th>
+              <th className="px-6 py-4 font-medium">Category</th>
               <th className="px-6 py-4 font-medium">Location</th>
               <th className="px-6 py-4 font-medium">In Stock</th>
               <th className="px-6 py-4 font-medium">Retail Price</th>
@@ -247,10 +252,10 @@ const Inventory = () => {
           </thead>
           <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
             {loading ? (
-              <tr><td colSpan="6" className="px-6 py-8 text-center text-zinc-500">Loading inventory...</td></tr>
+              <tr><td colSpan="7" className="px-6 py-8 text-center text-zinc-500">Loading inventory...</td></tr>
             ) : parts.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-6 py-8 text-center text-zinc-500">
+                <td colSpan="7" className="px-6 py-8 text-center text-zinc-500">
                     {!search.trim() ? "Enter a search term to find parts." : "No parts found matching your search."}
                 </td>
               </tr>
@@ -271,6 +276,15 @@ const Inventory = () => {
                           </div>
                         )}
                     </div>
+                  </td>
+                  <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 text-sm">
+                    {part.category ? (
+                      <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded text-xs">
+                        {part.category}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-400 dark:text-zinc-600 italic">-</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 font-mono text-sm">{part.location || '-'}</td>
                   <td className="px-6 py-4 text-zinc-700 dark:text-zinc-300 font-mono">
@@ -379,6 +393,17 @@ const Inventory = () => {
                     className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-1">Category</label>
+                <input
+                  type="text"
+                  value={formData.category}
+                  onChange={(e) => setFormData({...formData, category: e.target.value})}
+                  placeholder="e.g. Capacitors, Resistors, Connectors"
+                  className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">

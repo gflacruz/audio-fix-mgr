@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS repairs (
   paid_out_date TIMESTAMP,
   paid_to VARCHAR(100),
   payout_amount DECIMAL(10, 2),
+  payout_batch_id UUID,
   completed_date TIMESTAMP,
   closed_date TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

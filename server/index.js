@@ -33,6 +33,15 @@ app.use('/api/parts', require('./routes/parts'));
 app.use('/api/suggestions', require('./routes/suggestions'));
 app.use('/api/estimates', require('./routes/estimates'));
 
+// Run migrations
+(async () => {
+  try {
+    await db.query('ALTER TABLE repairs ADD COLUMN IF NOT EXISTS payout_batch_id UUID');
+  } catch (err) {
+    console.error('Migration error:', err.message);
+  }
+})();
+
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server running on port ${port}`);
   console.log(`Network access enabled: http://0.0.0.0:${port}`);

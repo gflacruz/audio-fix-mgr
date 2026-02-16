@@ -19,6 +19,7 @@ const PartDetail = () => {
   const [formData, setFormData] = useState({
     name: '',
     nomenclature: '',
+    category: '',
     retailPrice: '',
     wholesalePrice: '',
     quantityInStock: '',
@@ -59,6 +60,7 @@ const PartDetail = () => {
     setFormData({
       name: data.name,
       nomenclature: data.nomenclature || '',
+      category: data.category || '',
       retailPrice: data.retailPrice,
       wholesalePrice: data.wholesalePrice,
       quantityInStock: data.quantityInStock,
@@ -117,7 +119,8 @@ const PartDetail = () => {
       data.append('lastSupplier', formData.lastSupplier);
       data.append('supplySource', formData.supplySource);
       data.append('remarks', formData.remarks);
-      
+      data.append('category', formData.category);
+
       const aliasArray = formData.aliases.split(',').map(a => a.trim()).filter(a => a);
       data.append('aliases', JSON.stringify(aliasArray));
 
@@ -168,6 +171,11 @@ const PartDetail = () => {
             {!isEditing && (
               <div className="flex flex-col gap-2 mt-2 text-zinc-500 dark:text-zinc-400 text-sm">
                 <div className="flex gap-4">
+                  {part.category && (
+                    <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded text-xs font-medium">
+                      {part.category}
+                    </span>
+                  )}
                   <span className="flex items-center gap-1">
                     <MapPin size={14} />
                     {part.location || 'No Location'}
@@ -272,6 +280,16 @@ const PartDetail = () => {
                              onChange={(e) => setFormData({...formData, nomenclature: e.target.value})}
                              placeholder="e.g. CAP-ELEC-100UF-50V"
                              className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none font-mono text-sm"
+                           />
+                        </div>
+                        <div>
+                           <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-1">Category</label>
+                           <input
+                             type="text"
+                             value={formData.category}
+                             onChange={(e) => setFormData({...formData, category: e.target.value})}
+                             placeholder="e.g. Capacitors, Resistors, Connectors"
+                             className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
                            />
                         </div>
                         <div>

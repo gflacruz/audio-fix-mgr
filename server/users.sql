@@ -14,9 +14,9 @@ INSERT INTO users (username, password, name, role)
 VALUES ('willy', '$2a$10$X7V.jT.n6v.k.o.k.q.q.O.u.i.q.w.e.r.t.y.u.i.o.p', 'Willy', 'admin')
 ON CONFLICT (username) DO NOTHING;
 
--- Insert Sergei (Technician)
-INSERT INTO users (username, password, name, role) 
-VALUES ('sergei', '$2a$10$X7V.jT.n6v.k.o.k.q.q.O.u.i.q.w.e.r.t.y.u.i.o.p', 'Sergei', 'technician')
+-- Insert Sergey Shepilov (Technician)
+INSERT INTO users (username, password, name, role)
+VALUES ('sergey', '$2a$10$X7V.jT.n6v.k.o.k.q.q.O.u.i.q.w.e.r.t.y.u.i.o.p', 'Sergey Shepilov', 'technician')
 ON CONFLICT (username) DO NOTHING;
 
 -- Insert Tyler (Technician)

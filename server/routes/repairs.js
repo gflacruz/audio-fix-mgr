@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const crypto = require("crypto");
 const db = require("../db");
 const cloudinary = require("cloudinary").v2;
 const multer = require("multer");
@@ -195,7 +196,7 @@ router.get("/payroll-history", async (req, res) => {
       SELECT 
         r.id, r.claim_number, r.brand, r.model, 
         COALESCE(r.paid_to, r.technician) as technician_paid,
-        r.labor_cost, r.diagnostic_fee_collected, r.deposit_amount, r.diagnostic_fee, r.created_at, r.paid_out_date, r.is_tax_exempt, r.payout_amount,
+        r.labor_cost, r.diagnostic_fee_collected, r.deposit_amount, r.diagnostic_fee, r.created_at, r.paid_out_date, r.is_tax_exempt, r.payout_amount, r.payout_batch_id,
         COALESCE(SUM(rp.quantity * rp.unit_price), 0) as parts_cost
       FROM repairs r
       LEFT JOIN repair_parts rp ON r.id = rp.repair_id
@@ -224,7 +225,7 @@ router.get("/payroll-history", async (req, res) => {
       paramIndex++;
     }
 
-    query += ` GROUP BY r.id ORDER BY r.paid_out_date DESC`;
+    query += ` GROUP BY r.id ORDER BY r.paid_out_date DESC, r.payout_batch_id`;
 
     const result = await db.query(query, params);
 
@@ -263,6 +264,7 @@ router.get("/payroll-history", async (req, res) => {
         payoutAmount: parseFloat(row.payout_amount) || 0,
         date: row.created_at,
         paidOutDate: row.paid_out_date,
+        payoutBatchId: row.payout_batch_id,
       };
     });
 
@@ -285,18 +287,20 @@ router.post("/payout", async (req, res) => {
     }
 
     const amountPerRepair = payoutAmount / repairIds.length;
+    const batchId = crypto.randomUUID();
 
-    // Set paid_out, paid_out_date, payout_amount, and copy technician to paid_to
+    // Set paid_out, paid_out_date, payout_amount, payout_batch_id, and copy technician to paid_to
     const query = `
       UPDATE repairs
       SET paid_out = TRUE,
           paid_out_date = NOW(),
           paid_to = technician,
-          payout_amount = $2
+          payout_amount = $2,
+          payout_batch_id = $3
       WHERE id = ANY($1)
     `;
 
-    await db.query(query, [repairIds, amountPerRepair]);
+    await db.query(query, [repairIds, amountPerRepair, batchId]);
     res.json({ message: "Repairs marked as paid" });
   } catch (error) {
     console.error("Error processing payout:", error);
