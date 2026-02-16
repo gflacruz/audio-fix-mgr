@@ -1,6 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const twilio = require('twilio');
+const { verifyToken } = require('../middleware/auth');
+
+const twilioClient = process.env.TWILIO_ACCOUNT_SID
+  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
+  : null;
 
 // Helper to format client
 const formatClient = (row, phones = []) => ({
@@ -16,6 +22,7 @@ const formatClient = (row, phones = []) => ({
   zip: row.zip,
   primaryNotification: row.primary_notification || 'Phone',
   taxExempt: row.tax_exempt || false,
+  smsOptedIn: row.sms_opted_in || false,
   remarks: row.remarks,
   dateAdded: row.created_at
 });
@@ -271,6 +278,55 @@ router.delete('/:id', async (req, res) => {
   } catch (error) {
     console.error('Error fetching client:', error);
     res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
+// POST /api/clients/:id/send-opt-in - Send SMS opt-in message
+router.post('/:id/send-opt-in', verifyToken, async (req, res) => {
+  try {
+    if (!twilioClient) {
+      return res.status(500).json({ error: 'Twilio not configured on server' });
+    }
+
+    const { id } = req.params;
+
+    const clientResult = await db.query('SELECT * FROM clients WHERE id = $1', [id]);
+    if (clientResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+    const client = clientResult.rows[0];
+
+    // Get primary phone
+    const phonesRes = await db.query(
+      'SELECT phone_number FROM client_phones WHERE client_id = $1 AND is_primary = true',
+      [id]
+    );
+
+    let phoneNumber = client.phone;
+    if (phonesRes.rows.length > 0) {
+      phoneNumber = phonesRes.rows[0].phone_number;
+    }
+
+    if (!phoneNumber) {
+      return res.status(400).json({ error: 'Client has no phone number' });
+    }
+
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    const formattedPhone = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
+
+    await twilioClient.messages.create({
+      body: `Hello ${client.name}, Sound Technology Inc here. You've been opted in to receive text updates about your repair. Msg & data rates may apply. Reply STOP to opt out.`,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: formattedPhone
+    });
+
+    // Mark client as opted in
+    await db.query('UPDATE clients SET sms_opted_in = TRUE WHERE id = $1', [id]);
+
+    res.json({ message: 'Opt-in text sent', smsOptedIn: true });
+  } catch (error) {
+    console.error('Error sending opt-in text:', error);
+    res.status(500).json({ error: 'Failed to send opt-in text: ' + error.message });
   }
 });
 

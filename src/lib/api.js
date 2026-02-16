@@ -336,6 +336,14 @@ export const sendPickupText = async (repairId) => {
   });
 };
 
+export const sendOptInText = async (clientId) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/clients/${clientId}/send-opt-in`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
 // Reports
 export const getReports = async (year) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));

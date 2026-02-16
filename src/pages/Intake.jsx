@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getClients, getClient, createClient, updateClient, createRepair } from '@/lib/api';
+import { getClients, getClient, createClient, updateClient, createRepair, sendOptInText } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { Save, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -45,6 +45,11 @@ const Intake = () => {
 
   const [showFeeModal, setShowFeeModal] = useState(false);
   const [customFee, setCustomFee] = useState(89);
+  const [clientSmsOptedIn, setClientSmsOptedIn] = useState(false);
+  const [showOptInModal, setShowOptInModal] = useState(false);
+  const [optInRepairId, setOptInRepairId] = useState(null);
+  const [optInClientId, setOptInClientId] = useState(null);
+  const [optInSending, setOptInSending] = useState(false);
 
   // ... fetchZipInfo remains same ...
   const fetchZipInfo = async (zip) => {
@@ -89,6 +94,7 @@ const Intake = () => {
             zip: fullClient.zip || '',
             isTaxExempt: fullClient.taxExempt || false,
           }));
+          setClientSmsOptedIn(fullClient.smsOptedIn || false);
         }
       } catch (error) {
         console.error("Error looking up client:", error);
@@ -227,7 +233,15 @@ const Intake = () => {
       };
 
       const ticket = await createRepair(repairData);
-      
+
+      // Check if we should show SMS opt-in modal
+      if (formData.primaryNotification === 'Text' && !clientSmsOptedIn) {
+        setOptInRepairId(ticket.id);
+        setOptInClientId(clientId);
+        setShowOptInModal(true);
+        return;
+      }
+
       navigate(`/repair/${ticket.id}`);
     } catch (error) {
       console.error("Error creating ticket:", error);
@@ -545,6 +559,48 @@ const Intake = () => {
           </button>
         </div>
       </form>
+
+      {/* SMS Opt-In Modal */}
+      {showOptInModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 max-w-md w-full shadow-2xl">
+            <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">SMS Opt-In</h3>
+            <p className="text-zinc-600 dark:text-zinc-300 mb-6">
+              This client prefers text notifications. Would you like to send an opt-in text to{' '}
+              <span className="font-medium text-zinc-900 dark:text-white">{formData.phones[0]?.number}</span>?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowOptInModal(false);
+                  navigate(`/repair/${optInRepairId}`);
+                }}
+                disabled={optInSending}
+                className="px-4 py-2 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                Skip
+              </button>
+              <button
+                onClick={async () => {
+                  setOptInSending(true);
+                  try {
+                    await sendOptInText(optInClientId);
+                  } catch (err) {
+                    console.error('Failed to send opt-in text:', err);
+                  }
+                  setOptInSending(false);
+                  setShowOptInModal(false);
+                  navigate(`/repair/${optInRepairId}`);
+                }}
+                disabled={optInSending}
+                className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium transition-colors disabled:opacity-50"
+              >
+                {optInSending ? 'Sending...' : 'Send Opt-In'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Fee Collection Modal */}
       {showFeeModal && (

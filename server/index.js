@@ -9,6 +9,7 @@ const port = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+
 // Health Check
 app.get('/api/health', async (req, res) => {
   try {
@@ -33,10 +34,12 @@ app.use('/api/parts', require('./routes/parts'));
 app.use('/api/suggestions', require('./routes/suggestions'));
 app.use('/api/estimates', require('./routes/estimates'));
 
+
 // Run migrations
 (async () => {
   try {
     await db.query('ALTER TABLE repairs ADD COLUMN IF NOT EXISTS payout_batch_id UUID');
+    await db.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS sms_opted_in BOOLEAN DEFAULT FALSE');
   } catch (err) {
     console.error('Migration error:', err.message);
   }

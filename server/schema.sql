@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS clients (
   zip VARCHAR(20),
   primary_notification VARCHAR(50) DEFAULT 'Phone',
   tax_exempt BOOLEAN DEFAULT FALSE,
+  sms_opted_in BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
