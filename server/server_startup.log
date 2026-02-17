@@ -339,3 +339,11 @@ Server running on port 3001
 Network access enabled: http://0.0.0.0:3001
 Environment: production
 Database: postgresql://admin:securepassword@localhost:5432/audio_fix
+-------------------------------------------------- 
+Starting Audio Fix Server at Tue 02/17/2026  2:46:56.23 
+
+> audio-fix-backend@1.0.1 start
+> node index.js
+
+Server running on port 3001
+Network access enabled: http://0.0.0.0:3001
