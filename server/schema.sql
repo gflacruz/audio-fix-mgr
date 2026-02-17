@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS clients (
   primary_notification VARCHAR(50) DEFAULT 'Phone',
   tax_exempt BOOLEAN DEFAULT FALSE,
   sms_opted_in BOOLEAN DEFAULT FALSE,
+  remarks TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -38,8 +39,12 @@ CREATE TABLE IF NOT EXISTS repairs (
   priority VARCHAR(50) DEFAULT 'normal',
   status VARCHAR(50) DEFAULT 'checked_in',
   technician VARCHAR(100) DEFAULT 'Unassigned',
+  checked_in_by VARCHAR(100),
   diagnostic_fee_collected BOOLEAN DEFAULT FALSE,
+  diagnostic_fee DECIMAL(10, 2) DEFAULT 0.00,
   deposit_amount DECIMAL(10, 2) DEFAULT 0.00,
+  rush_fee DECIMAL(10, 2) DEFAULT 0.00,
+  on_site_fee DECIMAL(10, 2) DEFAULT 0.00,
   is_on_site BOOLEAN DEFAULT FALSE,
   is_shipped_in BOOLEAN DEFAULT FALSE,
   shipping_carrier VARCHAR(100),
@@ -87,3 +92,33 @@ CREATE TABLE IF NOT EXISTS suggestions (
   status VARCHAR(20) DEFAULT 'open',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS estimates (
+  id SERIAL PRIMARY KEY,
+  repair_id INTEGER REFERENCES repairs(id) ON DELETE CASCADE,
+  diagnostic_notes TEXT,
+  work_performed TEXT,
+  labor_cost DECIMAL(10, 2) DEFAULT 0.00,
+  parts_cost DECIMAL(10, 2) DEFAULT 0.00,
+  total_cost DECIMAL(10, 2) DEFAULT 0.00,
+  status VARCHAR(50) DEFAULT 'pending',
+  created_technician VARCHAR(100),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  notified_date TIMESTAMP,
+  approved_date TIMESTAMP
+);
+
+CREATE OR REPLACE FUNCTION update_estimates_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+DROP TRIGGER IF EXISTS update_estimates_updated_at ON estimates;
+CREATE TRIGGER update_estimates_updated_at
+BEFORE UPDATE ON estimates
+FOR EACH ROW
+EXECUTE PROCEDURE update_estimates_updated_at_column();

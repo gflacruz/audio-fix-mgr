@@ -6,7 +6,8 @@
       "Bash(docker exec:*)",
       "Bash(node:*)",
       "Bash(npm install)",
-      "Bash(del \"D:\\\\Projects\\\\Projectsaudio-fix-mgr\\\\nul\")"
+      "Bash(del \"D:\\\\Projects\\\\Projectsaudio-fix-mgr\\\\nul\")",
+      "Bash(del:*)"
     ]
   }
 }
