@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getClient, updateClient, getRepairs, deleteClient } from '@/lib/api';
+import { getClient, updateClient, getRepairs, deleteClient, sendOptInText } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import Modal from '@/components/Modal';
-import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy, Plus, Trash2, Building2, MessageSquare, AlertTriangle, StickyNote } from 'lucide-react';
+import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy, Plus, Trash2, Building2, MessageSquare, AlertTriangle, StickyNote, Send, CheckCircle2 } from 'lucide-react';
 
 const ClientDetail = () => {
   const { id } = useParams();
@@ -16,6 +16,8 @@ const ClientDetail = () => {
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [smsOptedIn, setSmsOptedIn] = useState(false);
+  const [optInSending, setOptInSending] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -51,7 +53,8 @@ const ClientDetail = () => {
       
       setClient(data);
       setFormData(data);
-      
+      setSmsOptedIn(data.smsOptedIn || false);
+
       setTickets(sortedTickets);
     } catch (error) {
       console.error("Failed to load client data:", error);
@@ -97,6 +100,7 @@ const ClientDetail = () => {
       await updateClient(id, formData);
       // No need to update tickets manually as they link by ID
       setClient(prev => ({ ...prev, ...formData }));
+      setSmsOptedIn(formData.smsOptedIn || false);
       setIsEditing(false);
       loadData();
     } catch (error) {
@@ -118,6 +122,17 @@ const ClientDetail = () => {
       
       return newData;
     });
+  };
+
+  const handleSendOptIn = async () => {
+    setOptInSending(true);
+    try {
+      await sendOptInText(id);
+      setSmsOptedIn(true);
+    } catch (err) {
+      console.error('Failed to send opt-in text:', err);
+    }
+    setOptInSending(false);
   };
 
   const copyToClipboard = (text) => {
@@ -260,14 +275,14 @@ const ClientDetail = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-xs text-zinc-500 mb-1 block">Email</label>
-                    <input name="email" value={formData.email || ''} onChange={handleChange} 
+                    <input name="email" value={formData.email || ''} onChange={handleChange}
                       className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded p-2 text-zinc-900 dark:text-white text-sm focus:border-amber-500 outline-none" />
                   </div>
                   <div>
                     <label className="text-xs text-zinc-500 mb-1 block">Notification Pref</label>
-                    <select 
-                      name="primaryNotification" 
-                      value={formData.primaryNotification || 'Phone'} 
+                    <select
+                      name="primaryNotification"
+                      value={formData.primaryNotification || 'Phone'}
                       onChange={handleChange}
                       className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded p-2 text-zinc-900 dark:text-white text-sm focus:border-amber-500 outline-none"
                     >
@@ -277,6 +292,18 @@ const ClientDetail = () => {
                     </select>
                   </div>
                 </div>
+                {formData.primaryNotification === 'Text' && (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="smsOptedIn"
+                      checked={formData.smsOptedIn || false}
+                      onChange={handleChange}
+                      className="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-amber-600 focus:ring-zinc-500"
+                    />
+                    <span className="text-zinc-700 dark:text-zinc-300 text-sm font-medium">SMS Opted In</span>
+                  </label>
+                )}
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Street Address</label>
                   <input name="address" value={formData.address} onChange={handleChange} 
@@ -400,9 +427,27 @@ const ClientDetail = () => {
                   <div className="text-zinc-400 dark:text-zinc-600 mt-0.5">
                     <MessageSquare size={18} />
                   </div>
-                  <div>
-                    <div className="text-zinc-900 dark:text-zinc-200">
-                      {client.primaryNotification || 'Phone'}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <div className="text-zinc-900 dark:text-zinc-200">
+                        {client.primaryNotification || 'Phone'}
+                      </div>
+                      {client.primaryNotification === 'Text' && (
+                        smsOptedIn ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-500 font-medium">
+                            <CheckCircle2 size={12} /> Opted In
+                          </span>
+                        ) : (
+                          <button
+                            onClick={handleSendOptIn}
+                            disabled={optInSending}
+                            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-500 hover:bg-amber-200 dark:hover:bg-amber-500/20 transition-colors font-medium disabled:opacity-50"
+                          >
+                            <Send size={12} />
+                            {optInSending ? 'Sending...' : 'Send Opt-In'}
+                          </button>
+                        )
+                      )}
                     </div>
                     <div className="text-xs text-zinc-500 dark:text-zinc-600">Preferred Contact Method</div>
                   </div>

@@ -160,6 +160,7 @@ const Intake = () => {
   };
 
   const createTicket = async (feeCollected, feeAmount = 0) => {
+    setShowFeeModal(false);
     try {
       // 1. Find or Create Client
       let clientId;

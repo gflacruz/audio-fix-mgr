@@ -1170,11 +1170,22 @@ router.post("/:id/text-estimate", verifyToken, async (req, res) => {
     );
     const { amountDue } = calculateTotals(repair, partsRes.rows);
 
-    await twilioClient.messages.create({
-      body: `Hello ${repair.client_name}, STI here. Estimate for your ${repair.brand} ${repair.model} is $${amountDue.toFixed(2)}. Pls call (813) 985-1120 to approve.`,
+    const smsBody = `Hello ${repair.client_name}, STI here. Estimate for your ${repair.brand} ${repair.model} is $${amountDue.toFixed(2)}. Reply YES to approve or call (813) 985-1120.`;
+
+    const twilioMsg = await twilioClient.messages.create({
+      body: smsBody,
       from: process.env.TWILIO_PHONE_NUMBER,
       to: formattedPhone
     });
+
+    // Log outbound estimate SMS so the incoming webhook can match YES replies
+    const twilioFrom = (process.env.TWILIO_PHONE_NUMBER || '').replace(/\D/g, '');
+    const twilioFromNorm = twilioFrom.length === 11 && twilioFrom.startsWith('1') ? twilioFrom.substring(1) : twilioFrom;
+    await db.query(
+      `INSERT INTO sms_messages (message_sid, direction, from_number, to_number, body, client_id, repair_id, message_type)
+       VALUES ($1, 'outbound', $2, $3, $4, $5, $6, 'estimate')`,
+      [twilioMsg.sid, twilioFromNorm, cleanPhone, smsBody, repair.client_id, id]
+    );
 
     res.json({ message: "Estimate text sent" });
   } catch (error) {

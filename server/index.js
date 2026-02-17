@@ -33,6 +33,7 @@ app.use('/api/repairs', require('./routes/repairs'));
 app.use('/api/parts', require('./routes/parts'));
 app.use('/api/suggestions', require('./routes/suggestions'));
 app.use('/api/estimates', require('./routes/estimates'));
+app.use('/api/sms', require('./routes/sms'));
 
 
 // Run migrations
@@ -40,6 +41,20 @@ app.use('/api/estimates', require('./routes/estimates'));
   try {
     await db.query('ALTER TABLE repairs ADD COLUMN IF NOT EXISTS payout_batch_id UUID');
     await db.query('ALTER TABLE clients ADD COLUMN IF NOT EXISTS sms_opted_in BOOLEAN DEFAULT FALSE');
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS sms_messages (
+        id SERIAL PRIMARY KEY,
+        message_sid VARCHAR(64),
+        direction VARCHAR(10) NOT NULL DEFAULT 'inbound',
+        from_number VARCHAR(50) NOT NULL,
+        to_number VARCHAR(50),
+        body TEXT,
+        client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+        repair_id INTEGER REFERENCES repairs(id) ON DELETE SET NULL,
+        message_type VARCHAR(30) DEFAULT 'general',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
   } catch (err) {
     console.error('Migration error:', err.message);
   }

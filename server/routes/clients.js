@@ -183,7 +183,7 @@ router.patch('/:id', async (req, res) => {
     const updates = req.body;
     
     // Whitelist allowed fields
-    const allowedFields = ['name', 'companyName', 'email', 'address', 'city', 'state', 'zip', 'primaryNotification', 'remarks', 'taxExempt'];
+    const allowedFields = ['name', 'companyName', 'email', 'address', 'city', 'state', 'zip', 'primaryNotification', 'remarks', 'taxExempt', 'smsOptedIn'];
     const fieldsToUpdate = [];
     const values = [];
     let paramIndex = 1;
@@ -194,6 +194,7 @@ router.patch('/:id', async (req, res) => {
         if (key === 'companyName') dbField = 'company_name';
         if (key === 'primaryNotification') dbField = 'primary_notification';
         if (key === 'taxExempt') dbField = 'tax_exempt';
+        if (key === 'smsOptedIn') dbField = 'sms_opted_in';
         
         fieldsToUpdate.push(`${dbField} = $${paramIndex}`);
         values.push(value);

@@ -85,6 +85,52 @@ CREATE TABLE IF NOT EXISTS repair_notes (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS parts (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  retail_price DECIMAL(10, 2) DEFAULT 0.00 NOT NULL,
+  wholesale_price DECIMAL(10, 2) DEFAULT 0.00 NOT NULL,
+  quantity_in_stock INTEGER DEFAULT 0,
+  location VARCHAR(255),
+  description TEXT,
+  image_url TEXT,
+  image_public_id VARCHAR(255),
+  nomenclature VARCHAR(255),
+  low_limit INTEGER DEFAULT 0,
+  on_order INTEGER DEFAULT 0,
+  best_price_quality VARCHAR(100),
+  unit_of_issue VARCHAR(50),
+  last_supplier VARCHAR(255),
+  supply_source VARCHAR(255),
+  remarks TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS part_aliases (
+  id SERIAL PRIMARY KEY,
+  part_id INTEGER REFERENCES parts(id) ON DELETE CASCADE,
+  alias VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS repair_parts (
+  id SERIAL PRIMARY KEY,
+  repair_id INTEGER REFERENCES repairs(id) ON DELETE CASCADE,
+  part_id INTEGER REFERENCES parts(id),
+  name VARCHAR(255),
+  quantity INTEGER DEFAULT 1,
+  unit_price DECIMAL(10, 2) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'technician')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS suggestions (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -108,6 +154,22 @@ CREATE TABLE IF NOT EXISTS estimates (
   notified_date TIMESTAMP,
   approved_date TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS sms_messages (
+  id SERIAL PRIMARY KEY,
+  message_sid VARCHAR(64),
+  direction VARCHAR(10) NOT NULL DEFAULT 'inbound',
+  from_number VARCHAR(50) NOT NULL,
+  to_number VARCHAR(50),
+  body TEXT,
+  client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+  repair_id INTEGER REFERENCES repairs(id) ON DELETE SET NULL,
+  message_type VARCHAR(30) DEFAULT 'general',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_sms_messages_client_id ON sms_messages(client_id);
+CREATE INDEX IF NOT EXISTS idx_sms_messages_from_number ON sms_messages(from_number);
 
 CREATE OR REPLACE FUNCTION update_estimates_updated_at_column()
 RETURNS TRIGGER AS $$
