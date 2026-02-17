@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker-compose up:*)",
+      "Bash(timeout:*)",
+      "Bash(docker exec:*)",
+      "Bash(node:*)",
+      "Bash(npm install)",
+      "Bash(del \"D:\\\\Projects\\\\Projectsaudio-fix-mgr\\\\nul\")"
+    ]
+  }
+}
