@@ -1020,12 +1020,13 @@ const calculateTotals = (repair, parts) => {
 router.post("/:id/email-estimate", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const { estimateId } = req.body || {};
 
     // Fetch repair info with client email
     const repairQuery = `
       SELECT r.*, c.email as client_email, c.name as client_name
-      FROM repairs r 
-      JOIN clients c ON r.client_id = c.id 
+      FROM repairs r
+      JOIN clients c ON r.client_id = c.id
       WHERE r.id = $1
     `;
     const repairRes = await db.query(repairQuery, [id]);
@@ -1038,12 +1039,17 @@ router.post("/:id/email-estimate", verifyToken, async (req, res) => {
       return res.status(400).json({ error: "Client has no email address" });
     }
 
-    // Fetch Parts for total calculation
-    const partsRes = await db.query(
-      "SELECT * FROM repair_parts WHERE repair_id = $1",
-      [id],
-    );
-    const { amountDue } = calculateTotals(repair, partsRes.rows);
+    // Use specific estimate's total_cost if provided, otherwise compute from repair data
+    let amountDue;
+    if (estimateId) {
+      const estRes = await db.query("SELECT total_cost FROM estimates WHERE id = $1 AND repair_id = $2", [estimateId, id]);
+      if (estRes.rows.length === 0)
+        return res.status(404).json({ error: "Estimate not found" });
+      amountDue = parseFloat(estRes.rows[0].total_cost);
+    } else {
+      const partsRes = await db.query("SELECT * FROM repair_parts WHERE repair_id = $1", [id]);
+      ({ amountDue } = calculateTotals(repair, partsRes.rows));
+    }
 
     const transporter = await getTransporter();
 
@@ -1126,6 +1132,7 @@ router.post("/:id/email-pickup", verifyToken, async (req, res) => {
 router.post("/:id/text-estimate", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const { estimateId } = req.body || {};
 
     if (!twilioClient) {
       return res.status(500).json({ error: "Twilio not configured on server" });
@@ -1134,8 +1141,8 @@ router.post("/:id/text-estimate", verifyToken, async (req, res) => {
     // Fetch repair info
     const repairQuery = `
       SELECT r.*, c.phone as client_phone, c.name as client_name, c.primary_notification
-      FROM repairs r 
-      JOIN clients c ON r.client_id = c.id 
+      FROM repairs r
+      JOIN clients c ON r.client_id = c.id
       WHERE r.id = $1
     `;
     const repairRes = await db.query(repairQuery, [id]);
@@ -1149,7 +1156,7 @@ router.post("/:id/text-estimate", verifyToken, async (req, res) => {
       "SELECT phone_number FROM client_phones WHERE client_id = $1 AND is_primary = true",
       [repair.client_id]
     );
-    
+
     let phoneNumber = repair.client_phone;
     if (phonesRes.rows.length > 0) {
       phoneNumber = phonesRes.rows[0].phone_number;
@@ -1163,14 +1170,19 @@ router.post("/:id/text-estimate", verifyToken, async (req, res) => {
     const cleanPhone = phoneNumber.replace(/\D/g, '');
     const formattedPhone = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
 
-    // Fetch Parts for total
-    const partsRes = await db.query(
-      "SELECT * FROM repair_parts WHERE repair_id = $1",
-      [id],
-    );
-    const { amountDue } = calculateTotals(repair, partsRes.rows);
+    // Use specific estimate's total_cost if provided, otherwise compute from repair data
+    let amountDue;
+    if (estimateId) {
+      const estRes = await db.query("SELECT total_cost FROM estimates WHERE id = $1 AND repair_id = $2", [estimateId, id]);
+      if (estRes.rows.length === 0)
+        return res.status(404).json({ error: "Estimate not found" });
+      amountDue = parseFloat(estRes.rows[0].total_cost);
+    } else {
+      const partsRes = await db.query("SELECT * FROM repair_parts WHERE repair_id = $1", [id]);
+      ({ amountDue } = calculateTotals(repair, partsRes.rows));
+    }
 
-    const smsBody = `Hello ${repair.client_name}, STI here. Estimate for your ${repair.brand} ${repair.model} is $${amountDue.toFixed(2)}. Reply YES to approve or call (813) 985-1120.`;
+    const smsBody = `Sound Technology Inc - Claim #${repair.claim_number}: ${repair.brand} ${repair.model} - Estimate: $${amountDue.toFixed(2)}. Text APPROVE to approve repair, text DENY to decline, or call us at 813-985-1120.`;
 
     const twilioMsg = await twilioClient.messages.create({
       body: smsBody,

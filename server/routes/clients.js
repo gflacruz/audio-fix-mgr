@@ -316,15 +316,12 @@ router.post('/:id/send-opt-in', verifyToken, async (req, res) => {
     const formattedPhone = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
 
     await twilioClient.messages.create({
-      body: `Hello ${client.name}, Sound Technology Inc here. You've been opted in to receive text updates about your repair. Msg & data rates may apply. Reply STOP to opt out.`,
+      body: `Hello ${client.name.split(' ')[0]}, this is Sound Technology Inc. Reply Yes or Y to opt in for text notifications about your repair. Msg & data rates may apply. Reply STOP to unsubscribe.`,
       from: process.env.TWILIO_PHONE_NUMBER,
       to: formattedPhone
     });
 
-    // Mark client as opted in
-    await db.query('UPDATE clients SET sms_opted_in = TRUE WHERE id = $1', [id]);
-
-    res.json({ message: 'Opt-in text sent', smsOptedIn: true });
+    res.json({ message: 'Opt-in text sent' });
   } catch (error) {
     console.error('Error sending opt-in text:', error);
     res.status(500).json({ error: 'Failed to send opt-in text: ' + error.message });

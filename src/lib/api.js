@@ -304,11 +304,12 @@ export const deleteRepairPhoto = async (repairId, photoId) => {
   });
 };
 
-export const sendEstimateEmail = async (repairId) => {
+export const sendEstimateEmail = async (repairId, estimateId) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
   return fetchJSON(`/repairs/${repairId}/email-estimate`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${user?.token}` }
+    headers: { Authorization: `Bearer ${user?.token}`, 'Content-Type': 'application/json' },
+    body: estimateId ? JSON.stringify({ estimateId }) : undefined
   });
 };
 
@@ -320,11 +321,12 @@ export const sendPickupEmail = async (repairId) => {
   });
 };
 
-export const sendEstimateText = async (repairId) => {
+export const sendEstimateText = async (repairId, estimateId) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
   return fetchJSON(`/repairs/${repairId}/text-estimate`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${user?.token}` }
+    headers: { Authorization: `Bearer ${user?.token}`, 'Content-Type': 'application/json' },
+    body: estimateId ? JSON.stringify({ estimateId }) : undefined
   });
 };
 
