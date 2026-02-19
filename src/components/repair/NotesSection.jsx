@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { addRepairNote } from '@/lib/api';
-import { Save } from 'lucide-react';
+import { Save, MessageSquare } from 'lucide-react';
 
 export default function NotesSection({ ticket, repairId, user, setTicket }) {
   const [newNote, setNewNote] = useState('');
@@ -24,7 +24,7 @@ export default function NotesSection({ ticket, repairId, user, setTicket }) {
   return (
     <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
       <h3 className="text-amber-600 dark:text-amber-500 font-semibold mb-4 flex items-center gap-2">
-        Technician Notes
+        <MessageSquare size={18} /> Technician Notes
         <span className="text-zinc-500 dark:text-zinc-400 text-sm font-normal">({ticket.notes?.length || 0})</span>
       </h3>
 

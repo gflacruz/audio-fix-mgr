@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit2 } from 'lucide-react';
+import { Edit2, Settings } from 'lucide-react';
 
 export default function UnitSpecsCard({ ticket, onSave }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -26,7 +26,9 @@ export default function UnitSpecsCard({ ticket, onSave }) {
   return (
     <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider">Unit Specs</h3>
+        <h3 className="text-amber-600 dark:text-amber-500 font-semibold flex items-center gap-2">
+          <Settings size={18} /> Unit Specs
+        </h3>
         {!isEditing && (
           <button onClick={startEditing} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white">
             <Edit2 size={14} />

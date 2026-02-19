@@ -31,7 +31,7 @@ export default function RepairPartsSection({
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-amber-600 dark:text-amber-500 font-semibold flex items-center gap-2">
-            Parts & Materials
+            <Package size={18} /> Parts & Materials
           </h3>
           <button
             onClick={() => setIsAddingPart(!isAddingPart)}

@@ -140,6 +140,19 @@ export const addRepairNote = async (id, noteData) => {
   });
 };
 
+// Model Notes
+export const getModelNote = async (brand, model) => {
+  const params = new URLSearchParams({ brand, model });
+  return fetchJSON(`/repairs/model-notes?${params.toString()}`);
+};
+
+export const saveModelNote = async (brand, model, note, updatedBy) => {
+  return fetchJSON('/repairs/model-notes', {
+    method: 'PUT',
+    body: JSON.stringify({ brand, model, note, updatedBy }),
+  });
+};
+
 export const getPayroll = async () => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
   return fetchJSON('/repairs/payroll', {

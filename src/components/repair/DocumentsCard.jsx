@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { printDiagnosticReceipt, printRepairInvoice } from '@/lib/printer';
-import { Printer, CheckCircle2 } from 'lucide-react';
+import { Printer, CheckCircle2, FileText } from 'lucide-react';
 
 export default function DocumentsCard({ ticket, client, technicians, onTechnicianChange, onClose }) {
   const [showCloseModal, setShowCloseModal] = useState(false);
@@ -20,7 +20,9 @@ export default function DocumentsCard({ ticket, client, technicians, onTechnicia
   return (
     <>
       <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
-        <h3 className="text-zinc-500 dark:text-zinc-400 font-semibold text-sm uppercase tracking-wider mb-4">Documents</h3>
+        <h3 className="text-amber-600 dark:text-amber-500 font-semibold mb-4 flex items-center gap-2">
+          <FileText size={18} /> Documents
+        </h3>
         <div className="space-y-3">
           <button
             onClick={() => printDiagnosticReceipt(ticket, client)}

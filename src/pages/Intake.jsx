@@ -243,7 +243,7 @@ const Intake = () => {
         return;
       }
 
-      navigate(`/repair/${ticket.id}`);
+      navigate(`/repair/${ticket.id}`, { state: { fromIntake: true } });
     } catch (error) {
       console.error("Error creating ticket:", error);
       alert("Failed to create ticket. See console.");
@@ -574,7 +574,7 @@ const Intake = () => {
               <button
                 onClick={() => {
                   setShowOptInModal(false);
-                  navigate(`/repair/${optInRepairId}`);
+                  navigate(`/repair/${optInRepairId}`, { state: { fromIntake: true } });
                 }}
                 disabled={optInSending}
                 className="px-4 py-2 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
@@ -591,7 +591,7 @@ const Intake = () => {
                   }
                   setOptInSending(false);
                   setShowOptInModal(false);
-                  navigate(`/repair/${optInRepairId}`);
+                  navigate(`/repair/${optInRepairId}`, { state: { fromIntake: true } });
                 }}
                 disabled={optInSending}
                 className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium transition-colors disabled:opacity-50"

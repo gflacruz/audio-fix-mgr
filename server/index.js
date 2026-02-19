@@ -56,6 +56,21 @@ app.use('/api/sms', require('./routes/sms'));
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS model_notes (
+        id SERIAL PRIMARY KEY,
+        brand VARCHAR(255) NOT NULL,
+        model VARCHAR(255) NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        updated_by VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await db.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_model_notes_brand_model
+        ON model_notes (LOWER(brand), LOWER(model))
+    `);
   } catch (err) {
     console.error('Migration error:', err.message);
   }

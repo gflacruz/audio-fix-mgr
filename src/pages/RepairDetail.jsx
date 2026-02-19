@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, User, CheckCircle2, MessageSquare, Mail, Send, FileText, DollarSign, ClipboardCheck, StickyNote } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { ArrowLeft, Clock, User, CheckCircle2, MessageSquare, Mail, Send, FileText, DollarSign, ClipboardCheck, StickyNote, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useError } from '@/context/ErrorContext';
 
@@ -10,6 +10,7 @@ import { useRepairUpdater } from '@/hooks/useRepairUpdater';
 import { useRepairParts } from '@/hooks/useRepairParts';
 import { useNotificationFlow } from '@/hooks/useNotificationFlow';
 import { useEstimateActions } from '@/hooks/useEstimateActions';
+import { useModelNote } from '@/hooks/useModelNote';
 
 // Components
 import UnitSpecsCard from '@/components/repair/UnitSpecsCard';
@@ -28,10 +29,13 @@ import AdminActionsCard from '@/components/repair/AdminActionsCard';
 import InvoiceWizardModal from '@/components/repair/InvoiceWizardModal';
 import NotificationModal from '@/components/repair/NotificationModal';
 import EstimateWizard from '@/components/EstimateWizard';
+import ModelNotesCard from '@/components/repair/ModelNotesCard';
+import Modal from '@/components/Modal';
 
 const RepairDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAdmin } = useAuth();
   const { showError } = useError();
 
@@ -50,9 +54,21 @@ const RepairDetail = () => {
   // Estimate actions
   const estActions = useEstimateActions(id, estimates, loadEstimates, setTicket, updater.addSystemNote);
 
+  // Model notes
+  const { modelNote, modelNoteLoading, handleSaveModelNote } = useModelNote(ticket?.brand, ticket?.model);
+
   // Local modal toggles
   const [showInvoiceWizard, setShowInvoiceWizard] = useState(false);
   const [showEstimateWizard, setShowEstimateWizard] = useState(false);
+  const [showModelNoteAlert, setShowModelNoteAlert] = useState(false);
+
+  // Show model note alert when navigating from Intake
+  useEffect(() => {
+    if (location.state?.fromIntake && modelNote?.note?.trim()) {
+      setShowModelNoteAlert(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state?.fromIntake, modelNote]);
 
   if (loading) return <div className="p-8 text-zinc-500">Loading...</div>;
   if (!ticket) return <div className="p-8 text-zinc-500">Ticket not found.</div>;
@@ -174,9 +190,16 @@ const RepairDetail = () => {
         {/* Left Column: Details */}
         <div className="col-span-2 space-y-6">
           <UnitSpecsCard ticket={ticket} onSave={updater.handleSaveSpecs} />
-          <EditableTextSection title="Reported Issue" value={ticket.issue} onSave={updater.handleSaveIssue} />
+          <EditableTextSection title="Reported Issue" value={ticket.issue} onSave={updater.handleSaveIssue} icon={AlertCircle} />
           <EditableTextSection title="Work Performed" value={ticket.workPerformed} onSave={updater.saveWorkPerformed} icon={CheckCircle2} showWhenEmpty={false} />
           <RepairPartsSection ticket={ticket} {...parts} />
+          <ModelNotesCard
+            brand={ticket.brand}
+            model={ticket.model}
+            modelNote={modelNote}
+            onSave={(noteText) => handleSaveModelNote(noteText, user?.name)}
+            loading={modelNoteLoading}
+          />
           <NotesSection ticket={ticket} repairId={id} user={user} setTicket={setTicket} />
           <PhotosSection ticket={ticket} repairId={id} setTicket={setTicket} />
         </div>
@@ -278,6 +301,29 @@ const RepairDetail = () => {
         technicianName={user?.name || 'Technician'}
         onEstimateCreated={loadEstimates}
       />
+
+      <Modal
+        isOpen={showModelNoteAlert}
+        onClose={() => setShowModelNoteAlert(false)}
+        title={`${ticket.brand} ${ticket.model} — Model Notes`}
+        footer={
+          <button
+            onClick={() => setShowModelNoteAlert(false)}
+            className="bg-amber-600 hover:bg-amber-700 dark:hover:bg-amber-500 text-white px-4 py-2 rounded font-medium transition-colors"
+          >
+            Got it
+          </button>
+        }
+      >
+        <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">
+          {modelNote?.note}
+        </p>
+        {modelNote?.updatedBy && (
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-4">
+            Last edited by {modelNote.updatedBy}
+          </p>
+        )}
+      </Modal>
     </div>
   );
 };

@@ -525,6 +525,70 @@ router.get("/reports", verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
+// GET /api/repairs/model-notes - Fetch note by brand+model
+router.get("/model-notes", async (req, res) => {
+  try {
+    const { brand, model } = req.query;
+    if (!brand || !model) {
+      return res.status(400).json({ error: "Brand and model are required" });
+    }
+
+    const result = await db.query(
+      `SELECT * FROM model_notes WHERE LOWER(brand) = LOWER($1) AND LOWER(model) = LOWER($2)`,
+      [brand, model]
+    );
+
+    if (result.rows.length === 0) {
+      return res.json(null);
+    }
+
+    const row = result.rows[0];
+    res.json({
+      id: row.id,
+      brand: row.brand,
+      model: row.model,
+      note: row.note,
+      updatedBy: row.updated_by,
+      updatedAt: row.updated_at,
+    });
+  } catch (error) {
+    console.error("Error fetching model note:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+// PUT /api/repairs/model-notes - Create or update a model note
+router.put("/model-notes", async (req, res) => {
+  try {
+    const { brand, model, note, updatedBy } = req.body;
+    if (!brand || !model) {
+      return res.status(400).json({ error: "Brand and model are required" });
+    }
+
+    const result = await db.query(
+      `INSERT INTO model_notes (brand, model, note, updated_by, updated_at)
+       VALUES ($1, $2, $3, $4, NOW())
+       ON CONFLICT ((LOWER(brand)), (LOWER(model)))
+       DO UPDATE SET note = $3, updated_by = $4, updated_at = NOW()
+       RETURNING *`,
+      [brand, model, note || "", updatedBy || null]
+    );
+
+    const row = result.rows[0];
+    res.json({
+      id: row.id,
+      brand: row.brand,
+      model: row.model,
+      note: row.note,
+      updatedBy: row.updated_by,
+      updatedAt: row.updated_at,
+    });
+  } catch (error) {
+    console.error("Error saving model note:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
 // GET /api/repairs/:id - Get single repair with details and notes
 router.get("/:id", async (req, res) => {
   try {
