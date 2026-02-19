@@ -172,6 +172,19 @@ CREATE TABLE IF NOT EXISTS sms_messages (
 CREATE INDEX IF NOT EXISTS idx_sms_messages_client_id ON sms_messages(client_id);
 CREATE INDEX IF NOT EXISTS idx_sms_messages_from_number ON sms_messages(from_number);
 
+CREATE TABLE IF NOT EXISTS model_notes (
+  id SERIAL PRIMARY KEY,
+  brand VARCHAR(255) NOT NULL,
+  model VARCHAR(255) NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  updated_by VARCHAR(100),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_model_notes_brand_model
+  ON model_notes (LOWER(brand), LOWER(model));
+
 CREATE OR REPLACE FUNCTION update_estimates_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
