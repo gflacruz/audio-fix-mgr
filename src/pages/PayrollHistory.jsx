@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { getPayrollHistory, getTechnicians } from '@/lib/api';
+import { getPayrollHistory, getTechnicians, updatePayrollBatch } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { History, Calendar, Filter, ArrowLeft, ChevronRight } from 'lucide-react';
+import { History, Calendar, Filter, ArrowLeft, ChevronRight, Download, Pencil, Check, X } from 'lucide-react';
 
 const PayrollHistory = () => {
   const navigate = useNavigate();
@@ -11,6 +11,12 @@ const PayrollHistory = () => {
   const [loading, setLoading] = useState(true);
   const [technicians, setTechnicians] = useState([]);
   const [expandedBatches, setExpandedBatches] = useState({});
+
+  // Edit mode state
+  const [editingBatch, setEditingBatch] = useState(null); // batch id being edited
+  const [editAmounts, setEditAmounts] = useState({});       // { repairId: amount }
+  const [editDate, setEditDate] = useState('');
+  const [saving, setSaving] = useState(false);
 
   // Filters
   const [filters, setFilters] = useState({
@@ -88,7 +94,96 @@ const PayrollHistory = () => {
   const totalPaid = repairs.reduce((sum, r) => sum + (r.payoutAmount || 0), 0);
 
   const toggleBatch = (batchId) => {
+    if (editingBatch === batchId) return; // don't collapse while editing
     setExpandedBatches(prev => ({ ...prev, [batchId]: !prev[batchId] }));
+  };
+
+  const handleExportBatch = (batch) => {
+    const headers = ['Claim #', 'Brand', 'Model', 'Labor', 'Parts', 'Tax', 'Deposit', 'Total', 'Payout'];
+    const rows = batch.repairs.map(r => [
+      r.claimNumber,
+      r.brand,
+      r.model,
+      r.laborCost.toFixed(2),
+      r.partsCost.toFixed(2),
+      (r.tax || 0).toFixed(2),
+      r.diagnosticFee.toFixed(2),
+      r.totalCost.toFixed(2),
+      (r.payoutAmount || 0).toFixed(2),
+    ]);
+    rows.push([]);
+    rows.push(['', '', 'TOTAL PAYOUT', '', '', '', '', '', batch.totalPayout.toFixed(2)]);
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `payout-${batch.technician}-${new Date(batch.paidOutDate).toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Edit mode handlers
+  const startEdit = (batch) => {
+    setEditingBatch(batch.id);
+    setExpandedBatches(prev => ({ ...prev, [batch.id]: true }));
+    const amounts = {};
+    batch.repairs.forEach(r => {
+      amounts[r.id] = (r.payoutAmount || 0).toFixed(2);
+    });
+    setEditAmounts(amounts);
+    setEditDate(new Date(batch.paidOutDate).toISOString().split('T')[0]);
+  };
+
+  const cancelEdit = () => {
+    setEditingBatch(null);
+    setEditAmounts({});
+    setEditDate('');
+  };
+
+  const handleEditAmountChange = (repairId, value) => {
+    setEditAmounts(prev => ({ ...prev, [repairId]: value }));
+  };
+
+  const editTotal = useMemo(() => {
+    if (!editingBatch) return 0;
+    return Object.values(editAmounts).reduce((sum, val) => {
+      const amt = parseFloat(val);
+      return sum + (isNaN(amt) ? 0 : amt);
+    }, 0);
+  }, [editAmounts, editingBatch]);
+
+  const saveEdit = async (batch) => {
+    const items = batch.repairs.map(r => ({
+      repairId: r.id,
+      amount: parseFloat(editAmounts[r.id]) || 0,
+    }));
+
+    if (items.some(i => i.amount < 0)) {
+      alert('Amounts cannot be negative.');
+      return;
+    }
+    if (!editDate) {
+      alert('Please select a paid date.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await updatePayrollBatch(batch.id, items, editDate);
+      setEditingBatch(null);
+      setEditAmounts({});
+      setEditDate('');
+      await loadData(); // refresh to show updated values
+    } catch (error) {
+      console.error("Failed to update batch:", error);
+      alert('Failed to save changes.');
+    }
+    setSaving(false);
   };
 
   return (
@@ -176,8 +271,11 @@ const PayrollHistory = () => {
         <div className="space-y-3">
           {batches.map(batch => {
             const isExpanded = expandedBatches[batch.id];
+            const isEditing = editingBatch === batch.id;
+            const isLegacy = batch.id.startsWith('legacy_');
+
             return (
-              <div key={batch.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm dark:shadow-none">
+              <div key={batch.id} className={`bg-white dark:bg-zinc-900 border rounded-xl overflow-hidden shadow-sm dark:shadow-none ${isEditing ? 'border-amber-500/50' : 'border-zinc-200 dark:border-zinc-800'}`}>
                 {/* Batch Header */}
                 <button
                   onClick={() => toggleBatch(batch.id)}
@@ -191,17 +289,85 @@ const PayrollHistory = () => {
                     <div>
                       <span className="font-medium text-zinc-900 dark:text-white">{batch.technician}</span>
                       <span className="text-zinc-400 mx-2">-</span>
-                      <span className="text-zinc-500 dark:text-zinc-400 text-sm">
-                        {new Date(batch.paidOutDate).toLocaleDateString()}
-                      </span>
+                      {isEditing ? (
+                        <input
+                          type="date"
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                          onClick={(e) => { e.stopPropagation(); e.target.showPicker?.(); }}
+                          className="bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white px-2 py-0.5 rounded text-sm focus:border-amber-500 outline-none cursor-pointer"
+                        />
+                      ) : (
+                        <span className="text-zinc-500 dark:text-zinc-400 text-sm">
+                          {new Date(batch.paidOutDate).toLocaleDateString()}
+                        </span>
+                      )}
                     </div>
                     <span className="text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full">
                       {batch.repairs.length} {batch.repairs.length === 1 ? 'claim' : 'claims'}
                     </span>
                   </div>
-                  <span className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400">
-                    ${batch.totalPayout.toFixed(2)}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    {isEditing ? (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            cancelEdit();
+                          }}
+                          className="text-xs flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 px-2.5 py-1 rounded border border-zinc-700 hover:border-zinc-500 transition-colors"
+                          disabled={saving}
+                        >
+                          <X size={12} />
+                          Cancel
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            saveEdit(batch);
+                          }}
+                          className="text-xs flex items-center gap-1.5 text-emerald-500 hover:text-emerald-400 px-2.5 py-1 rounded border border-emerald-800 hover:border-emerald-600 transition-colors"
+                          disabled={saving}
+                        >
+                          <Check size={12} />
+                          {saving ? 'Saving...' : 'Save'}
+                        </button>
+                        <span className="text-lg font-bold font-mono text-amber-500">
+                          ${editTotal.toFixed(2)}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        {!isLegacy && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startEdit(batch);
+                            }}
+                            className="text-xs flex items-center gap-1.5 text-amber-500 hover:text-amber-400 px-2.5 py-1 rounded border border-amber-800 hover:border-amber-600 transition-colors"
+                            title="Edit batch"
+                          >
+                            <Pencil size={12} />
+                            Edit
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleExportBatch(batch);
+                          }}
+                          className="text-xs flex items-center gap-1.5 text-blue-500 hover:text-blue-400 px-2.5 py-1 rounded border border-blue-800 hover:border-blue-600 transition-colors"
+                          title="Export batch to CSV"
+                        >
+                          <Download size={12} />
+                          Export CSV
+                        </button>
+                        <span className="text-lg font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                          ${batch.totalPayout.toFixed(2)}
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </button>
 
                 {/* Expanded Detail Table */}
@@ -226,6 +392,7 @@ const PayrollHistory = () => {
                             <tr key={repair.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/20 transition-colors">
                               <td className="px-6 py-3 text-zinc-600 dark:text-zinc-400 font-mono">
                                 <button
+                                  tabIndex={isEditing ? -1 : 0}
                                   onClick={() => navigate(`/repair/${repair.id}`)}
                                   className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline"
                                 >
@@ -238,12 +405,40 @@ const PayrollHistory = () => {
                               <td className="px-6 py-3 text-right text-zinc-500">${(repair.tax || 0).toFixed(2)}</td>
                               <td className="px-6 py-3 text-right text-zinc-500">${repair.diagnosticFee.toFixed(2)}</td>
                               <td className="px-6 py-3 text-right text-zinc-600 dark:text-zinc-400">${repair.totalCost.toFixed(2)}</td>
-                              <td className="px-6 py-3 text-right text-emerald-600 dark:text-emerald-400 font-mono font-medium">
-                                ${(repair.payoutAmount || 0).toFixed(2)}
+                              <td className="px-6 py-3 text-right">
+                                {isEditing ? (
+                                  <div className="relative inline-block">
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">$</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      value={editAmounts[repair.id] || ''}
+                                      onChange={(e) => handleEditAmountChange(repair.id, e.target.value)}
+                                      className="w-28 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white pl-5 pr-2 py-1.5 rounded focus:border-amber-500 outline-none font-mono text-sm"
+                                    />
+                                  </div>
+                                ) : (
+                                  <span className="text-emerald-600 dark:text-emerald-400 font-mono font-medium">
+                                    ${(repair.payoutAmount || 0).toFixed(2)}
+                                  </span>
+                                )}
                               </td>
                             </tr>
                           ))}
                         </tbody>
+                        {isEditing && (
+                          <tfoot>
+                            <tr className="bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800">
+                              <td colSpan={7} className="px-6 py-2 text-right text-sm font-bold text-zinc-600 dark:text-zinc-300">
+                                New Total
+                              </td>
+                              <td className="px-6 py-2 text-right text-amber-500 font-mono font-bold text-sm">
+                                ${editTotal.toFixed(2)}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        )}
                       </table>
                     </div>
                   </div>

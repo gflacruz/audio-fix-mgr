@@ -1,85 +1,168 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import Modal from '@/components/Modal';
-import { getPayroll, processPayout } from '@/lib/api';
+import { getUnpaidRepairsForTech, processPayout, getTechnicians } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { DollarSign, CheckCircle2, AlertCircle, Calendar, History } from 'lucide-react';
+import { DollarSign, CheckCircle2, Plus, Search, X, History } from 'lucide-react';
 
 const Payroll = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [repairs, setRepairs] = useState([]);
+
+  // Core state — restore from sessionStorage if available
+  const draft = useRef(null);
+  try { draft.current = JSON.parse(sessionStorage.getItem('payroll_draft')); } catch {}
+  const [technicians, setTechnicians] = useState([]);
+  const [selectedTech, setSelectedTech] = useState(draft.current?.selectedTech || '');
+  const [claims, setClaims] = useState(draft.current?.claims || []);
   const [loading, setLoading] = useState(true);
-  const [selectedIds, setSelectedIds] = useState(new Set());
+
+  // Claim search
+  const [showClaimSearch, setShowClaimSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchRef = useRef(null);
+  const debounceRef = useRef(null);
+
+  // Submission
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [showPayoutModal, setShowPayoutModal] = useState(false);
-  const [payoutAmount, setPayoutAmount] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
-    loadData();
+    const init = async () => {
+      try {
+        const techs = await getTechnicians();
+        setTechnicians(techs);
+
+        // If restoring a draft, re-fetch claims to get fresh data
+        if (draft.current?.selectedTech && draft.current?.claims?.length > 0) {
+          try {
+            const freshRepairs = await getUnpaidRepairsForTech(draft.current.selectedTech);
+            const freshMap = new Map(freshRepairs.map(r => [r.id, r]));
+            const refreshed = draft.current.claims
+              .filter(c => freshMap.has(c.id))  // drop claims that were paid out or reassigned
+              .map(c => ({ ...freshMap.get(c.id), payAmount: c.payAmount })); // fresh data + saved payAmount
+            setClaims(refreshed);
+            if (refreshed.length === 0) {
+              setSelectedTech('');
+              sessionStorage.removeItem('payroll_draft');
+            }
+          } catch (error) {
+            console.error("Failed to refresh draft claims:", error);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load technicians:", error);
+      }
+      setLoading(false);
+    };
+    init();
   }, []);
 
-  const loadData = async () => {
-    setLoading(true);
+  // Persist draft state to sessionStorage
+  useEffect(() => {
+    if (selectedTech || claims.length > 0) {
+      sessionStorage.setItem('payroll_draft', JSON.stringify({ selectedTech, claims }));
+    } else {
+      sessionStorage.removeItem('payroll_draft');
+    }
+  }, [selectedTech, claims]);
+
+  // Search when query or tech changes
+  const doSearch = useCallback(async (tech, query) => {
+    if (!tech) return;
+    setSearchLoading(true);
     try {
-      const data = await getPayroll();
-      setRepairs(data);
-      setSelectedIds(new Set());
+      const results = await getUnpaidRepairsForTech(tech, query);
+      setSearchResults(results);
     } catch (error) {
-      console.error("Failed to load payroll:", error);
+      console.error("Search failed:", error);
+      setSearchResults([]);
     }
-    setLoading(false);
+    setSearchLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (!showClaimSearch || !selectedTech) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      doSearch(selectedTech, searchQuery);
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [searchQuery, showClaimSearch, selectedTech, doSearch]);
+
+  const handleTechChange = (tech) => {
+    setSelectedTech(tech);
+    setClaims([]);
+    setSearchResults([]);
+    setSearchQuery('');
+    setShowClaimSearch(false);
+    setSuccessMessage('');
   };
 
-  const handleSelect = (id) => {
-    const newSelected = new Set(selectedIds);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedIds(newSelected);
+  const handleOpenSearch = () => {
+    setShowClaimSearch(true);
+    setSearchQuery('');
+    setTimeout(() => searchRef.current?.focus(), 50);
   };
 
-  const handleSelectTechnician = (techName, techRepairs) => {
-    const newSelected = new Set(selectedIds);
-    const allSelected = techRepairs.every(r => selectedIds.has(r.id));
-
-    if (allSelected) {
-      techRepairs.forEach(r => newSelected.delete(r.id));
-    } else {
-      techRepairs.forEach(r => newSelected.add(r.id));
-    }
-    setSelectedIds(newSelected);
+  const handleAddClaim = (repair) => {
+    setClaims(prev => [...prev, { ...repair, payAmount: '' }]);
   };
 
-  const handlePayout = () => {
-    if (selectedIds.size === 0) return;
-    setPayoutAmount('');
-    setShowPayoutModal(true);
+  const handleRemoveClaim = (repairId) => {
+    setClaims(prev => prev.filter(c => c.id !== repairId));
   };
 
-  const breakdown = useMemo(() => {
-    const selected = repairs.filter(r => selectedIds.has(r.id));
-    return {
-      count: selected.length,
-      labor: selected.reduce((sum, r) => sum + r.laborCost, 0),
-      parts: selected.reduce((sum, r) => sum + r.partsCost, 0),
-      tax: selected.reduce((sum, r) => sum + (r.tax || 0), 0),
-      deposit: selected.reduce((sum, r) => sum + r.diagnosticFee, 0),
-      total: selected.reduce((sum, r) => sum + r.totalCost, 0),
-    };
-  }, [repairs, selectedIds]);
+  const handlePayAmountChange = (repairId, value) => {
+    setClaims(prev => prev.map(c => c.id === repairId ? { ...c, payAmount: value } : c));
+  };
+
+  const handleFiftyPercent = (repairId) => {
+    setClaims(prev => prev.map(c => {
+      if (c.id !== repairId) return c;
+      return { ...c, payAmount: (c.laborCost * 0.5).toFixed(2) };
+    }));
+  };
+
+  // Filter already-added claims from search results
+  const addedIds = useMemo(() => new Set(claims.map(c => c.id)), [claims]);
+  const filteredResults = useMemo(() => searchResults.filter(r => !addedIds.has(r.id)), [searchResults, addedIds]);
+
+  // Totals
+  const grandTotal = useMemo(() => {
+    return claims.reduce((sum, c) => {
+      const amt = parseFloat(c.payAmount);
+      return sum + (isNaN(amt) ? 0 : amt);
+    }, 0);
+  }, [claims]);
+
+  const allAmountsValid = claims.length > 0 && claims.every(c => {
+    const amt = parseFloat(c.payAmount);
+    return !isNaN(amt) && amt > 0;
+  });
+
+  const handleSubmit = () => {
+    if (!allAmountsValid) return;
+    setShowConfirmModal(true);
+  };
 
   const executePayout = async () => {
-    const amount = parseFloat(payoutAmount);
-    if (!amount || amount <= 0) return;
     setProcessing(true);
     try {
-      await processPayout(Array.from(selectedIds), amount);
-      await loadData();
-      setShowPayoutModal(false);
-      setPayoutAmount('');
+      const items = claims.map(c => ({
+        repairId: c.id,
+        amount: parseFloat(c.payAmount),
+      }));
+      await processPayout(items, selectedTech);
+      setShowConfirmModal(false);
+      setClaims([]);
+      setSearchResults([]);
+      setShowClaimSearch(false);
+      sessionStorage.removeItem('payroll_draft');
+      setSuccessMessage(`Payout of $${grandTotal.toFixed(2)} processed for ${selectedTech}.`);
     } catch (error) {
       console.error("Payout failed:", error);
       alert('Failed to process payout.');
@@ -87,150 +170,293 @@ const Payroll = () => {
     setProcessing(false);
   };
 
-  // Group by Technician
-  const grouped = repairs.reduce((acc, curr) => {
-    const tech = curr.technician || 'Unassigned';
-    if (!acc[tech]) acc[tech] = [];
-    acc[tech].push(curr);
-    return acc;
-  }, {});
-
-  if (loading) return <div className="p-8 text-zinc-500">Loading payroll data...</div>;
-
-  const parsedAmount = parseFloat(payoutAmount);
-  const isAmountValid = !isNaN(parsedAmount) && parsedAmount > 0;
+  if (loading) return <div className="p-8 text-zinc-500">Loading...</div>;
 
   return (
     <div className="max-w-6xl mx-auto pb-10">
+      {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
             <DollarSign className="text-emerald-600 dark:text-emerald-500" size={32} />
             Technician Payroll
           </h1>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-1">Review and process payouts for closed tickets.</p>
+          <p className="text-zinc-500 dark:text-zinc-400 mt-1">Select a technician and add claims to process payouts.</p>
         </div>
-
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate('/payroll/history')}
-            className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors mr-4"
-          >
-            <History size={20} />
-            History
-          </button>
-
-          {selectedIds.size > 0 && (
-            <div className="text-right mr-4">
-              <div className="text-sm text-zinc-500 dark:text-zinc-400">{selectedIds.size} selected</div>
-            </div>
-          )}
-          <button
-            onClick={handlePayout}
-            disabled={selectedIds.size === 0 || processing}
-            className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-lg shadow-emerald-900/20"
-          >
-            {processing ? 'Processing...' : 'Mark as Paid'}
-            <CheckCircle2 size={20} />
-          </button>
-        </div>
+        <button
+          onClick={() => navigate('/payroll/history')}
+          className="flex items-center gap-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+        >
+          <History size={20} />
+          History
+        </button>
       </div>
 
-      {Object.keys(grouped).length === 0 ? (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-12 text-center shadow-sm dark:shadow-none">
-          <CheckCircle2 size={48} className="mx-auto text-zinc-400 dark:text-zinc-700 mb-4" />
-          <h3 className="text-xl text-zinc-900 dark:text-zinc-300 font-medium">All Caught Up!</h3>
-          <p className="text-zinc-500 mt-2">No unpaid closed repairs found.</p>
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {Object.entries(grouped).map(([tech, techRepairs]) => {
-            const allSelected = techRepairs.every(r => selectedIds.has(r.id));
+      {/* Technician Selector */}
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 mb-6 shadow-sm dark:shadow-none">
+        <label className="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-2">Technician</label>
+        <select
+          value={selectedTech}
+          onChange={(e) => handleTechChange(e.target.value)}
+          className="w-full max-w-sm bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white px-4 py-2.5 rounded-lg focus:border-amber-500 outline-none"
+        >
+          <option value="">Select a technician...</option>
+          {technicians.map(t => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+      </div>
 
-            return (
-              <div key={tech} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm dark:shadow-none">
-                <div className="px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <h2 className="text-xl font-bold text-zinc-900 dark:text-white">{tech}</h2>
-                    <span className="bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2 py-0.5 rounded text-sm">
-                      {techRepairs.length} tickets
-                    </span>
+      {selectedTech && (
+        <>
+          {/* Success Message */}
+          {successMessage && (
+            <div className="bg-emerald-900/20 border border-emerald-700 rounded-xl p-4 mb-6 flex items-center gap-3">
+              <CheckCircle2 className="text-emerald-500 shrink-0" size={20} />
+              <span className="text-emerald-400">{successMessage}</span>
+              <button onClick={() => setSuccessMessage('')} className="ml-auto text-emerald-600 hover:text-emerald-400">
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
+          {/* Add Claim Button */}
+          <div className="mb-6">
+            <button
+              onClick={handleOpenSearch}
+              className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-colors"
+            >
+              <Plus size={18} />
+              Add Claim
+            </button>
+          </div>
+
+          {/* Claim Search Panel */}
+          {showClaimSearch && (
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl mb-6 shadow-sm dark:shadow-none overflow-hidden">
+              <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-3">
+                <Search size={16} className="text-zinc-400" />
+                <input
+                  ref={searchRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by claim #, brand, or model..."
+                  className="flex-1 bg-transparent text-zinc-900 dark:text-white outline-none placeholder-zinc-500"
+                />
+                <button
+                  onClick={() => { setShowClaimSearch(false); setSearchQuery(''); }}
+                  className="text-zinc-400 hover:text-zinc-200"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto">
+                {searchLoading ? (
+                  <div className="p-4 text-center text-zinc-500 text-sm">Searching...</div>
+                ) : filteredResults.length === 0 ? (
+                  <div className="p-4 text-center text-zinc-500 text-sm">
+                    {searchResults.length > 0 && filteredResults.length === 0
+                      ? 'All matching claims already added.'
+                      : 'No unpaid claims found.'}
                   </div>
-                  <button
-                    onClick={() => handleSelectTechnician(tech, techRepairs)}
-                    className="text-xs text-amber-600 dark:text-amber-500 hover:text-amber-500 dark:hover:text-amber-400 font-medium uppercase tracking-wider"
-                  >
-                    {allSelected ? 'Deselect All' : 'Select All'}
-                  </button>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-zinc-50 dark:bg-zinc-900/50 text-zinc-500 font-medium border-b border-zinc-200 dark:border-zinc-800">
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead className="bg-zinc-50 dark:bg-zinc-950 text-zinc-500 text-xs sticky top-0">
                       <tr>
-                        <th className="px-6 py-3 w-12"></th>
-                        <th className="px-6 py-3">Claim #</th>
-                        <th className="px-6 py-3">Date Closed</th>
-                        <th className="px-6 py-3">Unit</th>
-                        <th className="px-6 py-3 text-right">Labor</th>
-                        <th className="px-6 py-3 text-right">Parts</th>
-                        <th className="px-6 py-3 text-right">Tax</th>
-                        <th className="px-6 py-3 text-right">Deposit</th>
-                        <th className="px-6 py-3 text-right">Total Ticket</th>
+                        <th className="px-4 py-2 text-left">Claim #</th>
+                        <th className="px-4 py-2 text-left">Unit</th>
+                        <th className="px-4 py-2 text-left">Status</th>
+                        <th className="px-4 py-2 text-right">Labor</th>
+                        <th className="px-4 py-2 text-right">Parts</th>
+                        <th className="px-4 py-2 text-right">Total</th>
+                        <th className="px-4 py-2 w-16"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
-                      {techRepairs.map(repair => (
+                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
+                      {filteredResults.map(r => (
                         <tr
-                          key={repair.id}
-                          className={`hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors ${selectedIds.has(repair.id) ? 'bg-emerald-50 dark:bg-emerald-900/10' : ''}`}
-                          onClick={() => handleSelect(repair.id)}
+                          key={r.id}
+                          className={`hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors ${r.status !== 'closed' ? 'bg-yellow-900/10' : ''}`}
                         >
-                          <td className="px-6 py-4">
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(repair.id)}
-                              onChange={() => handleSelect(repair.id)}
-                              className="w-5 h-5 rounded border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-zinc-900 cursor-pointer"
-                            />
+                          <td className="px-4 py-2.5 font-mono text-zinc-600 dark:text-zinc-300">#{r.claimNumber}</td>
+                          <td className="px-4 py-2.5 text-zinc-700 dark:text-zinc-300">{r.brand} {r.model}</td>
+                          <td className="px-4 py-2.5">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                              r.status === 'closed'
+                                ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                                : 'bg-yellow-200 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-400'
+                            }`}>
+                              {r.status}
+                            </span>
                           </td>
-                          <td className="px-6 py-4 text-zinc-600 dark:text-zinc-300 font-mono">
+                          <td className="px-4 py-2.5 text-right text-zinc-500">${r.laborCost.toFixed(2)}</td>
+                          <td className="px-4 py-2.5 text-right text-zinc-500">${r.partsCost.toFixed(2)}</td>
+                          <td className="px-4 py-2.5 text-right text-zinc-600 dark:text-zinc-300 font-medium">${(r.laborCost + r.partsCost).toFixed(2)}</td>
+                          <td className="px-4 py-2.5 text-right">
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/repair/${repair.id}`);
-                              }}
-                              className="hover:text-amber-600 dark:hover:text-amber-500 hover:underline"
+                              onClick={() => handleAddClaim(r)}
+                              className="text-xs bg-amber-600 hover:bg-amber-500 text-white px-2.5 py-1 rounded font-medium transition-colors"
                             >
-                              #{repair.claimNumber}
+                              Add
                             </button>
                           </td>
-                          <td className="px-6 py-4 text-zinc-500 dark:text-zinc-400">{new Date(repair.date).toLocaleDateString()}</td>
-                          <td className="px-6 py-4 text-zinc-900 dark:text-white font-medium">{repair.brand} {repair.model}</td>
-                          <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-400">${repair.laborCost.toFixed(2)}</td>
-                          <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-400">${repair.partsCost.toFixed(2)}</td>
-                          <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-400">${(repair.tax || 0).toFixed(2)}</td>
-                          <td className="px-6 py-4 text-right text-zinc-500 dark:text-zinc-400">${repair.diagnosticFee.toFixed(2)}</td>
-                          <td className="px-6 py-4 text-right text-zinc-700 dark:text-zinc-200 font-bold">${repair.totalCost.toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Legend */}
+          {claims.some(c => c.status !== 'closed') && (
+            <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+              <div className="w-4 h-4 bg-yellow-900/30 border border-yellow-600 rounded"></div>
+              <span>Yellow = Prepaid (claim not yet closed)</span>
+            </div>
+          )}
+
+          {/* Claims Table */}
+          {claims.length > 0 && (
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden mb-6 shadow-sm dark:shadow-none">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-zinc-50 dark:bg-zinc-950 text-zinc-500 font-medium border-b border-zinc-200 dark:border-zinc-800">
+                    <tr>
+                      <th className="px-4 py-3">Claim #</th>
+                      <th className="px-4 py-3">Unit</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3 text-right">Labor</th>
+                      <th className="px-4 py-3 text-right">Parts</th>
+                      <th className="px-4 py-3 text-right">Total</th>
+                      <th className="px-4 py-3 text-right">Pay Amount</th>
+                      <th className="px-4 py-3 w-20"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/50">
+                    {claims.map(claim => (
+                      <tr
+                        key={claim.id}
+                        className={`transition-colors ${claim.status !== 'closed' ? 'bg-yellow-900/20 border-l-4 border-yellow-500' : ''}`}
+                      >
+                        <td className="px-4 py-3 font-mono text-zinc-600 dark:text-zinc-300">
+                          <button
+                            tabIndex={-1}
+                            onClick={() => navigate(`/repair/${claim.id}`)}
+                            className="hover:text-amber-600 dark:hover:text-amber-500 hover:underline"
+                          >
+                            #{claim.claimNumber}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-zinc-900 dark:text-white font-medium">{claim.brand} {claim.model}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            claim.status === 'closed'
+                              ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                              : 'bg-yellow-200 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-400'
+                          }`}>
+                            {claim.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right text-zinc-500 dark:text-zinc-400">${claim.laborCost.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-right text-zinc-500 dark:text-zinc-400">${claim.partsCost.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-right text-zinc-600 dark:text-zinc-300 font-medium">${(claim.laborCost + claim.partsCost).toFixed(2)}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              tabIndex={-1}
+                              onClick={() => handleFiftyPercent(claim.id)}
+                              className="text-xs bg-emerald-700 hover:bg-emerald-600 text-white px-2 py-1 rounded font-medium transition-colors whitespace-nowrap"
+                              title="Set to 50% of labor"
+                            >
+                              50%
+                            </button>
+                            <div className="relative">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">$</span>
+                              <input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                value={claim.payAmount}
+                                onChange={(e) => handlePayAmountChange(claim.id, e.target.value)}
+                                placeholder="0.00"
+                                className="w-28 bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white pl-5 pr-2 py-1.5 rounded focus:border-emerald-500 outline-none font-mono text-sm"
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            tabIndex={-1}
+                            onClick={() => handleRemoveClaim(claim.id)}
+                            className="text-zinc-400 hover:text-red-500 transition-colors"
+                            title="Remove"
+                          >
+                            <X size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Summary Bar */}
+              <div className="px-4 py-3 bg-zinc-50 dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+                <span className="text-sm text-zinc-500 dark:text-zinc-400">{claims.length} {claims.length === 1 ? 'claim' : 'claims'}</span>
+                <div className="flex items-center gap-6 text-sm">
+                  <span className="text-zinc-500 dark:text-zinc-400">
+                    Labor: <span className="font-mono text-zinc-700 dark:text-zinc-300">${claims.reduce((s, c) => s + c.laborCost, 0).toFixed(2)}</span>
+                  </span>
+                  <span className="text-zinc-500 dark:text-zinc-400">
+                    Parts: <span className="font-mono text-zinc-700 dark:text-zinc-300">${claims.reduce((s, c) => s + c.partsCost, 0).toFixed(2)}</span>
+                  </span>
+                  <span className="text-zinc-900 dark:text-white font-bold">
+                    Total Payout: <span className="font-mono text-emerald-600 dark:text-emerald-400">${grandTotal.toFixed(2)}</span>
+                  </span>
                 </div>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          )}
+
+          {/* Submit */}
+          {claims.length > 0 && (
+            <div className="flex justify-end">
+              <button
+                onClick={handleSubmit}
+                disabled={!allAmountsValid || processing}
+                className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-colors shadow-lg shadow-emerald-900/20"
+              >
+                {processing ? 'Processing...' : 'Process Payout'}
+                <CheckCircle2 size={20} />
+              </button>
+            </div>
+          )}
+
+          {/* Empty state when no claims */}
+          {claims.length === 0 && !showClaimSearch && !successMessage && (
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-12 text-center shadow-sm dark:shadow-none">
+              <DollarSign size={48} className="mx-auto text-zinc-400 dark:text-zinc-700 mb-4" />
+              <h3 className="text-xl text-zinc-900 dark:text-zinc-300 font-medium">No Claims Added</h3>
+              <p className="text-zinc-500 mt-2">Click "Add Claim" to search and add repairs for payout.</p>
+            </div>
+          )}
+        </>
       )}
 
+      {/* Confirmation Modal */}
       <Modal
-        isOpen={showPayoutModal}
-        onClose={() => setShowPayoutModal(false)}
-        title="Process Payout"
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        title="Confirm Payout"
+        maxWidth="max-w-lg"
         footer={
           <>
             <button
-              onClick={() => setShowPayoutModal(false)}
+              onClick={() => setShowConfirmModal(false)}
               className="px-4 py-2 text-zinc-400 hover:text-white transition-colors"
               disabled={processing}
             >
@@ -238,7 +464,7 @@ const Payroll = () => {
             </button>
             <button
               onClick={executePayout}
-              disabled={processing || !isAmountValid}
+              disabled={processing}
               className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2"
             >
               {processing ? 'Processing...' : 'Confirm Payment'}
@@ -247,54 +473,29 @@ const Payroll = () => {
         }
       >
         <div className="space-y-4">
-          <div className="flex items-center gap-4 text-emerald-500 mb-4">
-            <CheckCircle2 size={32} />
-            <h4 className="text-xl font-bold">{breakdown.count} repairs selected</h4>
+          <div className="text-sm text-zinc-400 mb-2">
+            Paying: <span className="text-white font-medium">{selectedTech}</span>
           </div>
 
-          <div className="bg-zinc-950 rounded-lg border border-zinc-800 divide-y divide-zinc-800">
-            <div className="flex justify-between px-4 py-2.5">
-              <span className="text-zinc-400">Total Labor</span>
-              <span className="text-zinc-200 font-mono">${breakdown.labor.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between px-4 py-2.5">
-              <span className="text-zinc-400">Total Parts</span>
-              <span className="text-zinc-200 font-mono">${breakdown.parts.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between px-4 py-2.5">
-              <span className="text-zinc-400">Total Tax</span>
-              <span className="text-zinc-200 font-mono">${breakdown.tax.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between px-4 py-2.5">
-              <span className="text-zinc-400">Total Deposit</span>
-              <span className="text-zinc-200 font-mono">${breakdown.deposit.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between px-4 py-3 bg-zinc-900/50">
-              <span className="text-white font-bold">Grand Total</span>
-              <span className="text-white font-mono font-bold">${breakdown.total.toFixed(2)}</span>
-            </div>
+          <div className="bg-zinc-950 rounded-lg border border-zinc-800 divide-y divide-zinc-800 max-h-60 overflow-y-auto">
+            {claims.map(c => (
+              <div key={c.id} className="flex justify-between px-4 py-2.5">
+                <div>
+                  <span className="text-zinc-300 font-mono text-sm">#{c.claimNumber}</span>
+                  <span className="text-zinc-500 ml-2 text-sm">{c.brand} {c.model}</span>
+                  {c.status !== 'closed' && (
+                    <span className="ml-2 text-xs bg-yellow-900/40 text-yellow-400 px-1.5 py-0.5 rounded">prepaid</span>
+                  )}
+                </div>
+                <span className="text-emerald-400 font-mono font-medium">${parseFloat(c.payAmount).toFixed(2)}</span>
+              </div>
+            ))}
           </div>
 
-          <div className="mt-4">
-            <label className="block text-sm text-zinc-400 mb-2">Payout Amount</label>
-            <div className="relative">
-              <span className="absolute left-3 top-2.5 text-zinc-500 font-mono text-lg">$</span>
-              <input
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={payoutAmount}
-                onChange={(e) => setPayoutAmount(e.target.value)}
-                placeholder="0.00"
-                className="w-full bg-zinc-950 border border-zinc-700 text-white pl-8 pr-4 py-2.5 rounded-lg focus:border-emerald-500 outline-none font-mono text-lg"
-                autoFocus
-              />
-            </div>
+          <div className="flex justify-between px-4 py-3 bg-zinc-900/50 rounded-lg border border-zinc-800">
+            <span className="text-white font-bold">Grand Total</span>
+            <span className="text-white font-mono font-bold">${grandTotal.toFixed(2)}</span>
           </div>
-
-          <p className="text-sm text-zinc-500">
-            Enter the total amount to pay out. This will be recorded against the selected repairs.
-          </p>
         </div>
       </Modal>
     </div>

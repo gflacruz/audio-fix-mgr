@@ -275,35 +275,187 @@ router.get("/payroll-history", async (req, res) => {
   }
 });
 
-// POST /api/repairs/payout - Mark repairs as paid
+// GET /api/repairs/payroll/technician/:techName - Unpaid repairs for a specific technician
+router.get("/payroll/technician/:techName", async (req, res) => {
+  try {
+    const techName = req.params.techName;
+    const { search } = req.query;
+
+    let query = `
+      SELECT
+        r.id, r.claim_number, r.brand, r.model, r.technician, r.status,
+        r.labor_cost, r.diagnostic_fee_collected, r.deposit_amount, r.diagnostic_fee,
+        r.created_at, r.is_tax_exempt,
+        COALESCE(SUM(rp.quantity * rp.unit_price), 0) as parts_cost
+      FROM repairs r
+      LEFT JOIN repair_parts rp ON r.id = rp.repair_id
+      WHERE r.technician = $1
+        AND (r.paid_out IS FALSE OR r.paid_out IS NULL)
+    `;
+    const params = [techName];
+    let paramIndex = 2;
+
+    if (search) {
+      const searchPattern = `%${search}%`;
+      query += ` AND (
+        CAST(r.claim_number AS TEXT) ILIKE $${paramIndex}
+        OR r.brand ILIKE $${paramIndex}
+        OR r.model ILIKE $${paramIndex}
+      )`;
+      params.push(searchPattern);
+      paramIndex++;
+    }
+
+    query += ` GROUP BY r.id ORDER BY r.created_at DESC`;
+
+    const result = await db.query(query, params);
+
+    const formatted = result.rows.map((row) => {
+      const labor = parseFloat(row.labor_cost) || 0;
+      const parts = parseFloat(row.parts_cost) || 0;
+
+      let diagFeeVal = 0;
+      const deposit = parseFloat(row.deposit_amount);
+      const recordedFee = parseFloat(row.diagnostic_fee);
+
+      if (!isNaN(deposit) && deposit > 0) {
+        diagFeeVal = deposit;
+      } else if (!isNaN(recordedFee) && recordedFee > 0) {
+        diagFeeVal = recordedFee;
+      } else if (row.diagnostic_fee_collected) {
+        diagFeeVal = 89.0;
+      }
+      const diagFee = diagFeeVal;
+
+      const tax = row.is_tax_exempt ? 0 : (labor + parts) * 0.075;
+      const total = labor + parts + diagFee + tax;
+
+      return {
+        id: row.id,
+        claimNumber: row.claim_number,
+        brand: row.brand,
+        model: row.model,
+        technician: row.technician,
+        status: row.status,
+        laborCost: labor,
+        partsCost: parts,
+        tax: tax,
+        diagnosticFee: diagFee,
+        totalCost: total,
+        date: row.created_at,
+      };
+    });
+
+    res.json(formatted);
+  } catch (error) {
+    console.error("Error fetching technician payroll:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// POST /api/repairs/payout - Mark repairs as paid with per-repair amounts
 router.post("/payout", async (req, res) => {
   try {
-    const { repairIds, payoutAmount } = req.body;
-    if (!repairIds || !Array.isArray(repairIds) || repairIds.length === 0) {
-      return res.status(400).json({ error: "No repair IDs provided" });
+    const { items, technician } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "No payout items provided" });
     }
-    if (!payoutAmount || payoutAmount <= 0) {
-      return res.status(400).json({ error: "Payout amount must be a positive number" });
+    if (!technician) {
+      return res.status(400).json({ error: "Technician name is required" });
     }
 
-    const amountPerRepair = payoutAmount / repairIds.length;
+    for (const item of items) {
+      if (!item.repairId || !item.amount || item.amount <= 0) {
+        return res.status(400).json({ error: "Each item must have a valid repairId and positive amount" });
+      }
+    }
+
     const batchId = crypto.randomUUID();
 
-    // Set paid_out, paid_out_date, payout_amount, payout_batch_id, and copy technician to paid_to
-    const query = `
-      UPDATE repairs
-      SET paid_out = TRUE,
-          paid_out_date = NOW(),
-          paid_to = technician,
-          payout_amount = $2,
-          payout_batch_id = $3
-      WHERE id = ANY($1)
-    `;
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    await db.query(query, [repairIds, amountPerRepair, batchId]);
-    res.json({ message: "Repairs marked as paid" });
+      for (const item of items) {
+        const result = await client.query(
+          `UPDATE repairs
+           SET paid_out = TRUE,
+               paid_out_date = NOW(),
+               paid_to = $1,
+               payout_amount = $2,
+               payout_batch_id = $3
+           WHERE id = $4 AND (paid_out IS FALSE OR paid_out IS NULL)`,
+          [technician, item.amount, batchId, item.repairId]
+        );
+        if (result.rowCount === 0) {
+          throw new Error(`Repair ${item.repairId} not found or already paid out`);
+        }
+      }
+
+      await client.query('COMMIT');
+      res.json({ message: "Payout processed", batchId, count: items.length });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error("Error processing payout:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+// PATCH /api/repairs/payroll-history/batch/:batchId - Edit batch payout amounts and date
+router.patch("/payroll-history/batch/:batchId", async (req, res) => {
+  try {
+    const { batchId } = req.params;
+    const { items, paidOutDate } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "No payout items provided" });
+    }
+    if (!paidOutDate) {
+      return res.status(400).json({ error: "Paid out date is required" });
+    }
+
+    for (const item of items) {
+      if (!item.repairId || item.amount === undefined || item.amount === null || item.amount < 0) {
+        return res.status(400).json({ error: "Each item must have a valid repairId and non-negative amount" });
+      }
+    }
+
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Update paid_out_date for all repairs in the batch
+      await client.query(
+        `UPDATE repairs SET paid_out_date = $1 WHERE payout_batch_id = $2`,
+        [paidOutDate, batchId]
+      );
+
+      // Update individual payout amounts
+      for (const item of items) {
+        const result = await client.query(
+          `UPDATE repairs SET payout_amount = $1 WHERE id = $2 AND payout_batch_id = $3`,
+          [item.amount, item.repairId, batchId]
+        );
+        if (result.rowCount === 0) {
+          throw new Error(`Repair ${item.repairId} not found in batch ${batchId}`);
+        }
+      }
+
+      await client.query('COMMIT');
+      res.json({ message: "Batch updated successfully" });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error("Error updating batch:", error);
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });

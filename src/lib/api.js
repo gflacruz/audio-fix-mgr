@@ -159,11 +159,29 @@ export const getPayrollHistory = async (filters = {}) => {
   });
 };
 
-export const processPayout = async (repairIds, payoutAmount) => {
+export const processPayout = async (items, technician) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
   return fetchJSON('/repairs/payout', {
     method: 'POST',
-    body: JSON.stringify({ repairIds, payoutAmount }),
+    body: JSON.stringify({ items, technician }),
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const updatePayrollBatch = async (batchId, items, paidOutDate) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/repairs/payroll-history/batch/${batchId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ items, paidOutDate }),
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const getUnpaidRepairsForTech = async (techName, search = '') => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  return fetchJSON(`/repairs/payroll/technician/${encodeURIComponent(techName)}?${params.toString()}`, {
     headers: { Authorization: `Bearer ${user?.token}` }
   });
 };
