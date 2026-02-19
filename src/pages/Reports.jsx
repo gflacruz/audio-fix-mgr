@@ -3,7 +3,6 @@ import { Navigate } from 'react-router-dom';
 import { BarChart3 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { getReports } from '@/lib/api';
-import Sidebar from '@/components/Sidebar';
 
 const fmt = (val) => `$${val.toFixed(2)}`;
 
@@ -36,9 +35,7 @@ const Reports = () => {
   if (!isAdmin) return <Navigate to="/" />;
 
   return (
-    <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 transition-colors duration-200">
-      <Sidebar />
-      <div className="flex-1 overflow-y-auto p-8">
+    <div className="flex-1 overflow-y-auto p-8 bg-zinc-50 dark:bg-zinc-950 transition-colors duration-200">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <BarChart3 className="text-amber-500" size={28} />
@@ -122,7 +119,6 @@ const Reports = () => {
             </div>
           </>
         )}
-      </div>
     </div>
   );
 };

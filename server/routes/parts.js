@@ -49,11 +49,18 @@ router.get('/', verifyToken, async (req, res) => {
     const offset = (page - 1) * limit;
 
     let query = `
-      SELECT p.*, 
-             COALESCE(json_agg(pa.alias) FILTER (WHERE pa.alias IS NOT NULL), '[]') as aliases,
+      SELECT p.*,
+             COALESCE(
+               json_agg(
+                 json_build_object('alias', pa.alias, 'linkedPartId', linked_part.id)
+               ) FILTER (WHERE pa.alias IS NOT NULL), '[]'
+             ) as aliases,
              COUNT(*) OVER() as full_count
       FROM parts p
       LEFT JOIN part_aliases pa ON p.id = pa.part_id
+      LEFT JOIN parts linked_part
+        ON LOWER(pa.alias) = LOWER(linked_part.name)
+        AND linked_part.id != p.id
     `;
     
     const params = [];
@@ -105,8 +112,15 @@ router.get('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const query = `
-      SELECT p.*, 
-             (SELECT COALESCE(json_agg(alias), '[]') FROM part_aliases WHERE part_id = p.id) as aliases,
+      SELECT p.*,
+             (SELECT COALESCE(
+               json_agg(
+                 json_build_object('alias', pa.alias, 'linkedPartId', lp.id)
+               ), '[]')
+              FROM part_aliases pa
+              LEFT JOIN parts lp ON LOWER(pa.alias) = LOWER(lp.name) AND lp.id != p.id
+              WHERE pa.part_id = p.id
+             ) as aliases,
              (SELECT COALESCE(SUM(quantity), 0) FROM repair_parts WHERE part_id = p.id AND created_at >= date_trunc('year', CURRENT_DATE)) as issued_ytd,
              (SELECT MAX(created_at) FROM repair_parts WHERE part_id = p.id) as last_used_date
       FROM parts p

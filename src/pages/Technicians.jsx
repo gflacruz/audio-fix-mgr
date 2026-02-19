@@ -132,7 +132,7 @@ const Technicians = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-zinc-200 dark:border-zinc-800 mb-8 gap-8 overflow-x-auto">
+      <div className="flex flex-wrap border-b border-zinc-200 dark:border-zinc-800 mb-8 gap-x-8">
         {/* Unassigned Tab */}
         <button
           onClick={() => setSelectedTech('Unassigned')}

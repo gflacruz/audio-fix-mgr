@@ -66,7 +66,7 @@ const PartDetail = () => {
       quantityInStock: data.quantityInStock,
       lowLimit: data.lowLimit || 0,
       onOrder: data.onOrder || 0,
-      aliases: data.aliases ? data.aliases.join(', ') : '',
+      aliases: data.aliases ? data.aliases.map(a => typeof a === 'string' ? a : a.alias).join(', ') : '',
       location: data.location || '',
       description: data.description || '',
       bestPriceQuality: data.bestPriceQuality || '',
@@ -600,11 +600,25 @@ const PartDetail = () => {
                       <div>
                           <h3 className="text-sm font-medium text-zinc-500 mb-3 uppercase tracking-wider">Aliases / Keywords</h3>
                           <div className="flex flex-wrap gap-2">
-                              {part.aliases.map((alias, i) => (
-                                  <span key={i} className="bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 text-sm">
-                                      {alias}
-                                  </span>
-                              ))}
+                              {part.aliases.map((aliasObj, i) => {
+                                  const aliasText = typeof aliasObj === 'string' ? aliasObj : aliasObj.alias;
+                                  const linkedPartId = typeof aliasObj === 'string' ? null : aliasObj.linkedPartId;
+
+                                  return linkedPartId ? (
+                                      <span
+                                          key={i}
+                                          className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-3 py-1 rounded-full text-sm border border-amber-300 dark:border-amber-700 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
+                                          onClick={() => navigate(`/inventory/${linkedPartId}`)}
+                                          title="Go to linked part"
+                                      >
+                                          {aliasText}
+                                      </span>
+                                  ) : (
+                                      <span key={i} className="bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 text-sm">
+                                          {aliasText}
+                                      </span>
+                                  );
+                              })}
                           </div>
                       </div>
                   )}

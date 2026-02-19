@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS parts (
   image_url TEXT,
   image_public_id VARCHAR(255),
   nomenclature VARCHAR(255),
+  category VARCHAR(100),
   low_limit INTEGER DEFAULT 0,
   on_order INTEGER DEFAULT 0,
   best_price_quality VARCHAR(100),

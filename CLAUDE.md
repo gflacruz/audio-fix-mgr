@@ -46,7 +46,19 @@ Global API errors (500s, network failures) are dispatched as `api-error` custom 
 - **State:** React Context providers — `AuthContext`, `ThemeContext`, `ErrorContext`
 - **Pages:** `src/pages/` — each page is a self-contained view (Dashboard, Intake, Workbench, RepairDetail, Inventory, Payroll, etc.)
 - **Components:** `src/components/` — shared UI (Sidebar, Modal, ProtectedRoute, EstimateWizard)
+- **Components (repair):** `src/components/repair/` — RepairDetail sub-components (UnitSpecsCard, RepairFeesCard, RepairPartsSection, NotesSection, PhotosSection, InvoiceWizardModal, NotificationModal, EstimatesList, ShipmentDetailsCard, CostSummaryCard, ClientDetailsCard, DocumentsCard, AdminActionsCard, EditableTextSection)
+- **Custom Hooks:** `src/hooks/` — extracted logic for RepairDetail page (useRepairData, useRepairUpdater, useRepairParts, useNotificationFlow, useEstimateActions)
 - **Path alias:** `@` maps to `./src` (configured in vite.config.js)
+
+### RepairDetail Architecture
+The RepairDetail page (`src/pages/RepairDetail.jsx`) is a thin orchestrator (~285 lines) that wires together 5 custom hooks and 14 child components. State flows as follows:
+- `useRepairData(id)` owns the core data: `ticket`, `setTicket`, `client`, `technicians`, `estimates`
+- `useRepairUpdater` provides all `updateRepair()` handlers — accepts data as params, never owns edit state
+- `useRepairParts` manages parts search/add/remove workflow and owns 8 state vars
+- `useNotificationFlow` manages the email/SMS modal state machine
+- `useEstimateActions` manages estimate approve/decline/pending
+- Child components own their own edit state (e.g., `UnitSpecsCard` owns `isEditingSpecs`/`tempSpecs`)
+- `ticket` + `setTicket` is the single source of truth, threaded to all hooks and components
 
 ### Backend Structure
 - **Entry:** `server/index.js` — Express app with CORS, routes, static file serving
