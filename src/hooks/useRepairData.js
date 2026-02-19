@@ -48,7 +48,7 @@ export function useRepairData(id) {
 
   // Real-time Notes Polling
   useEffect(() => {
-    if (!id) return;
+    if (!id || isNaN(Number(id))) return;
 
     const pollNotes = async () => {
       try {

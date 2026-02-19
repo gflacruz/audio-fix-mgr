@@ -29,6 +29,14 @@ cloudinary.config({
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+// Validate :id param is a numeric repair ID before any /:id route runs
+router.param('id', (req, res, next, id) => {
+  if (!/^\d+$/.test(id)) {
+    return res.status(400).json({ error: `Invalid repair ID: "${id}"` });
+  }
+  next();
+});
+
 // GET /api/repairs - List all repairs
 router.get("/", async (req, res) => {
   try {
