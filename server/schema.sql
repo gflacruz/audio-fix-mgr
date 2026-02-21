@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(50) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
   name VARCHAR(100) NOT NULL,
-  role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'technician')),
+  role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'technician', 'senior_technician')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -216,3 +216,11 @@ CREATE TRIGGER update_repairs_updated_at
 BEFORE UPDATE ON repairs
 FOR EACH ROW
 EXECUTE PROCEDURE update_repairs_updated_at_column();
+
+-- Manual override columns for YTD and last-used stats on parts
+ALTER TABLE parts ADD COLUMN IF NOT EXISTS issued_ytd_override INTEGER;
+ALTER TABLE parts ADD COLUMN IF NOT EXISTS last_used_date_override DATE;
+
+-- Add senior_technician role support
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin', 'technician', 'senior_technician'));

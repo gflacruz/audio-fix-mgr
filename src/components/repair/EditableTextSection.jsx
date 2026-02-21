@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Edit2 } from 'lucide-react';
 
-export default function EditableTextSection({ title, value, onSave, icon: Icon, showWhenEmpty = true }) {
+export default function EditableTextSection({ title, value, onSave, icon: Icon, showWhenEmpty = true, readOnly = false }) {
   const [isEditing, setIsEditing] = useState(false);
   const [tempValue, setTempValue] = useState('');
 
@@ -23,7 +23,7 @@ export default function EditableTextSection({ title, value, onSave, icon: Icon, 
         <h3 className="text-amber-600 dark:text-amber-500 font-semibold flex items-center gap-2">
           {Icon && <Icon size={18} />} {title}
         </h3>
-        {!isEditing && (
+        {!isEditing && !readOnly && (
           <button onClick={startEditing} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white">
             <Edit2 size={16} />
           </button>

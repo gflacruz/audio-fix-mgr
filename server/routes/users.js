@@ -89,6 +89,43 @@ router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
+// PUT /api/users/:id - Update user name, username, role (Admin only)
+router.put('/:id', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, username, role } = req.body;
+
+    if (!name || !username || !role) {
+      return res.status(400).json({ error: 'Name, username, and role are required' });
+    }
+
+    const validRoles = ['admin', 'technician', 'senior_technician'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    // Prevent changing own role
+    if (parseInt(id) === req.user.id && role !== req.user.role) {
+      return res.status(400).json({ error: 'Cannot change your own role' });
+    }
+
+    // Check username uniqueness (exclude self)
+    const existing = await db.query('SELECT id FROM users WHERE username = $1 AND id != $2', [username, id]);
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ error: 'Username already taken' });
+    }
+
+    const result = await db.query(
+      'UPDATE users SET name = $1, username = $2, role = $3 WHERE id = $4 RETURNING id, username, name, role, created_at',
+      [name, username, role, id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
 // PUT /api/users/:id/password - Reset User Password (Admin only)
 router.put('/:id/password', verifyToken, verifyAdmin, async (req, res) => {
   try {

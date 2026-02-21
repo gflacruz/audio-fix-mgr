@@ -176,7 +176,7 @@ const Login = () => {
                 >
                   {users.map((u) => (
                     <option key={u.id} value={u.username}>
-                      {u.name} ({u.role})
+                      {u.name}{u.role === 'admin' ? ' (admin)' : ''}
                     </option>
                   ))}
                 </select>

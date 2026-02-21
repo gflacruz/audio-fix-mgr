@@ -36,7 +36,7 @@ const RepairDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isAtLeastSeniorTech } = useAuth();
   const { showError } = useError();
 
   // Core data
@@ -154,41 +154,43 @@ const RepairDetail = () => {
         </div>
 
         <div className="flex flex-col items-end gap-2 w-full xl:w-auto">
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={ticket.status === 'closed' ? undefined : notifications.handleSendEstimateEmail}
-              disabled={ticket.status === 'closed'}
-              className={`flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded transition-colors ${
-                ticket.status === 'closed'
-                  ? 'opacity-40 cursor-not-allowed bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-700'
-                  : client?.primaryNotification === 'Text'
-                    ? 'bg-amber-100 dark:bg-amber-700/30 hover:bg-amber-200 dark:hover:bg-amber-700/40 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-600/50'
-                    : 'bg-amber-50 dark:bg-amber-600/20 hover:bg-amber-100 dark:hover:bg-amber-600/30 text-amber-600 dark:text-amber-500 border-amber-200 dark:border-amber-600/30'
-              }`}
-              title={ticket.status === 'closed' ? "Repair status is closed — reopen to use this button" : client?.primaryNotification === 'Text' ? "Text Estimate" : "Email Estimate"}
-            >
-              {client?.primaryNotification === 'Text' ? <MessageSquare size={14} /> : <Mail size={14} />}
-              {client?.primaryNotification === 'Text' ? "Text Estimate" : "Email Estimate"}
-            </button>
-
-            {(ticket.status === 'ready' || ticket.status === 'closed') && (
+          {isAtLeastSeniorTech && (
+            <div className="flex gap-2 mt-2">
               <button
-                onClick={ticket.status === 'closed' ? undefined : notifications.handleSendPickupEmail}
+                onClick={ticket.status === 'closed' ? undefined : notifications.handleSendEstimateEmail}
                 disabled={ticket.status === 'closed'}
                 className={`flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded transition-colors ${
                   ticket.status === 'closed'
                     ? 'opacity-40 cursor-not-allowed bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-700'
                     : client?.primaryNotification === 'Text'
-                      ? 'bg-emerald-100 dark:bg-emerald-700/30 hover:bg-emerald-200 dark:hover:bg-emerald-700/40 text-emerald-800 dark:text-emerald-400 border-emerald-200 dark:border-emerald-600/50'
-                      : 'bg-emerald-50 dark:bg-emerald-600/20 hover:bg-emerald-100 dark:hover:bg-emerald-600/30 text-emerald-600 dark:text-emerald-500 border-emerald-200 dark:border-emerald-600/30'
+                      ? 'bg-amber-100 dark:bg-amber-700/30 hover:bg-amber-200 dark:hover:bg-amber-700/40 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-600/50'
+                      : 'bg-amber-50 dark:bg-amber-600/20 hover:bg-amber-100 dark:hover:bg-amber-600/30 text-amber-600 dark:text-amber-500 border-amber-200 dark:border-amber-600/30'
                 }`}
-                title={ticket.status === 'closed' ? "Repair status is closed — reopen to use this button" : client?.primaryNotification === 'Text' ? "Text Ready for Pickup" : "Email Ready for Pickup"}
+                title={ticket.status === 'closed' ? "Repair status is closed — reopen to use this button" : client?.primaryNotification === 'Text' ? "Text Estimate" : "Email Estimate"}
               >
-                {client?.primaryNotification === 'Text' ? <MessageSquare size={14} /> : <Send size={14} />}
-                {client?.primaryNotification === 'Text' ? "Text Ready" : "Email Ready"}
+                {client?.primaryNotification === 'Text' ? <MessageSquare size={14} /> : <Mail size={14} />}
+                {client?.primaryNotification === 'Text' ? "Text Estimate" : "Email Estimate"}
               </button>
-            )}
-          </div>
+
+              {(ticket.status === 'ready' || ticket.status === 'closed') && (
+                <button
+                  onClick={ticket.status === 'closed' ? undefined : notifications.handleSendPickupEmail}
+                  disabled={ticket.status === 'closed'}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded transition-colors ${
+                    ticket.status === 'closed'
+                      ? 'opacity-40 cursor-not-allowed bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-700'
+                      : client?.primaryNotification === 'Text'
+                        ? 'bg-emerald-100 dark:bg-emerald-700/30 hover:bg-emerald-200 dark:hover:bg-emerald-700/40 text-emerald-800 dark:text-emerald-400 border-emerald-200 dark:border-emerald-600/50'
+                        : 'bg-emerald-50 dark:bg-emerald-600/20 hover:bg-emerald-100 dark:hover:bg-emerald-600/30 text-emerald-600 dark:text-emerald-500 border-emerald-200 dark:border-emerald-600/30'
+                  }`}
+                  title={ticket.status === 'closed' ? "Repair status is closed — reopen to use this button" : client?.primaryNotification === 'Text' ? "Text Ready for Pickup" : "Email Ready for Pickup"}
+                >
+                  {client?.primaryNotification === 'Text' ? <MessageSquare size={14} /> : <Send size={14} />}
+                  {client?.primaryNotification === 'Text' ? "Text Ready" : "Email Ready"}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -197,7 +199,7 @@ const RepairDetail = () => {
         <div className="col-span-2 space-y-6">
           <UnitSpecsCard ticket={ticket} onSave={updater.handleSaveSpecs} />
           <EditableTextSection title="Reported Issue" value={ticket.issue} onSave={updater.handleSaveIssue} icon={AlertCircle} />
-          <EditableTextSection title="Work Performed" value={ticket.workPerformed} onSave={updater.saveWorkPerformed} icon={CheckCircle2} showWhenEmpty={false} />
+          <EditableTextSection title="Work Performed" value={ticket.workPerformed} onSave={updater.saveWorkPerformed} icon={CheckCircle2} showWhenEmpty={false} readOnly={!isAtLeastSeniorTech} />
           <RepairPartsSection ticket={ticket} {...parts} />
           <ModelNotesCard
             brand={ticket.brand}
@@ -231,27 +233,31 @@ const RepairDetail = () => {
             onTaxExemptToggle={updater.handleTaxExemptToggle}
           />
 
-          <button
-            onClick={() => setShowInvoiceWizard(true)}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 text-white px-4 py-3 rounded-xl font-bold transition-colors shadow-sm mb-4"
-          >
-            <FileText size={20} /> Invoice Wizard
-          </button>
+          {isAtLeastSeniorTech && (
+            <button
+              onClick={() => setShowInvoiceWizard(true)}
+              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-500 text-white px-4 py-3 rounded-xl font-bold transition-colors shadow-sm mb-4"
+            >
+              <FileText size={20} /> Invoice Wizard
+            </button>
+          )}
 
           <CostSummaryCard ticket={ticket} />
 
-          <button
-            onClick={ticket.status === 'closed' ? undefined : () => setShowEstimateWizard(true)}
-            disabled={ticket.status === 'closed'}
-            title={ticket.status === 'closed' ? "Repair status is closed — reopen to use this button" : undefined}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold transition-colors shadow-sm mb-4 ${
-              ticket.status === 'closed'
-                ? 'opacity-40 cursor-not-allowed bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400'
-                : 'bg-amber-600 hover:bg-amber-700 dark:hover:bg-amber-500 text-white'
-            }`}
-          >
-            <DollarSign size={20} /> Estimate Wizard
-          </button>
+          {isAtLeastSeniorTech && (
+            <button
+              onClick={ticket.status === 'closed' ? undefined : () => setShowEstimateWizard(true)}
+              disabled={ticket.status === 'closed'}
+              title={ticket.status === 'closed' ? "Repair status is closed — reopen to use this button" : undefined}
+              className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold transition-colors shadow-sm mb-4 ${
+                ticket.status === 'closed'
+                  ? 'opacity-40 cursor-not-allowed bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400'
+                  : 'bg-amber-600 hover:bg-amber-700 dark:hover:bg-amber-500 text-white'
+              }`}
+            >
+              <DollarSign size={20} /> Estimate Wizard
+            </button>
+          )}
 
           <EstimatesList
             estimates={estimates}

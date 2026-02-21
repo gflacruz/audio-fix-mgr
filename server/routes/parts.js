@@ -37,9 +37,9 @@ const formatPart = (row) => ({
   supplySource: row.supply_source,
   category: row.category,
   remarks: row.remarks,
-  // Calculated fields (might be undefined if not in query)
-  issuedYtd: row.issued_ytd ? parseInt(row.issued_ytd) : 0,
-  lastUsedDate: row.last_used_date || null
+  // Calculated fields with manual override support
+  issuedYtd: row.issued_ytd_override != null ? parseInt(row.issued_ytd_override) : (row.issued_ytd ? parseInt(row.issued_ytd) : 0),
+  lastUsedDate: row.last_used_date_override || row.last_used_date || null
 });
 
 // GET /api/parts - List all parts (Searchable & Paginated)
@@ -242,9 +242,10 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
   const client = await db.pool.connect();
   try {
     const { id } = req.params;
-    const { 
+    const {
       name, nomenclature, retailPrice, wholesalePrice, quantityInStock, lowLimit, onOrder,
-      aliases, location, description, bestPriceQuality, unitOfIssue, lastSupplier, supplySource, category, remarks
+      aliases, location, description, bestPriceQuality, unitOfIssue, lastSupplier, supplySource, category, remarks,
+      issuedYtd, lastUsedDate
     } = req.body;
 
     // Fetch existing part to check for old image
@@ -293,7 +294,9 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
       last_supplier = $12,
       supply_source = $13,
       category = $14,
-      remarks = $15
+      remarks = $15,
+      issued_ytd_override = $16,
+      last_used_date_override = $17
     `;
 
     const params = [
@@ -311,9 +314,11 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
       lastSupplier || null,
       supplySource || null,
       category || null,
-      remarks || null
+      remarks || null,
+      (issuedYtd !== undefined && issuedYtd !== '') ? parseInt(issuedYtd) : null,
+      lastUsedDate || null
     ];
-    let paramIndex = 16;
+    let paramIndex = 18;
 
     if (updateImage) {
         query += `, image_url = $${paramIndex}, image_public_id = $${paramIndex + 1}`;
@@ -356,10 +361,24 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
         }
     }
 
-    const part = partResult.rows[0];
-    part.aliases = aliasList || [];
-    
-    res.json(formatPart(part));
+    // Re-fetch the full part with linked aliases resolved
+    const refetchResult = await db.query(`
+      SELECT p.*,
+             (SELECT COALESCE(
+               json_agg(
+                 json_build_object('alias', pa.alias, 'linkedPartId', lp.id)
+               ), '[]')
+              FROM part_aliases pa
+              LEFT JOIN parts lp ON LOWER(pa.alias) = LOWER(lp.name) AND lp.id != p.id
+              WHERE pa.part_id = p.id
+             ) as aliases,
+             (SELECT COALESCE(SUM(quantity), 0) FROM repair_parts WHERE part_id = p.id AND created_at >= date_trunc('year', CURRENT_DATE)) as issued_ytd,
+             (SELECT MAX(created_at) FROM repair_parts WHERE part_id = p.id) as last_used_date
+      FROM parts p
+      WHERE p.id = $1
+    `, [id]);
+
+    res.json(formatPart(refetchResult.rows[0]));
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error updating part:', error);
