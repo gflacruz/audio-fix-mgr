@@ -208,7 +208,7 @@ const RepairDetail = () => {
             onSave={(noteText) => handleSaveModelNote(noteText, user?.name)}
             loading={modelNoteLoading}
           />
-          <NotesSection ticket={ticket} repairId={id} user={user} setTicket={setTicket} />
+          <NotesSection ticket={ticket} repairId={id} user={user} isAdmin={isAdmin} setTicket={setTicket} />
           <PhotosSection ticket={ticket} repairId={id} setTicket={setTicket} />
         </div>
 

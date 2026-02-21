@@ -30,7 +30,7 @@ const AdminUsers = () => {
   };
 
   const initiateEdit = (u) => {
-    setEditModal({ show: true, userId: u.id, name: u.name, username: u.username, role: u.role });
+    setEditModal({ show: true, userId: u.id, name: u.name, username: u.username, role: u.role, originalRole: u.role });
   };
 
   const confirmEdit = async (e) => {
@@ -46,8 +46,12 @@ const AdminUsers = () => {
       });
       if (res.ok) {
         const updated = await res.json();
+        const roleChanged = editModal.role !== editModal.originalRole;
         setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
-        setEditModal({ show: false, userId: null, name: '', username: '', role: '' });
+        setEditModal({ show: false, userId: null, name: '', username: '', role: '', originalRole: '' });
+        if (roleChanged) {
+          setSuccessModal({ show: true, message: `${updated.name}'s role has been updated to ${roleLabel(updated.role)}.` });
+        }
       } else {
         const err = await res.json();
         setSuccessModal({ show: true, message: err.error || 'Failed to update user' });

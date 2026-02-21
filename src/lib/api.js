@@ -140,6 +140,19 @@ export const addRepairNote = async (id, noteData) => {
   });
 };
 
+export const updateRepairNote = async (repairId, noteId, text) => {
+  return fetchJSON(`/repairs/${repairId}/notes/${noteId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ text }),
+  });
+};
+
+export const deleteRepairNote = async (repairId, noteId) => {
+  return fetchJSON(`/repairs/${repairId}/notes/${noteId}`, {
+    method: 'DELETE',
+  });
+};
+
 // Model Notes
 export const getModelNote = async (brand, model) => {
   const params = new URLSearchParams({ brand, model });

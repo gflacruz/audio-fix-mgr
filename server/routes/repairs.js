@@ -966,6 +966,39 @@ router.get("/:id/notes", async (req, res) => {
   }
 });
 
+// PATCH /api/repairs/:id/notes/:noteId - Edit a note (admin only)
+router.patch("/:id/notes/:noteId", verifyToken, verifyAdmin, async (req, res) => {
+  const { text } = req.body;
+  if (!text?.trim()) return res.status(400).json({ error: "text is required" });
+  try {
+    const result = await db.query(
+      "UPDATE repair_notes SET text = $1 WHERE id = $2 AND repair_id = $3 RETURNING *",
+      [text, req.params.noteId, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "Note not found" });
+    const n = result.rows[0];
+    res.json({ id: n.id, text: n.text, author: n.author, date: n.created_at });
+  } catch (error) {
+    console.error("Error updating note:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+// DELETE /api/repairs/:id/notes/:noteId - Remove a note (admin only)
+router.delete("/:id/notes/:noteId", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const result = await db.query(
+      "DELETE FROM repair_notes WHERE id = $1 AND repair_id = $2 RETURNING id",
+      [req.params.noteId, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "Note not found" });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting note:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
 // POST /api/repairs/:id/notes - Add a note
 router.post("/:id/notes", async (req, res) => {
   try {

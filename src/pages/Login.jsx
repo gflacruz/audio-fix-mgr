@@ -49,10 +49,10 @@ const Login = () => {
           const data = await response.json();
           setUsers(data);
           if (data.length > 0) {
-            // Default to first user
-            const firstUser = data[0];
-            setSelectedUser(firstUser);
-            setUsername(firstUser.username);
+            const lastUsername = localStorage.getItem('last_login_username');
+            const defaultUser = (lastUsername && data.find(u => u.username === lastUsername)) || data[0];
+            setSelectedUser(defaultUser);
+            setUsername(defaultUser.username);
           }
         }
       } catch (err) {
@@ -102,6 +102,7 @@ const Login = () => {
 
       if (response.ok) {
         localStorage.setItem('server_url', loginUrl);
+        localStorage.setItem('last_login_username', username);
         login(data);
         
         // Reload to ensure api.js picks up the new URL. 
