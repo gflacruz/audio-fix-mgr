@@ -81,7 +81,7 @@ router.get("/", async (req, res) => {
       query += ` WHERE ${whereClauses.join(" AND ")}`;
     }
 
-    query += " ORDER BY r.created_at DESC";
+    query += " ORDER BY r.updated_at DESC";
 
     const result = await db.query(query, params);
 
@@ -105,7 +105,8 @@ router.get("/", async (req, res) => {
       status: row.status,
       technician: row.technician,
       checkedInBy: row.checked_in_by,
-      dateIn: row.created_at, // Map created_at to dateIn
+      dateIn: row.created_at,
+      updatedAt: row.updated_at,
       completedDate: row.completed_date,
       closedDate: row.closed_date,
       diagnosticFeeCollected: row.diagnostic_fee_collected,

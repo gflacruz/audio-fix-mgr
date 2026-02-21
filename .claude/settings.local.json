@@ -10,7 +10,9 @@
       "Bash(del:*)",
       "Bash(docker compose:*)",
       "Bash(docker cp:*)",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(findstr:*)",
+      "Bash(psql:*)"
     ]
   }
 }

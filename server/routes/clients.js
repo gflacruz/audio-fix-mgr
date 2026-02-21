@@ -89,21 +89,22 @@ router.get('/:id', async (req, res) => {
     }));
 
     // Calculate Total Spent (Closed tickets only)
-    // Sum of Labor + Diag ($89 if collected) + Parts
+    // Formula: labor + parts + 7.5% tax (if not tax exempt)
     const totalSpentQuery = `
       WITH client_closed_repairs AS (
-        SELECT id, labor_cost, diagnostic_fee_collected
-        FROM repairs
-        WHERE client_id = $1 AND status = 'closed'
+        SELECT r.id, r.labor_cost, r.is_tax_exempt,
+          COALESCE((
+            SELECT SUM(rp.quantity * rp.unit_price)
+            FROM repair_parts rp
+            WHERE rp.repair_id = r.id
+          ), 0) AS parts_cost
+        FROM repairs r
+        WHERE r.client_id = $1 AND r.status = 'closed'
       )
-      SELECT
-        COALESCE(SUM(r.labor_cost), 0) +
-        COALESCE(SUM(CASE WHEN r.diagnostic_fee_collected THEN 89.00 ELSE 0 END), 0) +
-        COALESCE((
-          SELECT SUM(rp.quantity * rp.unit_price)
-          FROM repair_parts rp
-          WHERE rp.repair_id IN (SELECT id FROM client_closed_repairs)
-        ), 0) as grand_total
+      SELECT COALESCE(SUM(
+        r.labor_cost + r.parts_cost +
+        CASE WHEN r.is_tax_exempt THEN 0 ELSE (r.labor_cost + r.parts_cost) * 0.075 END
+      ), 0) AS grand_total
       FROM client_closed_repairs r
     `;
     

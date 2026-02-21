@@ -198,3 +198,21 @@ CREATE TRIGGER update_estimates_updated_at
 BEFORE UPDATE ON estimates
 FOR EACH ROW
 EXECUTE PROCEDURE update_estimates_updated_at_column();
+
+-- Add updated_at to repairs table
+ALTER TABLE repairs ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+UPDATE repairs SET updated_at = created_at WHERE updated_at IS NULL;
+
+CREATE OR REPLACE FUNCTION update_repairs_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+DROP TRIGGER IF EXISTS update_repairs_updated_at ON repairs;
+CREATE TRIGGER update_repairs_updated_at
+BEFORE UPDATE ON repairs
+FOR EACH ROW
+EXECUTE PROCEDURE update_repairs_updated_at_column();

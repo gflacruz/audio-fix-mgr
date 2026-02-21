@@ -509,11 +509,10 @@ const ClientDetail = () => {
             
             <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {tickets.map(ticket => {
-                const deposit = Number(ticket.depositAmount || ticket.diagnosticFee || 0);
                 const parts = Number(ticket.partsCost || 0);
                 const labor = Number(ticket.laborCost || 0);
-                const tax = ticket.isTaxExempt ? 0 : (parts + labor) * 0.075;
-                const totalPaid = deposit + parts + labor + tax;
+                const tax = ticket.isTaxExempt ? 0 : (labor + parts) * 0.075;
+                const totalPaid = labor + parts + tax;
 
                 return (
                   <Link to={`/repair/${ticket.id}`} key={ticket.id} className="block p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group">

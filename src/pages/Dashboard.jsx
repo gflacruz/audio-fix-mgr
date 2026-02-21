@@ -3,6 +3,25 @@ import { getRepairs } from '@/lib/api';
 import { Activity, Clock, CheckCircle2, AlertCircle, Wrench } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+const StatusBadge = ({ status }) => {
+  const colors = {
+    queued:    'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',
+    diagnosing:'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/50 dark:text-blue-400 dark:border-blue-900',
+    estimate:  'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:text-orange-400 dark:border-orange-900',
+    parts:     'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/50 dark:text-yellow-400 dark:border-yellow-900',
+    shipping:  'bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/50 dark:text-cyan-400 dark:border-cyan-900',
+    repairing: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/50 dark:text-purple-400 dark:border-purple-900',
+    testing:   'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/50 dark:text-pink-400 dark:border-pink-900',
+    ready:     'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/50 dark:text-green-400 dark:border-green-900',
+    closed:    'bg-zinc-200 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-600',
+  };
+  return (
+    <span className={`px-2 py-1 rounded text-xs uppercase font-bold tracking-wider border ${colors[status] || colors.queued}`}>
+      {status === 'estimate' ? 'Awaiting Est.' : status}
+    </span>
+  );
+};
+
 const StatCard = ({ title, value, icon: Icon, color }) => (
   <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl flex items-center justify-between shadow-sm dark:shadow-none transition-colors duration-200">
     <div>
@@ -28,7 +47,7 @@ const Dashboard = () => {
     getRepairs().then(repairs => {
       // Calculate Stats
       const activeRepairs = repairs.filter(r => r.status !== 'closed');
-      
+
       setStats({
         total: activeRepairs.length,
         inProgress: repairs.filter(r => ['diagnosing', 'repairing'].includes(r.status)).length,
@@ -36,15 +55,15 @@ const Dashboard = () => {
         ready: repairs.filter(r => r.status === 'ready').length
       });
 
-      // Get Recent Activity (Already sorted by backend)
-      setRecentRepairs(repairs.slice(0, 3));
+      // Get Recent Activity (Already sorted by backend by updated_at DESC)
+      setRecentRepairs(repairs.slice(0, 5));
     }).catch(console.error);
   }, []);
 
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6 text-zinc-900 dark:text-white">Shop Overview</h2>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard title="Active Jobs" value={stats.total} icon={Activity} color="blue" />
         <StatCard title="On Bench" value={stats.inProgress} icon={Wrench} color="amber" />
@@ -56,11 +75,11 @@ const Dashboard = () => {
         <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
           <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">Recent Activity</h3>
         </div>
-        
+
         <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
           {recentRepairs.map(ticket => (
-            <Link 
-              to={`/repair/${ticket.id}`} 
+            <Link
+              to={`/repair/${ticket.id}`}
               key={ticket.id}
               className="flex items-center justify-between p-6 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group"
             >
@@ -70,14 +89,15 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <h4 className="text-zinc-900 dark:text-white font-medium group-hover:text-amber-600 dark:group-hover:text-amber-500 transition-colors">
-                    New Intake: {ticket.brand} {ticket.model}
+                    {ticket.brand} {ticket.model}
                   </h4>
                   <p className="text-sm text-zinc-500">
-                    Client: {ticket.clientName} • {new Date(ticket.dateIn).toLocaleString()}
+                    {ticket.clientName} • Updated {new Date(ticket.updatedAt).toLocaleString()}
                   </p>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="flex items-center gap-2">
+                <StatusBadge status={ticket.status} />
                 <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 px-2 py-1 rounded">
                   #{ticket.claimNumber || ticket.id}
                 </span>

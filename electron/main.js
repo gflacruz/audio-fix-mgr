@@ -9,11 +9,17 @@ function createWindow() {
     width: 1280,
     height: 800,
     icon: path.join(__dirname, '../build/icon.ico'),
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     }
+  });
+
+  win.once('ready-to-show', () => {
+    win.maximize();
+    win.show();
   });
 
   const isDev = !app.isPackaged;
