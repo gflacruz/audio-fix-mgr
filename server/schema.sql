@@ -217,8 +217,9 @@ BEFORE UPDATE ON repairs
 FOR EACH ROW
 EXECUTE PROCEDURE update_repairs_updated_at_column();
 
--- Manual override columns for YTD and last-used stats on parts
+-- Manual override columns for lifetime and last-used stats on parts
 ALTER TABLE parts ADD COLUMN IF NOT EXISTS issued_ytd_override INTEGER;
+ALTER TABLE parts RENAME COLUMN issued_ytd_override TO issued_lifetime_override;
 ALTER TABLE parts ADD COLUMN IF NOT EXISTS last_used_date_override DATE;
 
 -- Add senior_technician role support

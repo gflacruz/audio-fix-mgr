@@ -38,7 +38,7 @@ const PartDetail = () => {
     lastSupplier: '',
     supplySource: '',
     remarks: '',
-    issuedYtd: '',
+    issuedLifetime: '',
     lastUsedDate: '',
     image: null,
     previewUrl: null,
@@ -79,7 +79,7 @@ const PartDetail = () => {
       lastSupplier: data.lastSupplier || '',
       supplySource: data.supplySource || '',
       remarks: data.remarks || '',
-      issuedYtd: data.issuedYtd ?? 0,
+      issuedLifetime: data.issuedLifetime ?? 0,
       lastUsedDate: data.lastUsedDate ? format(new Date(data.lastUsedDate), 'yyyy-MM-dd') : '',
       image: null,
       previewUrl: data.imageUrl || null,
@@ -122,7 +122,7 @@ const PartDetail = () => {
       data.append('supplySource', formData.supplySource);
       data.append('remarks', formData.remarks);
       data.append('category', formData.category);
-      data.append('issuedYtd', formData.issuedYtd !== '' ? parseInt(formData.issuedYtd) : '');
+      data.append('issuedLifetime', formData.issuedLifetime !== '' ? parseInt(formData.issuedLifetime) : '');
       data.append('lastUsedDate', formData.lastUsedDate || '');
       const aliasArray = formData.aliases.split(',').map(a => a.trim()).filter(a => a);
       data.append('aliases', JSON.stringify(aliasArray));
@@ -369,18 +369,18 @@ const PartDetail = () => {
                   <span className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-300 font-bold">Usage Stats</span>
                 </div>
                 <div>
-                  <div className={lbl}>Issued YTD</div>
+                  <div className={lbl}>Issued Lifetime</div>
                   {isEditing ? (
                     <input
                       type="number"
                       min="0"
-                      value={formData.issuedYtd}
-                      onChange={(e) => set('issuedYtd', e.target.value)}
+                      value={formData.issuedLifetime}
+                      onChange={(e) => set('issuedLifetime', e.target.value)}
                       className={inp}
                     />
                   ) : (
                     <div className="text-2xl font-bold text-zinc-900 dark:text-white">
-                      {part.issuedYtd}
+                      {part.issuedLifetime}
                       <span className="text-xs text-zinc-500 ml-1 font-normal">{part.unitOfIssue || 'qty'}</span>
                     </div>
                   )}

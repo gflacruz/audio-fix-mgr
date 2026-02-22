@@ -141,15 +141,19 @@ export const addRepairNote = async (id, noteData) => {
 };
 
 export const updateRepairNote = async (repairId, noteId, text) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
   return fetchJSON(`/repairs/${repairId}/notes/${noteId}`, {
     method: 'PATCH',
     body: JSON.stringify({ text }),
+    headers: { Authorization: `Bearer ${user?.token}` },
   });
 };
 
 export const deleteRepairNote = async (repairId, noteId) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
   return fetchJSON(`/repairs/${repairId}/notes/${noteId}`, {
     method: 'DELETE',
+    headers: { Authorization: `Bearer ${user?.token}` },
   });
 };
 

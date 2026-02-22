@@ -38,7 +38,7 @@ const formatPart = (row) => ({
   category: row.category,
   remarks: row.remarks,
   // Calculated fields with manual override support
-  issuedYtd: row.issued_ytd_override != null ? parseInt(row.issued_ytd_override) : (row.issued_ytd ? parseInt(row.issued_ytd) : 0),
+  issuedLifetime: row.issued_lifetime_override != null ? parseInt(row.issued_lifetime_override) : (row.issued_lifetime ? parseInt(row.issued_lifetime) : 0),
   lastUsedDate: row.last_used_date_override || row.last_used_date || null
 });
 
@@ -121,7 +121,7 @@ router.get('/:id', verifyToken, async (req, res) => {
               LEFT JOIN parts lp ON LOWER(pa.alias) = LOWER(lp.name) AND lp.id != p.id
               WHERE pa.part_id = p.id
              ) as aliases,
-             (SELECT COALESCE(SUM(quantity), 0) FROM repair_parts WHERE part_id = p.id AND created_at >= date_trunc('year', CURRENT_DATE)) as issued_ytd,
+             (SELECT COALESCE(SUM(quantity), 0) FROM repair_parts WHERE part_id = p.id) as issued_lifetime,
              (SELECT MAX(created_at) FROM repair_parts WHERE part_id = p.id) as last_used_date
       FROM parts p
       WHERE p.id = $1
@@ -245,7 +245,7 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
     const {
       name, nomenclature, retailPrice, wholesalePrice, quantityInStock, lowLimit, onOrder,
       aliases, location, description, bestPriceQuality, unitOfIssue, lastSupplier, supplySource, category, remarks,
-      issuedYtd, lastUsedDate
+      issuedLifetime, lastUsedDate
     } = req.body;
 
     // Fetch existing part to check for old image
@@ -295,7 +295,7 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
       supply_source = $13,
       category = $14,
       remarks = $15,
-      issued_ytd_override = $16,
+      issued_lifetime_override = $16,
       last_used_date_override = $17
     `;
 
@@ -315,7 +315,7 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
       supplySource || null,
       category || null,
       remarks || null,
-      (issuedYtd !== undefined && issuedYtd !== '') ? parseInt(issuedYtd) : null,
+      (issuedLifetime !== undefined && issuedLifetime !== '') ? parseInt(issuedLifetime) : null,
       lastUsedDate || null
     ];
     let paramIndex = 18;
@@ -372,7 +372,7 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
               LEFT JOIN parts lp ON LOWER(pa.alias) = LOWER(lp.name) AND lp.id != p.id
               WHERE pa.part_id = p.id
              ) as aliases,
-             (SELECT COALESCE(SUM(quantity), 0) FROM repair_parts WHERE part_id = p.id AND created_at >= date_trunc('year', CURRENT_DATE)) as issued_ytd,
+             (SELECT COALESCE(SUM(quantity), 0) FROM repair_parts WHERE part_id = p.id) as issued_lifetime,
              (SELECT MAX(created_at) FROM repair_parts WHERE part_id = p.id) as last_used_date
       FROM parts p
       WHERE p.id = $1
