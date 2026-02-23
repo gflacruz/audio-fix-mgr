@@ -1,15 +1,16 @@
 import React from 'react';
 import { Lock } from 'lucide-react';
+import { CLOSED_STATUSES } from '@/lib/repairConstants';
 
 export default function RepairStatusCard({ ticket, technicians, onStatusChange, onTechnicianChange }) {
-  const isClosed = ticket.status === 'closed';
+  const isClosed = CLOSED_STATUSES.includes(ticket.status);
 
   return (
     <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 space-y-4">
       {isClosed && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 text-xs font-medium">
           <Lock size={13} className="shrink-0" />
-          <span>This repair is closed. Change status below to reopen.</span>
+          <span>This repair is {ticket.status}. Change status below to reopen.</span>
         </div>
       )}
 
@@ -48,6 +49,8 @@ export default function RepairStatusCard({ ticket, technicians, onStatusChange, 
           <option value="testing">Testing</option>
           <option value="ready">Ready for Pickup</option>
           <option value="closed">Closed</option>
+          <option value="disposed">Disposed</option>
+          <option value="salvaged">Salvaged</option>
         </select>
       </div>
     </div>

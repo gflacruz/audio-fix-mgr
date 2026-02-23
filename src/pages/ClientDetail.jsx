@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getClient, updateClient, getRepairs, deleteClient, sendOptInText } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import Modal from '@/components/Modal';
+import { CLOSED_STATUSES } from '@/lib/repairConstants';
 import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy, Plus, Trash2, Building2, MessageSquare, AlertTriangle, StickyNote, Send, CheckCircle2 } from 'lucide-react';
 
 const ClientDetail = () => {
@@ -31,8 +32,8 @@ const ClientDetail = () => {
       ]);
       // Sort: Non-closed first, then by date (newest first)
       const sortedTickets = clientTickets.sort((a, b) => {
-        const isClosedA = a.status === 'closed';
-        const isClosedB = b.status === 'closed';
+        const isClosedA = CLOSED_STATUSES.includes(a.status);
+        const isClosedB = CLOSED_STATUSES.includes(b.status);
         
         if (isClosedA !== isClosedB) {
           return isClosedA ? 1 : -1;
@@ -541,8 +542,10 @@ const ClientDetail = () => {
                         </div>
                       </div>
                       <div className={`px-2 py-1 rounded text-xs uppercase font-bold tracking-wider
-                        ${ticket.status === 'ready' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-500' : 
-                          ticket.status === 'closed' ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-500'}`}>
+                        ${ticket.status === 'ready' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-500' :
+                          ticket.status === 'disposed' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' :
+                          ticket.status === 'salvaged' ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400' :
+                          CLOSED_STATUSES.includes(ticket.status) ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-500'}`}>
                         {ticket.status}
                       </div>
                     </div>

@@ -3,6 +3,7 @@ import { getRepairs, updateRepair } from '@/lib/api';
 import { Clock, AlertTriangle, CheckCircle, Search, Loader, Printer } from 'lucide-react';
 import { printWorkbenchList } from '@/lib/printer';
 import { Link } from 'react-router-dom';
+import { CLOSED_STATUSES } from '@/lib/repairConstants';
 
 const StatusBadge = ({ status }) => {
   const colors = {
@@ -15,6 +16,8 @@ const StatusBadge = ({ status }) => {
     testing: 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/50 dark:text-pink-400 dark:border-pink-900',
     ready: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/50 dark:text-green-400 dark:border-green-900',
     closed: 'bg-zinc-200 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-600',
+    disposed: 'bg-red-100 text-red-600 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900',
+    salvaged: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-900',
   };
   
   return (
@@ -61,8 +64,8 @@ const Workbench = () => {
     }
   };
 
-  const filteredTickets = tickets.filter(t => 
-    (statusFilter === 'all' ? t.status !== 'closed' : t.status === statusFilter) &&
+  const filteredTickets = tickets.filter(t =>
+    (statusFilter === 'all' ? !CLOSED_STATUSES.includes(t.status) : t.status === statusFilter) &&
     ((t.clientName || '').toLowerCase().includes(filter.toLowerCase()) ||
     (t.brand || '').toLowerCase().includes(filter.toLowerCase()) ||
     (t.model || '').toLowerCase().includes(filter.toLowerCase()))
@@ -99,6 +102,9 @@ const Workbench = () => {
             <option value="repairing">Repairing</option>
             <option value="testing">Testing</option>
             <option value="ready">Ready for Pickup</option>
+            <option value="closed">Closed</option>
+            <option value="disposed">Disposed</option>
+            <option value="salvaged">Salvaged</option>
           </select>
 
           <select 
@@ -169,6 +175,8 @@ const Workbench = () => {
                     <option value="testing">Testing</option>
                     <option value="ready">Ready for Pickup</option>
                     <option value="closed">Closed</option>
+                    <option value="disposed">Disposed</option>
+                    <option value="salvaged">Salvaged</option>
                   </select>
                 </div>
               </div>

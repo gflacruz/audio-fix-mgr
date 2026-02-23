@@ -5,6 +5,10 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+pool.on('connect', (client) => {
+  client.query("SET TIME ZONE 'America/New_York'");
+});
+
 pool.on('error', (err, client) => {
   console.error('Unexpected error on idle client', err);
   process.exit(-1);

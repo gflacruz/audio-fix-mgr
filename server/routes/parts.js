@@ -35,7 +35,7 @@ const formatPart = (row) => ({
   unitOfIssue: row.unit_of_issue,
   lastSupplier: row.last_supplier,
   supplySource: row.supply_source,
-  category: row.category,
+  categories: Array.isArray(row.categories) ? row.categories : [],
   remarks: row.remarks,
   // Calculated fields with manual override support
   issuedLifetime: row.issued_lifetime_override != null ? parseInt(row.issued_lifetime_override) : (row.issued_lifetime ? parseInt(row.issued_lifetime) : 0),
@@ -45,7 +45,7 @@ const formatPart = (row) => ({
 // GET /api/parts - List all parts (Searchable & Paginated)
 router.get('/', verifyToken, async (req, res) => {
   try {
-    const { search, page = 1, limit = 50 } = req.query;
+    const { search, page = 1, limit = 50, category } = req.query;
     const offset = (page - 1) * limit;
 
     let query = `
@@ -55,6 +55,8 @@ router.get('/', verifyToken, async (req, res) => {
                  json_build_object('alias', pa.alias, 'linkedPartId', linked_part.id)
                ) FILTER (WHERE pa.alias IS NOT NULL), '[]'
              ) as aliases,
+             (SELECT COALESCE(json_agg(pc.category ORDER BY pc.category), '[]')
+              FROM part_categories pc WHERE pc.part_id = p.id) as categories,
              COUNT(*) OVER() as full_count
       FROM parts p
       LEFT JOIN part_aliases pa ON p.id = pa.part_id
@@ -62,30 +64,39 @@ router.get('/', verifyToken, async (req, res) => {
         ON LOWER(pa.alias) = LOWER(linked_part.name)
         AND linked_part.id != p.id
     `;
-    
+
     const params = [];
-    
+    const whereClauses = [];
+
     if (search) {
-      query += ` 
-        WHERE p.name ILIKE $1 
-        OR p.nomenclature ILIKE $1
-        OR pa.alias ILIKE $1
-      `;
+      whereClauses.push(`(p.name ILIKE $${params.length + 1}
+        OR p.nomenclature ILIKE $${params.length + 1}
+        OR pa.alias ILIKE $${params.length + 1})`);
       params.push(`%${search}%`);
+    }
+    if (category) {
+      whereClauses.push(`EXISTS (
+        SELECT 1 FROM part_categories pc
+        WHERE pc.part_id = p.id AND pc.category ILIKE $${params.length + 1}
+      )`);
+      params.push(category);
+    }
+    if (whereClauses.length > 0) {
+      query += ' WHERE ' + whereClauses.join(' AND ');
     }
 
     query += ` GROUP BY p.id ORDER BY p.name ASC`;
-    
+
     // Add pagination
     query += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
 
     const result = await db.query(query, params);
-    
+
     // Format response (camelCase)
     const parts = result.rows.map(row => {
         // Remove full_count from individual part object to keep it clean
-        const { full_count, ...partData } = row; 
+        const { full_count, ...partData } = row;
         return formatPart(partData);
     });
 
@@ -107,6 +118,21 @@ router.get('/', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/parts/categories - List distinct categories for autocomplete
+router.get('/categories', verifyToken, async (req, res) => {
+  try {
+    const { search } = req.query;
+    let query = `SELECT DISTINCT category FROM part_categories`;
+    const params = [];
+    if (search) { query += ` WHERE category ILIKE $1`; params.push(`%${search}%`); }
+    query += ` ORDER BY category ASC`;
+    const result = await db.query(query, params);
+    res.json(result.rows.map(r => r.category));
+  } catch (error) {
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
 // GET /api/parts/:id - Get single part details
 router.get('/:id', verifyToken, async (req, res) => {
   try {
@@ -121,12 +147,14 @@ router.get('/:id', verifyToken, async (req, res) => {
               LEFT JOIN parts lp ON LOWER(pa.alias) = LOWER(lp.name) AND lp.id != p.id
               WHERE pa.part_id = p.id
              ) as aliases,
+             (SELECT COALESCE(json_agg(pc.category ORDER BY pc.category), '[]')
+              FROM part_categories pc WHERE pc.part_id = p.id) as categories,
              (SELECT COALESCE(SUM(quantity), 0) FROM repair_parts WHERE part_id = p.id) as issued_lifetime,
              (SELECT MAX(created_at) FROM repair_parts WHERE part_id = p.id) as last_used_date
       FROM parts p
       WHERE p.id = $1
     `;
-    
+
     const result = await db.query(query, [id]);
 
     if (result.rows.length === 0) {
@@ -145,9 +173,9 @@ router.get('/:id', verifyToken, async (req, res) => {
 router.post('/', verifyToken, verifyAdmin, upload.single('image'), async (req, res) => {
   const client = await db.pool.connect();
   try {
-    const { 
-      name, nomenclature, retailPrice, wholesalePrice, quantityInStock, lowLimit, onOrder, 
-      aliases, location, description, bestPriceQuality, unitOfIssue, lastSupplier, supplySource, category, remarks
+    const {
+      name, nomenclature, retailPrice, wholesalePrice, quantityInStock, lowLimit, onOrder,
+      aliases, location, description, bestPriceQuality, unitOfIssue, lastSupplier, supplySource, categories, remarks
     } = req.body;
 
     if (!name) {
@@ -179,10 +207,10 @@ router.post('/', verifyToken, verifyAdmin, upload.single('image'), async (req, r
     const partResult = await client.query(
       `INSERT INTO parts (
         name, nomenclature, retail_price, wholesale_price, quantity_in_stock, low_limit, on_order,
-        location, description, best_price_quality, unit_of_issue, last_supplier, supply_source, category, remarks,
+        location, description, best_price_quality, unit_of_issue, last_supplier, supply_source, remarks,
         image_url, image_public_id
       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING *`,
       [
         name,
@@ -198,7 +226,6 @@ router.post('/', verifyToken, verifyAdmin, upload.single('image'), async (req, r
         unitOfIssue || null,
         lastSupplier || null,
         supplySource || null,
-        category || null,
         remarks || null,
         imageUrl,
         imagePublicId
@@ -222,11 +249,24 @@ router.post('/', verifyToken, verifyAdmin, upload.single('image'), async (req, r
       }
     }
 
+    // Insert Categories
+    let categoryList = categories;
+    if (typeof categories === 'string') {
+      try { categoryList = JSON.parse(categories); }
+      catch (e) { categoryList = categories.split(',').map(c => c.trim()).filter(c => c); }
+    }
+    if (categoryList && Array.isArray(categoryList) && categoryList.length > 0) {
+      for (const cat of categoryList) {
+        await client.query('INSERT INTO part_categories (part_id, category) VALUES ($1, $2)', [part.id, cat]);
+      }
+    }
+
     await client.query('COMMIT');
-    
-    // Attach aliases to result for formatting
+
+    // Attach aliases/categories to result for formatting
     part.aliases = aliasList || [];
-    
+    part.categories = categoryList || [];
+
     res.status(201).json(formatPart(part));
   } catch (error) {
     await client.query('ROLLBACK');
@@ -244,7 +284,7 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
     const { id } = req.params;
     const {
       name, nomenclature, retailPrice, wholesalePrice, quantityInStock, lowLimit, onOrder,
-      aliases, location, description, bestPriceQuality, unitOfIssue, lastSupplier, supplySource, category, remarks,
+      aliases, location, description, bestPriceQuality, unitOfIssue, lastSupplier, supplySource, categories, remarks,
       issuedLifetime, lastUsedDate
     } = req.body;
 
@@ -293,10 +333,9 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
       unit_of_issue = $11,
       last_supplier = $12,
       supply_source = $13,
-      category = $14,
-      remarks = $15,
-      issued_lifetime_override = $16,
-      last_used_date_override = $17
+      remarks = $14,
+      issued_lifetime_override = $15,
+      last_used_date_override = $16
     `;
 
     const params = [
@@ -313,12 +352,11 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
       unitOfIssue || null,
       lastSupplier || null,
       supplySource || null,
-      category || null,
       remarks || null,
       (issuedLifetime !== undefined && issuedLifetime !== '') ? parseInt(issuedLifetime) : null,
       lastUsedDate || null
     ];
-    let paramIndex = 18;
+    let paramIndex = 17;
 
     if (updateImage) {
         query += `, image_url = $${paramIndex}, image_public_id = $${paramIndex + 1}`;
@@ -350,6 +388,20 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
       }
     }
 
+    // Update Categories (Delete and re-insert)
+    await client.query('DELETE FROM part_categories WHERE part_id = $1', [id]);
+
+    let categoryList = categories;
+    if (typeof categories === 'string') {
+      try { categoryList = JSON.parse(categories); }
+      catch (e) { categoryList = categories.split(',').map(c => c.trim()).filter(c => c); }
+    }
+    if (categoryList && Array.isArray(categoryList) && categoryList.length > 0) {
+      for (const cat of categoryList) {
+        await client.query('INSERT INTO part_categories (part_id, category) VALUES ($1, $2)', [id, cat]);
+      }
+    }
+
     await client.query('COMMIT');
 
     // Clean up old image if replaced
@@ -361,7 +413,7 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
         }
     }
 
-    // Re-fetch the full part with linked aliases resolved
+    // Re-fetch the full part with linked aliases and categories resolved
     const refetchResult = await db.query(`
       SELECT p.*,
              (SELECT COALESCE(
@@ -372,6 +424,8 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
               LEFT JOIN parts lp ON LOWER(pa.alias) = LOWER(lp.name) AND lp.id != p.id
               WHERE pa.part_id = p.id
              ) as aliases,
+             (SELECT COALESCE(json_agg(pc.category ORDER BY pc.category), '[]')
+              FROM part_categories pc WHERE pc.part_id = p.id) as categories,
              (SELECT COALESCE(SUM(quantity), 0) FROM repair_parts WHERE part_id = p.id) as issued_lifetime,
              (SELECT MAX(created_at) FROM repair_parts WHERE part_id = p.id) as last_used_date
       FROM parts p

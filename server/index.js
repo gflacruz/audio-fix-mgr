@@ -151,7 +151,7 @@ app.use('/api/sms', require('./routes/sms'));
         image_url TEXT,
         image_public_id VARCHAR(255),
         nomenclature VARCHAR(255),
-        category VARCHAR(100),
+        -- category column removed; see part_categories join table
         low_limit INTEGER DEFAULT 0,
         on_order INTEGER DEFAULT 0,
         best_price_quality VARCHAR(100),
@@ -315,6 +315,35 @@ app.use('/api/sms', require('./routes/sms'));
     `);
     await db.query(`ALTER TABLE repairs ADD COLUMN IF NOT EXISTS parts_note TEXT`);
     await db.query(`ALTER TABLE repairs ADD COLUMN IF NOT EXISTS parts_last_checked TIMESTAMP`);
+
+    // ── Part categories join table (replaces parts.category column) ───────────
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS part_categories (
+        id      SERIAL PRIMARY KEY,
+        part_id INTEGER REFERENCES parts(id) ON DELETE CASCADE,
+        category VARCHAR(100) NOT NULL
+      )
+    `);
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_part_categories_part_id
+        ON part_categories(part_id)
+    `);
+    // Migrate existing single-category data, then drop the column (idempotent)
+    await db.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'parts' AND column_name = 'category'
+        ) THEN
+          INSERT INTO part_categories (part_id, category)
+          SELECT id, category FROM parts
+          WHERE category IS NOT NULL AND category != '';
+          ALTER TABLE parts DROP COLUMN category;
+        END IF;
+      END
+      $$
+    `);
 
     console.log('Migrations complete');
   } catch (err) {

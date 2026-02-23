@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { printDiagnosticReceipt, printRepairInvoice } from '@/lib/printer';
 import { Printer, CheckCircle2, FileText } from 'lucide-react';
+import { CLOSED_STATUSES } from '@/lib/repairConstants';
 
 export default function DocumentsCard({ ticket, client, technicians, onTechnicianChange, onClose }) {
   const [showCloseModal, setShowCloseModal] = useState(false);
 
   const handlePrintInvoice = () => {
     printRepairInvoice(ticket, client);
-    if (ticket.status !== 'closed') {
+    if (!CLOSED_STATUSES.includes(ticket.status)) {
       setShowCloseModal(true);
     }
   };

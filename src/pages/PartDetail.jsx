@@ -4,9 +4,10 @@ import {
   ArrowLeft, Save, X, Edit2, Trash2, MapPin, Package, Upload,
   Tag, TrendingUp, FileText, MessageSquare, Hash, Truck
 } from 'lucide-react';
-import { getPart, updatePart, deletePart } from '@/lib/api';
+import { getPart, updatePart, deletePart, getPartCategories } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import Modal from '@/components/Modal';
+import CategoryTagInput from '@/components/CategoryTagInput';
 import { format } from 'date-fns';
 
 const PartDetail = () => {
@@ -21,10 +22,12 @@ const PartDetail = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
+  const [categoryOptions, setCategoryOptions] = useState([]);
+
   const [formData, setFormData] = useState({
     name: '',
     nomenclature: '',
-    category: '',
+    categories: [],
     retailPrice: '',
     wholesalePrice: '',
     quantityInStock: '',
@@ -44,7 +47,10 @@ const PartDetail = () => {
     previewUrl: null,
   });
 
-  useEffect(() => { loadPart(); }, [id]);
+  useEffect(() => {
+    loadPart();
+    getPartCategories().then(setCategoryOptions).catch(console.error);
+  }, [id]);
 
   const loadPart = async () => {
     try {
@@ -65,7 +71,7 @@ const PartDetail = () => {
     setFormData({
       name: data.name,
       nomenclature: data.nomenclature || '',
-      category: data.category || '',
+      categories: data.categories || [],
       retailPrice: data.retailPrice,
       wholesalePrice: data.wholesalePrice,
       quantityInStock: data.quantityInStock,
@@ -121,7 +127,7 @@ const PartDetail = () => {
       data.append('lastSupplier', formData.lastSupplier);
       data.append('supplySource', formData.supplySource);
       data.append('remarks', formData.remarks);
-      data.append('category', formData.category);
+      data.append('categories', JSON.stringify(formData.categories));
       data.append('issuedLifetime', formData.issuedLifetime !== '' ? parseInt(formData.issuedLifetime) : '');
       data.append('lastUsedDate', formData.lastUsedDate || '');
       const aliasArray = formData.aliases.split(',').map(a => a.trim()).filter(a => a);
@@ -207,21 +213,21 @@ const PartDetail = () => {
                   )
                 )}
 
-                {/* Category */}
+                {/* Categories */}
                 {isEditing ? (
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={(e) => set('category', e.target.value)}
-                    placeholder="Category"
-                    className="text-xs bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800/60 rounded px-2 py-0.5 text-amber-700 dark:text-amber-400 focus:outline-none focus:border-amber-500 w-32"
+                  <CategoryTagInput
+                    values={formData.categories}
+                    onChange={(cats) => set('categories', cats)}
+                    options={categoryOptions}
+                    placeholder="Add category..."
+                    className="w-56"
                   />
                 ) : (
-                  part.category && (
-                    <span className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded text-xs font-medium">
-                      {part.category}
+                  part.categories && part.categories.length > 0 && part.categories.map(cat => (
+                    <span key={cat} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded text-xs font-medium">
+                      {cat}
                     </span>
-                  )
+                  ))
                 )}
 
                 {/* Stock status badge — view only */}
@@ -517,7 +523,7 @@ const PartDetail = () => {
                             type="number" step="0.01" min="0"
                             value={formData.retailPrice}
                             onChange={(e) => set('retailPrice', e.target.value)}
-                            className="bg-transparent border-b border-zinc-400 dark:border-zinc-600 focus:border-amber-500 focus:outline-none text-emerald-600 dark:text-emerald-400 text-2xl font-bold flex-1 text-right pb-0.5"
+                            className="bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-400 dark:border-zinc-600 focus:border-amber-500 focus:outline-none text-emerald-600 dark:text-emerald-400 text-2xl font-bold flex-1 min-w-0 text-right pb-0.5"
                           />
                         </div>
                       ) : (
@@ -536,7 +542,7 @@ const PartDetail = () => {
                             type="number" step="0.01" min="0"
                             value={formData.wholesalePrice}
                             onChange={(e) => set('wholesalePrice', e.target.value)}
-                            className="bg-transparent border-b border-zinc-400 dark:border-zinc-600 focus:border-amber-500 focus:outline-none text-zinc-700 dark:text-zinc-300 text-2xl font-bold flex-1 text-right pb-0.5"
+                            className="bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-400 dark:border-zinc-600 focus:border-amber-500 focus:outline-none text-zinc-700 dark:text-zinc-300 text-2xl font-bold flex-1 min-w-0 text-right pb-0.5"
                           />
                         </div>
                       ) : (

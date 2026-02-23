@@ -74,7 +74,7 @@ router.get("/", async (req, res) => {
 
     // Filter closed units if includeClosed is explicitly false
     if (includeClosed === "false") {
-      whereClauses.push(`r.status != 'closed'`);
+      whereClauses.push(`r.status NOT IN ('closed', 'disposed', 'salvaged')`);
     }
 
     if (whereClauses.length > 0) {
@@ -145,7 +145,7 @@ router.get("/payroll", async (req, res) => {
         COALESCE(SUM(rp.quantity * rp.unit_price), 0) as parts_cost
       FROM repairs r
       LEFT JOIN repair_parts rp ON r.id = rp.repair_id
-      WHERE r.status = 'closed' AND (r.paid_out IS FALSE OR r.paid_out IS NULL)
+      WHERE r.status IN ('closed', 'disposed', 'salvaged') AND (r.paid_out IS FALSE OR r.paid_out IS NULL)
       GROUP BY r.id
       ORDER BY r.technician, r.created_at DESC
     `;
@@ -499,7 +499,7 @@ router.get("/reports", verifyToken, verifyAdmin, async (req, res) => {
         SELECT repair_id, SUM(quantity * unit_price) AS parts_cost
         FROM repair_parts GROUP BY repair_id
       ) parts_sub ON r.id = parts_sub.repair_id
-      WHERE r.status = 'closed'
+      WHERE r.status IN ('closed', 'disposed', 'salvaged')
         AND EXTRACT(YEAR FROM closed_date) = $1
       GROUP BY quarter
       ORDER BY quarter
@@ -955,16 +955,15 @@ router.patch("/:id", async (req, res) => {
     ];
 
     // Auto-update dates based on status changes
+    let nowDateField = null;
     if (updates.status === "ready") {
-      updates.completedDate = new Date().toISOString();
-      allowedFields.push("completedDate");
-    } else if (updates.status === "closed") {
-      updates.closedDate = new Date().toISOString();
-      allowedFields.push("closedDate");
+      nowDateField = "completed_date";
+    } else if (["closed", "disposed", "salvaged"].includes(updates.status)) {
+      nowDateField = "closed_date";
     } else if (
       updates.status &&
       updates.status !== "ready" &&
-      updates.status !== "closed"
+      !["closed", "disposed", "salvaged"].includes(updates.status)
     ) {
       // Only clear them if explicitly desired?
       // Usually moving back from Closed -> Ready might keep closed date?
@@ -990,6 +989,11 @@ router.patch("/:id", async (req, res) => {
         values.push(value);
         paramIndex++;
       }
+    }
+
+    // Append NOW() directly — no parameter slot needed
+    if (nowDateField) {
+      fieldsToUpdate.push(`${nowDateField} = NOW()`);
     }
 
     if (fieldsToUpdate.length === 0) {

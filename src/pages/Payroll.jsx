@@ -4,6 +4,7 @@ import { getUnpaidRepairsForTech, processPayout, getTechnicians } from '@/lib/ap
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { DollarSign, CheckCircle2, Plus, Search, X, History } from 'lucide-react';
+import { CLOSED_STATUSES } from '@/lib/repairConstants';
 
 const Payroll = () => {
   const { user } = useAuth();
@@ -278,13 +279,13 @@ const Payroll = () => {
                       {filteredResults.map(r => (
                         <tr
                           key={r.id}
-                          className={`hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors ${r.status !== 'closed' ? 'bg-yellow-900/10' : ''}`}
+                          className={`hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors ${!CLOSED_STATUSES.includes(r.status) ? 'bg-yellow-900/10' : ''}`}
                         >
                           <td className="px-4 py-2.5 font-mono text-zinc-600 dark:text-zinc-300">#{r.claimNumber}</td>
                           <td className="px-4 py-2.5 text-zinc-700 dark:text-zinc-300">{r.brand} {r.model}</td>
                           <td className="px-4 py-2.5">
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                              r.status === 'closed'
+                              CLOSED_STATUSES.includes(r.status)
                                 ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
                                 : 'bg-yellow-200 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-400'
                             }`}>
@@ -312,7 +313,7 @@ const Payroll = () => {
           )}
 
           {/* Legend */}
-          {claims.some(c => c.status !== 'closed') && (
+          {claims.some(c => !CLOSED_STATUSES.includes(c.status)) && (
             <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 mb-4">
               <div className="w-4 h-4 bg-yellow-900/30 border border-yellow-600 rounded"></div>
               <span>Yellow = Prepaid (claim not yet closed)</span>
@@ -340,7 +341,7 @@ const Payroll = () => {
                     {claims.map(claim => (
                       <tr
                         key={claim.id}
-                        className={`transition-colors ${claim.status !== 'closed' ? 'bg-yellow-900/20 border-l-4 border-yellow-500' : ''}`}
+                        className={`transition-colors ${!CLOSED_STATUSES.includes(claim.status) ? 'bg-yellow-900/20 border-l-4 border-yellow-500' : ''}`}
                       >
                         <td className="px-4 py-3 font-mono text-zinc-600 dark:text-zinc-300">
                           <button
@@ -354,7 +355,7 @@ const Payroll = () => {
                         <td className="px-4 py-3 text-zinc-900 dark:text-white font-medium">{claim.brand} {claim.model}</td>
                         <td className="px-4 py-3">
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                            claim.status === 'closed'
+                            CLOSED_STATUSES.includes(claim.status)
                               ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
                               : 'bg-yellow-200 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-400'
                           }`}>
@@ -483,7 +484,7 @@ const Payroll = () => {
                 <div>
                   <span className="text-zinc-300 font-mono text-sm">#{c.claimNumber}</span>
                   <span className="text-zinc-500 ml-2 text-sm">{c.brand} {c.model}</span>
-                  {c.status !== 'closed' && (
+                  {!CLOSED_STATUSES.includes(c.status) && (
                     <span className="ml-2 text-xs bg-yellow-900/40 text-yellow-400 px-1.5 py-0.5 rounded">prepaid</span>
                   )}
                 </div>

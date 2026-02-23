@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Clock, User, CheckCircle2, MessageSquare, Mail, Send, FileText, DollarSign, ClipboardCheck, StickyNote, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useError } from '@/context/ErrorContext';
+import { CLOSED_STATUSES } from '@/lib/repairConstants';
 
 // Hooks
 import { useRepairData } from '@/hooks/useRepairData';
@@ -150,33 +151,33 @@ const RepairDetail = () => {
           {isAtLeastSeniorTech && (
             <div className="flex gap-2 mt-2">
               <button
-                onClick={ticket.status === 'closed' ? undefined : notifications.handleSendEstimateEmail}
-                disabled={ticket.status === 'closed'}
+                onClick={CLOSED_STATUSES.includes(ticket.status) ? undefined : notifications.handleSendEstimateEmail}
+                disabled={CLOSED_STATUSES.includes(ticket.status)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded transition-colors ${
-                  ticket.status === 'closed'
+                  CLOSED_STATUSES.includes(ticket.status)
                     ? 'opacity-40 cursor-not-allowed bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-700'
                     : client?.primaryNotification === 'Text'
                       ? 'bg-amber-100 dark:bg-amber-700/30 hover:bg-amber-200 dark:hover:bg-amber-700/40 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-600/50'
                       : 'bg-amber-50 dark:bg-amber-600/20 hover:bg-amber-100 dark:hover:bg-amber-600/30 text-amber-600 dark:text-amber-500 border-amber-200 dark:border-amber-600/30'
                 }`}
-                title={ticket.status === 'closed' ? "Repair status is closed — reopen to use this button" : client?.primaryNotification === 'Text' ? "Text Estimate" : "Email Estimate"}
+                title={CLOSED_STATUSES.includes(ticket.status) ? "Repair is closed — reopen to use this button" : client?.primaryNotification === 'Text' ? "Text Estimate" : "Email Estimate"}
               >
                 {client?.primaryNotification === 'Text' ? <MessageSquare size={14} /> : <Mail size={14} />}
                 {client?.primaryNotification === 'Text' ? "Text Estimate" : "Email Estimate"}
               </button>
 
-              {(ticket.status === 'ready' || ticket.status === 'closed') && (
+              {(ticket.status === 'ready' || CLOSED_STATUSES.includes(ticket.status)) && (
                 <button
-                  onClick={ticket.status === 'closed' ? undefined : notifications.handleSendPickupEmail}
-                  disabled={ticket.status === 'closed'}
+                  onClick={CLOSED_STATUSES.includes(ticket.status) ? undefined : notifications.handleSendPickupEmail}
+                  disabled={CLOSED_STATUSES.includes(ticket.status)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 border text-xs font-medium rounded transition-colors ${
-                    ticket.status === 'closed'
+                    CLOSED_STATUSES.includes(ticket.status)
                       ? 'opacity-40 cursor-not-allowed bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-700'
                       : client?.primaryNotification === 'Text'
                         ? 'bg-emerald-100 dark:bg-emerald-700/30 hover:bg-emerald-200 dark:hover:bg-emerald-700/40 text-emerald-800 dark:text-emerald-400 border-emerald-200 dark:border-emerald-600/50'
                         : 'bg-emerald-50 dark:bg-emerald-600/20 hover:bg-emerald-100 dark:hover:bg-emerald-600/30 text-emerald-600 dark:text-emerald-500 border-emerald-200 dark:border-emerald-600/30'
                   }`}
-                  title={ticket.status === 'closed' ? "Repair status is closed — reopen to use this button" : client?.primaryNotification === 'Text' ? "Text Ready for Pickup" : "Email Ready for Pickup"}
+                  title={CLOSED_STATUSES.includes(ticket.status) ? "Repair is closed — reopen to use this button" : client?.primaryNotification === 'Text' ? "Text Ready for Pickup" : "Email Ready for Pickup"}
                 >
                   {client?.primaryNotification === 'Text' ? <MessageSquare size={14} /> : <Send size={14} />}
                   {client?.primaryNotification === 'Text' ? "Text Ready" : "Email Ready"}
@@ -239,11 +240,11 @@ const RepairDetail = () => {
 
           {isAtLeastSeniorTech && (
             <button
-              onClick={ticket.status === 'closed' ? undefined : () => setShowEstimateWizard(true)}
-              disabled={ticket.status === 'closed'}
-              title={ticket.status === 'closed' ? "Repair status is closed — reopen to use this button" : undefined}
+              onClick={CLOSED_STATUSES.includes(ticket.status) ? undefined : () => setShowEstimateWizard(true)}
+              disabled={CLOSED_STATUSES.includes(ticket.status)}
+              title={CLOSED_STATUSES.includes(ticket.status) ? "Repair is closed — reopen to use this button" : undefined}
               className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold transition-colors shadow-sm mb-4 ${
-                ticket.status === 'closed'
+                CLOSED_STATUSES.includes(ticket.status)
                   ? 'opacity-40 cursor-not-allowed bg-zinc-300 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400'
                   : 'bg-amber-600 hover:bg-amber-700 dark:hover:bg-amber-500 text-white'
               }`}

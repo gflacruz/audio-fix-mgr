@@ -94,19 +94,18 @@ async function tryApproveEstimate(clientId, phone) {
   if (estResult.rows.length === 0) return null;
 
   const estimate = estResult.rows[0];
-  const now = new Date().toISOString();
 
   // 1. Approve this estimate
   await db.query(
-    `UPDATE estimates SET status = 'approved', approved_date = $1, notified_date = $1 WHERE id = $2`,
-    [now, estimate.id]
+    `UPDATE estimates SET status = 'approved', approved_date = NOW(), notified_date = NOW() WHERE id = $1`,
+    [estimate.id]
   );
 
   // 2. Deny all other pending estimates for this repair
   await db.query(
-    `UPDATE estimates SET status = 'declined', notified_date = $1
-     WHERE repair_id = $2 AND id != $3 AND status NOT IN ('approved', 'declined')`,
-    [now, repairId, estimate.id]
+    `UPDATE estimates SET status = 'declined', notified_date = NOW()
+     WHERE repair_id = $1 AND id != $2 AND status NOT IN ('approved', 'declined')`,
+    [repairId, estimate.id]
   );
 
   // 3. Update repair status + labor cost
@@ -171,12 +170,11 @@ async function tryDenyEstimate(clientId, phone) {
   if (estResult.rows.length === 0) return null;
 
   const estimateId = estResult.rows[0].id;
-  const now = new Date().toISOString();
 
   // 1. Decline this estimate
   await db.query(
-    `UPDATE estimates SET status = 'declined', notified_date = $1 WHERE id = $2`,
-    [now, estimateId]
+    `UPDATE estimates SET status = 'declined', notified_date = NOW() WHERE id = $1`,
+    [estimateId]
   );
 
   // 2. Set repair status to repairing (unit needs to be reassembled before pickup)

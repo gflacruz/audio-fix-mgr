@@ -225,14 +225,24 @@ export const getTechnicians = async () => {
 };
 
 // Parts / Inventory
-export const getParts = async (search = '', page = 1, limit = 50) => {
+export const getParts = async (search = '', page = 1, limit = 50, category = '') => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
   const params = new URLSearchParams();
   if (search) params.append('search', search);
+  if (category) params.append('category', category);
   params.append('page', page);
   params.append('limit', limit);
-  
+
   return fetchJSON(`/parts?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const getPartCategories = async (search = '') => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  return fetchJSON(`/parts/categories?${params.toString()}`, {
     headers: { Authorization: `Bearer ${user?.token}` }
   });
 };

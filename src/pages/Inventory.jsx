@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Package, Search, Plus, Edit, Trash2, X, Save, Upload, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getParts, createPart, updatePart, deletePart } from '@/lib/api';
+import { getParts, createPart, updatePart, deletePart, getPartCategories } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Modal from '@/components/Modal';
+import ComboSelect from '@/components/ComboSelect';
+import CategoryTagInput from '@/components/CategoryTagInput';
 
 const Inventory = () => {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [parts, setParts] = useState([]);
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [categoryOptions, setCategoryOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -20,6 +24,7 @@ const Inventory = () => {
     if (searchInputRef.current) {
       searchInputRef.current.focus();
     }
+    getPartCategories().then(setCategoryOptions).catch(console.error);
   }, []);
 
   const [showModal, setShowModal] = useState(false);
@@ -30,7 +35,7 @@ const Inventory = () => {
   const [formData, setFormData] = useState({
     name: '',
     nomenclature: '',
-    category: '',
+    categories: [],
     retailPrice: '',
     wholesalePrice: '',
     quantityInStock: '',
@@ -42,8 +47,8 @@ const Inventory = () => {
   });
 
   const loadParts = async (pageToLoad = 1) => {
-    // If search is empty, do not fetch parts
-    if (!search.trim()) {
+    // If both search and category filter are empty, do not fetch parts
+    if (!search.trim() && !categoryFilter.trim()) {
         setParts([]);
         setTotalPages(1);
         setLoading(false);
@@ -52,10 +57,7 @@ const Inventory = () => {
 
     try {
       setLoading(true);
-      // If we are searching (and it's not a pagination click), we might want to reset page to 1
-      // But here we pass pageToLoad explicitly.
-      
-      const response = await getParts(search, pageToLoad, 50);
+      const response = await getParts(search, pageToLoad, 50, categoryFilter);
       
       // Handle both old array format (safety) and new object format
       if (Array.isArray(response)) {
@@ -79,20 +81,20 @@ const Inventory = () => {
         clearTimeout(debounceTimer.current);
     }
 
-    // If search is empty (initial load or cleared), load immediately
-    if (!search.trim()) {
+    // If both search and category filter are empty, clear immediately
+    if (!search.trim() && !categoryFilter.trim()) {
         loadParts(1);
         return;
     }
 
     debounceTimer.current = setTimeout(() => {
-        loadParts(1); // Always reset to page 1 on new search
+        loadParts(1); // Always reset to page 1 on new search/filter
     }, 2000);
 
     return () => {
         if (debounceTimer.current) clearTimeout(debounceTimer.current);
     };
-  }, [search]);
+  }, [search, categoryFilter]);
 
   const handleSearchKeyDown = (e) => {
     if (e.key === 'Enter') {
@@ -107,7 +109,7 @@ const Inventory = () => {
       setFormData({
         name: part.name,
         nomenclature: part.nomenclature || '',
-        category: part.category || '',
+        categories: part.categories || [],
         retailPrice: part.retailPrice,
         wholesalePrice: part.wholesalePrice,
         quantityInStock: part.quantityInStock,
@@ -122,7 +124,7 @@ const Inventory = () => {
       setFormData({
         name: '',
         nomenclature: '',
-        category: '',
+        categories: [],
         retailPrice: '',
         wholesalePrice: '',
         quantityInStock: '',
@@ -163,7 +165,7 @@ const Inventory = () => {
       data.append('quantityInStock', parseInt(formData.quantityInStock) || 0);
       data.append('location', formData.location);
       data.append('description', formData.description);
-      data.append('category', formData.category);
+      data.append('categories', JSON.stringify(formData.categories));
 
       const aliasArray = formData.aliases.split(',').map(a => a.trim()).filter(a => a);
       data.append('aliases', JSON.stringify(aliasArray));
@@ -175,11 +177,11 @@ const Inventory = () => {
       if (editingPart) {
         await updatePart(editingPart.id, data);
         loadParts(page);
+        handleCloseModal();
       } else {
-        await createPart(data);
-        loadParts(1);
+        const newPart = await createPart(data);
+        navigate(`/inventory/${newPart.id}`);
       }
-      handleCloseModal();
     } catch (error) {
       alert('Failed to save part: ' + error.message);
     }
@@ -235,6 +237,23 @@ const Inventory = () => {
         />
       </div>
 
+      {/* Category Filter */}
+      <div className="mb-4 flex items-center gap-3">
+        <span className="text-sm text-zinc-500 dark:text-zinc-400 shrink-0">Category:</span>
+        <div className="w-56">
+          <ComboSelect
+            value={categoryFilter}
+            options={['', ...categoryOptions]}
+            onChange={(val) => { setCategoryFilter(val); }}
+          />
+        </div>
+        {categoryFilter && (
+          <button onClick={() => setCategoryFilter('')} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
       {/* Parts Table */}
       <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm dark:shadow-xl">
         <table className="w-full text-left">
@@ -256,7 +275,7 @@ const Inventory = () => {
             ) : parts.length === 0 ? (
               <tr>
                 <td colSpan="7" className="px-6 py-8 text-center text-zinc-500">
-                    {!search.trim() ? "Enter a search term to find parts." : "No parts found matching your search."}
+                    {!search.trim() && !categoryFilter.trim() ? "Enter a search term or select a category to find parts." : "No parts found matching your search."}
                 </td>
               </tr>
             ) : (
@@ -278,13 +297,13 @@ const Inventory = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 text-sm">
-                    {part.category ? (
-                      <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded text-xs">
-                        {part.category}
-                      </span>
-                    ) : (
-                      <span className="text-zinc-400 dark:text-zinc-600 italic">-</span>
-                    )}
+                    {part.categories && part.categories.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {part.categories.map(cat => (
+                          <span key={cat} className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded text-xs">{cat}</span>
+                        ))}
+                      </div>
+                    ) : <span className="text-zinc-400 dark:text-zinc-600 italic">-</span>}
                   </td>
                   <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400 font-mono text-sm">{part.location || '-'}</td>
                   <td className="px-6 py-4 text-zinc-700 dark:text-zinc-300 font-mono">
@@ -413,13 +432,12 @@ const Inventory = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-1">Category</label>
-                <input
-                  type="text"
-                  value={formData.category}
-                  onChange={(e) => setFormData({...formData, category: e.target.value})}
-                  placeholder="e.g. Capacitors, Resistors, Connectors"
-                  className="w-full bg-white dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-400 mb-1">Categories</label>
+                <CategoryTagInput
+                  values={formData.categories}
+                  onChange={(cats) => setFormData({...formData, categories: cats})}
+                  options={categoryOptions}
+                  placeholder="Add category..."
                 />
               </div>
 

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Edit2, Settings } from 'lucide-react';
+import ComboSelect from '@/components/ComboSelect';
+import { UNIT_TYPES } from '@/lib/repairConstants';
 
 export default function UnitSpecsCard({ ticket, onSave }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -41,23 +43,11 @@ export default function UnitSpecsCard({ ticket, onSave }) {
           <div className="grid grid-cols-5 gap-4">
             <div>
               <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Unit Type</label>
-              <select
+              <ComboSelect
                 value={tempSpecs.unitType}
-                onChange={(e) => setTempSpecs(prev => ({ ...prev, unitType: e.target.value }))}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
-              >
-                <option value="Receiver">Receiver</option>
-                <option value="Power Amp">Power Amp</option>
-                <option value="Integrated Amp">Integrated Amp</option>
-                <option value="Preamp">Preamp</option>
-                <option value="Turntable">Turntable</option>
-                <option value="Speaker">Speaker</option>
-                <option value="Cassette Deck">Cassette Deck</option>
-                <option value="Reel-to-Reel">Reel-to-Reel</option>
-                <option value="Mixer">Mixer</option>
-                <option value="Effect Unit">Effect Unit</option>
-                <option value="Other">Other</option>
-              </select>
+                options={UNIT_TYPES}
+                onChange={(val) => setTempSpecs(prev => ({ ...prev, unitType: val }))}
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Make / Brand</label>

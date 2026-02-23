@@ -3,6 +3,7 @@ import { getRepairs, getTechnicians, updateRepair } from '@/lib/api';
 import { Link } from 'react-router-dom';
 import { Clock, AlertTriangle, CheckCircle, UserCog, UserMinus, Loader } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { CLOSED_STATUSES } from '@/lib/repairConstants';
 
 const StatusBadge = ({ status }) => {
   const colors = {
@@ -14,6 +15,8 @@ const StatusBadge = ({ status }) => {
     testing: 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/50 dark:text-pink-400 dark:border-pink-900',
     ready: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/50 dark:text-green-400 dark:border-green-900',
     closed: 'bg-zinc-200 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-600',
+    disposed: 'bg-red-100 text-red-600 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900',
+    salvaged: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-900',
   };
   
   return (
@@ -81,7 +84,7 @@ const Technicians = () => {
     try {
       const rawRepairs = await getRepairs();
       // Filter out closed repairs
-      const allRepairs = rawRepairs.filter(r => r.status !== 'closed');
+      const allRepairs = rawRepairs.filter(r => !CLOSED_STATUSES.includes(r.status));
       
       // Calculate counts
       const newCounts = { Unassigned: 0 };
