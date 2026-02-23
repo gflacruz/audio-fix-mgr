@@ -59,6 +59,12 @@ export default function ClientDetailsCard({ client }) {
           <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Primary Notification</label>
           <div className="text-zinc-800 dark:text-zinc-200">{client?.primaryNotification || 'Phone'}</div>
         </div>
+        {client?.remarks && (
+          <div>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Remarks</label>
+            <div className="text-zinc-800 dark:text-zinc-200 text-sm">{client.remarks}</div>
+          </div>
+        )}
         <div>
           <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Address</label>
           <div className="text-zinc-800 dark:text-zinc-200 text-sm">

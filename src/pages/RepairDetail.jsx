@@ -97,13 +97,6 @@ const RepairDetail = () => {
             {ticket.unitType && <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">{ticket.unitType}</span>}
           </div>
 
-          {client?.remarks && (
-            <div className="mb-3 text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 p-2 rounded border border-amber-200 dark:border-amber-800/50 flex items-start gap-2 max-w-lg">
-              <StickyNote size={14} className="shrink-0 mt-0.5" />
-              <span className="whitespace-pre-wrap font-medium">{client.remarks}</span>
-            </div>
-          )}
-
           <div className="flex items-center gap-x-6 gap-y-2 text-zinc-500 dark:text-zinc-400 mb-3 overflow-x-auto no-scrollbar">
             {ticket.checkedInBy && (
               <span className="flex items-center gap-1.5 whitespace-nowrap" title="Checked In By">

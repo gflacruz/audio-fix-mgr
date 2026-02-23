@@ -23,4 +23,11 @@ const verifyAdmin = (req, res, next) => {
   return next();
 };
 
-module.exports = { verifyToken, verifyAdmin };
+const verifyAtLeastSeniorTech = (req, res, next) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'senior_technician') {
+    return res.status(403).json({ error: 'Senior technician or admin privileges required' });
+  }
+  return next();
+};
+
+module.exports = { verifyToken, verifyAdmin, verifyAtLeastSeniorTech };

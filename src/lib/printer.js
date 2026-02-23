@@ -475,3 +475,80 @@ export const printRepairInvoice = async (ticket, client) => {
   printWindow.document.write(html);
   printWindow.document.close();
 };
+
+export function printWorkbenchList(tickets, { statusFilter, sortOrder, query } = {}) {
+  const printWindow = window.open("", "_blank");
+  const date = new Date().toLocaleDateString();
+
+  const filterParts = [];
+  if (statusFilter && statusFilter !== 'all') filterParts.push(`Status: ${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}`);
+  if (query) filterParts.push(`Search: "${query}"`);
+  const subtitle = filterParts.length > 0 ? filterParts.join(' | ') : 'All Active Tickets';
+
+  const formatStatus = (status) => status === 'estimate' ? 'Awaiting Est.' : status.toUpperCase();
+
+  const rows = tickets.map(t => `
+    <tr>
+      <td class="mono">${t.claimNumber || t.id}</td>
+      <td>${t.clientName || ''}</td>
+      <td>${t.brand || ''}</td>
+      <td>${t.model || ''}</td>
+      <td>${t.dateIn ? new Date(t.dateIn).toLocaleDateString() : ''}</td>
+      <td>${formatStatus(t.status || '')}</td>
+    </tr>
+  `).join('');
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Repair Workbench — ${date}</title>
+      <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        @media print {
+          @page { margin: 1cm; }
+          body { -webkit-print-color-adjust: exact; }
+        }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 24px; max-width: 900px; margin: 0 auto; color: #222; }
+        .header { margin-bottom: 18px; border-bottom: 2px solid #222; padding-bottom: 12px; }
+        .title { font-size: 20px; font-weight: bold; margin: 0 0 4px; }
+        .subtitle { font-size: 13px; color: #666; }
+        table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+        th { text-align: left; padding: 7px 10px; border-bottom: 2px solid #222; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+        td { padding: 7px 10px; border-bottom: 1px solid #ddd; font-size: 13px; }
+        tr:last-child td { border-bottom: none; }
+        .mono { font-family: 'Courier New', Courier, monospace; font-weight: bold; }
+        .footer { margin-top: 20px; font-size: 11px; color: #999; text-align: right; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="title">Repair Workbench — ${date}</div>
+        <div class="subtitle">${subtitle}</div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Claim #</th>
+            <th>Client</th>
+            <th>Brand</th>
+            <th>Model</th>
+            <th>Date In</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows || '<tr><td colspan="6" style="text-align:center;color:#999;font-style:italic;">No tickets</td></tr>'}
+        </tbody>
+      </table>
+      <div class="footer">${tickets.length} ticket${tickets.length !== 1 ? 's' : ''}</div>
+      <script>
+        window.onload = function() { window.print(); window.onfocus = function() { window.close(); }; }
+      <\/script>
+    </body>
+    </html>
+  `;
+
+  printWindow.document.write(html);
+  printWindow.document.close();
+}

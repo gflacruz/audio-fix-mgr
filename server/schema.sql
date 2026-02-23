@@ -123,6 +123,18 @@ CREATE TABLE IF NOT EXISTS repair_parts (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS repair_awaited_parts (
+  id          SERIAL PRIMARY KEY,
+  repair_id   INTEGER NOT NULL REFERENCES repairs(id) ON DELETE CASCADE,
+  name        VARCHAR(255) NOT NULL,
+  part_number VARCHAR(100),
+  notes       TEXT,
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_repair_awaited_parts_repair_id
+  ON repair_awaited_parts(repair_id);
+
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   username VARCHAR(50) NOT NULL UNIQUE,

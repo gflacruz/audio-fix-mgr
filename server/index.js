@@ -298,6 +298,24 @@ app.use('/api/sms', require('./routes/sms'));
       EXECUTE PROCEDURE update_repairs_updated_at_column()
     `);
 
+    // ── Waiting on Parts tracking ─────────────────────────────────────────────
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS repair_awaited_parts (
+        id          SERIAL PRIMARY KEY,
+        repair_id   INTEGER NOT NULL REFERENCES repairs(id) ON DELETE CASCADE,
+        name        VARCHAR(255) NOT NULL,
+        part_number VARCHAR(100),
+        notes       TEXT,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_repair_awaited_parts_repair_id
+        ON repair_awaited_parts(repair_id)
+    `);
+    await db.query(`ALTER TABLE repairs ADD COLUMN IF NOT EXISTS parts_note TEXT`);
+    await db.query(`ALTER TABLE repairs ADD COLUMN IF NOT EXISTS parts_last_checked TIMESTAMP`);
+
     console.log('Migrations complete');
   } catch (err) {
     console.error('Migration error:', err.message);

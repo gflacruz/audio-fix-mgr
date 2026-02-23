@@ -8,7 +8,7 @@ const nodemailer = require("nodemailer");
 const dns = require("dns");
 const util = require("util");
 const twilio = require("twilio");
-const { verifyToken, verifyAdmin } = require("../middleware/auth");
+const { verifyToken, verifyAdmin, verifyAtLeastSeniorTech } = require("../middleware/auth");
 
 const lookup = util.promisify(dns.lookup);
 
@@ -598,6 +598,72 @@ router.put("/model-notes", async (req, res) => {
   }
 });
 
+// GET /api/repairs/waiting-on-parts - All parts-status repairs with awaited parts
+router.get("/waiting-on-parts", async (req, res) => {
+  try {
+    const repairsResult = await db.query(`
+      SELECT r.id, r.claim_number, r.brand, r.model, r.status, r.priority,
+             r.parts_note, r.parts_last_checked, r.updated_at, r.created_at,
+             c.name AS client_name, c.company_name AS client_company
+      FROM repairs r
+      JOIN clients c ON r.client_id = c.id
+      WHERE r.status = 'parts'
+      ORDER BY r.updated_at DESC
+    `);
+
+    const repairs = repairsResult.rows;
+
+    if (repairs.length === 0) {
+      return res.json([]);
+    }
+
+    const repairIds = repairs.map((r) => r.id);
+    const awaitedResult = await db.query(
+      `SELECT id, repair_id, name, part_number, notes, created_at
+       FROM repair_awaited_parts
+       WHERE repair_id = ANY($1)
+       ORDER BY created_at ASC`,
+      [repairIds]
+    );
+
+    const awaitedByRepairId = {};
+    for (const row of awaitedResult.rows) {
+      if (!awaitedByRepairId[row.repair_id]) {
+        awaitedByRepairId[row.repair_id] = [];
+      }
+      awaitedByRepairId[row.repair_id].push({
+        id: row.id,
+        repairId: row.repair_id,
+        name: row.name,
+        partNumber: row.part_number,
+        notes: row.notes,
+        createdAt: row.created_at,
+      });
+    }
+
+    const formatted = repairs.map((r) => ({
+      id: r.id,
+      claimNumber: r.claim_number,
+      brand: r.brand,
+      model: r.model,
+      status: r.status,
+      priority: r.priority,
+      partsNote: r.parts_note,
+      partsLastChecked: r.parts_last_checked,
+      updatedAt: r.updated_at,
+      createdAt: r.created_at,
+      clientName: r.client_name,
+      clientCompany: r.client_company,
+      awaitedParts: awaitedByRepairId[r.id] || [],
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    console.error("Error fetching waiting-on-parts repairs:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
 // GET /api/repairs/:id - Get single repair with details and notes
 router.get("/:id", async (req, res) => {
   try {
@@ -608,7 +674,7 @@ router.get("/:id", async (req, res) => {
       SELECT r.*, 
              c.name as client_name, c.company_name as client_company, c.phone as client_phone, c.email as client_email,
              c.address as client_address, c.city as client_city, c.state as client_state, c.zip as client_zip,
-             c.primary_notification
+             c.primary_notification, c.remarks as client_remarks
       FROM repairs r 
 
       JOIN clients c ON r.client_id = c.id 
@@ -677,7 +743,8 @@ router.get("/:id", async (req, res) => {
         city: row.client_city,
         state: row.client_state,
         zip: row.client_zip,
-        primaryNotification: row.primary_notification
+        primaryNotification: row.primary_notification,
+        remarks: row.client_remarks
       },
 
       brand: row.brand,
@@ -883,6 +950,8 @@ router.patch("/:id", async (req, res) => {
       "model",
       "serial",
       "poNumber",
+      "partsNote",
+      "partsLastChecked",
     ];
 
     // Auto-update dates based on status changes
@@ -1519,6 +1588,75 @@ router.post("/:id/text-pickup", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Error sending pickup text:", error);
     res.status(500).json({ error: "Failed to send text: " + error.message });
+  }
+});
+
+// GET /api/repairs/:id/awaited-parts - List awaited parts for a repair
+router.get("/:id/awaited-parts", async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT id, repair_id, name, part_number, notes, created_at
+       FROM repair_awaited_parts
+       WHERE repair_id = $1
+       ORDER BY created_at ASC`,
+      [req.params.id]
+    );
+    res.json(result.rows.map((r) => ({
+      id: r.id,
+      repairId: r.repair_id,
+      name: r.name,
+      partNumber: r.part_number,
+      notes: r.notes,
+      createdAt: r.created_at,
+    })));
+  } catch (error) {
+    console.error("Error fetching awaited parts:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+// POST /api/repairs/:id/awaited-parts - Add an awaited part (senior tech+)
+router.post("/:id/awaited-parts", verifyToken, verifyAtLeastSeniorTech, async (req, res) => {
+  try {
+    const { name, partNumber, notes } = req.body;
+    if (!name?.trim()) {
+      return res.status(400).json({ error: "Part name is required" });
+    }
+    const result = await db.query(
+      `INSERT INTO repair_awaited_parts (repair_id, name, part_number, notes)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, repair_id, name, part_number, notes, created_at`,
+      [req.params.id, name.trim(), partNumber?.trim() || null, notes?.trim() || null]
+    );
+    const r = result.rows[0];
+    res.status(201).json({
+      id: r.id,
+      repairId: r.repair_id,
+      name: r.name,
+      partNumber: r.part_number,
+      notes: r.notes,
+      createdAt: r.created_at,
+    });
+  } catch (error) {
+    console.error("Error adding awaited part:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+// DELETE /api/repairs/:id/awaited-parts/:awaitedPartId - Remove an awaited part (senior tech+)
+router.delete("/:id/awaited-parts/:awaitedPartId", verifyToken, verifyAtLeastSeniorTech, async (req, res) => {
+  try {
+    const result = await db.query(
+      `DELETE FROM repair_awaited_parts WHERE id = $1 AND repair_id = $2 RETURNING id`,
+      [req.params.awaitedPartId, req.params.id]
+    );
+    if (!result.rows.length) {
+      return res.status(404).json({ error: "Awaited part not found" });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Error removing awaited part:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
   }
 });
 

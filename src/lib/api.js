@@ -394,6 +394,37 @@ export const sendOptInText = async (clientId) => {
   });
 };
 
+// Waiting on Parts
+export const getWaitingOnPartsRepairs = () => fetchJSON('/repairs/waiting-on-parts');
+
+export const getAwaitedParts = (repairId) => fetchJSON(`/repairs/${repairId}/awaited-parts`);
+
+export const addAwaitedPart = (repairId, { name, partNumber, notes }) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/repairs/${repairId}/awaited-parts`, {
+    method: 'POST',
+    body: JSON.stringify({ name, partNumber, notes }),
+    headers: { Authorization: `Bearer ${user?.token}` },
+  });
+};
+
+export const removeAwaitedPart = (repairId, awaitedPartId) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/repairs/${repairId}/awaited-parts/${awaitedPartId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${user?.token}` },
+  });
+};
+
+export const updatePartsFields = (repairId, fields) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/repairs/${repairId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(fields),
+    headers: { Authorization: `Bearer ${user?.token}` },
+  });
+};
+
 // Reports
 export const getReports = async (year) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));

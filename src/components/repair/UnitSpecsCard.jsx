@@ -133,19 +133,19 @@ export default function UnitSpecsCard({ ticket, onSave }) {
           <div className="grid grid-cols-5 gap-4">
             <div>
               <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Unit Type</label>
-              <div className="text-zinc-800 dark:text-zinc-200 truncate" title={ticket.unitType}>{ticket.unitType || 'N/A'}</div>
+              <div className="text-zinc-800 dark:text-zinc-200">{ticket.unitType || 'N/A'}</div>
             </div>
             <div>
               <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Make</label>
-              <div className="text-zinc-800 dark:text-zinc-200 truncate" title={ticket.brand}>{ticket.brand || 'N/A'}</div>
+              <div className="text-zinc-800 dark:text-zinc-200">{ticket.brand || 'N/A'}</div>
             </div>
             <div>
               <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Model</label>
-              <div className="text-zinc-800 dark:text-zinc-200 truncate" title={ticket.model}>{ticket.model || 'N/A'}</div>
+              <div className="text-zinc-800 dark:text-zinc-200">{ticket.model || 'N/A'}</div>
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Serial Number</label>
-              <div className="text-zinc-800 dark:text-zinc-200 font-mono" title={ticket.serial}>{ticket.serial || 'N/A'}</div>
+              <div className="text-zinc-800 dark:text-zinc-200 font-mono break-all">{ticket.serial || 'N/A'}</div>
             </div>
             <div>
               <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Priority</label>

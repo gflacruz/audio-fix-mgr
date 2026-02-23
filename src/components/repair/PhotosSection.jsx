@@ -45,21 +45,23 @@ export default function PhotosSection({ ticket, repairId, setTicket }) {
         <h3 className="text-amber-600 dark:text-amber-500 font-semibold flex items-center gap-2">
           <ImageIcon size={18} /> Photos
         </h3>
-        <div className="relative">
+        <label
+          className={`text-xs px-3 py-1.5 rounded flex items-center gap-2 transition-colors border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 ${
+            isUploading
+              ? 'opacity-50 cursor-not-allowed'
+              : 'cursor-pointer hover:bg-zinc-200 dark:hover:bg-zinc-700'
+          }`}
+        >
           <input
             type="file"
             accept="image/*"
             onChange={handlePhotoUpload}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            className="hidden"
             disabled={isUploading}
           />
-          <button
-            className={`text-xs bg-zinc-100 dark:bg-zinc-800 group-hover:bg-blue-600 group-hover:text-white text-zinc-700 dark:text-zinc-300 px-3 py-1.5 rounded flex items-center gap-2 transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            {isUploading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
-            {isUploading ? 'Uploading...' : 'Add Photo'}
-          </button>
-        </div>
+          {isUploading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+          {isUploading ? 'Uploading...' : 'Add Photo'}
+        </label>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">

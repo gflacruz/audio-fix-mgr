@@ -35,7 +35,7 @@ export default function RepairPartsSection({
           </h3>
           <button
             onClick={() => setIsAddingPart(!isAddingPart)}
-            className="text-xs bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded flex items-center gap-1 transition-colors"
+            className="text-xs bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 px-3 py-1.5 rounded flex items-center gap-2 transition-colors border border-zinc-300 dark:border-zinc-700"
           >
             <Plus size={14} /> Add Part
           </button>

@@ -21,6 +21,7 @@ import Payroll from './pages/Payroll';
 import PayrollHistory from './pages/PayrollHistory';
 import Suggestions from './pages/Suggestions';
 import Reports from './pages/Reports';
+import WaitingOnParts from './pages/WaitingOnParts';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
             <Route path="/technicians" element={<Technicians />} />
             <Route path="/intake" element={<Intake />} />
             <Route path="/workbench" element={<Workbench />} />
+            <Route path="/waiting-on-parts" element={<WaitingOnParts />} />
             <Route path="/repair/:id" element={<RepairDetail />} />
             <Route path="/repair/:repairId/estimate/:estimateId" element={<EstimateDetail />} />
             <Route path="/clients" element={<Clients />} />

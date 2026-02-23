@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, PenTool, Wrench, Users, Search, UserCog, LogOut, Shield, Package, DollarSign, MessageSquarePlus, BarChart3, X, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, PenTool, Wrench, Users, Search, UserCog, LogOut, Shield, Package, DollarSign, MessageSquarePlus, BarChart3, X, Sun, Moon, Hourglass } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { createSuggestion } from '@/lib/api';
@@ -102,6 +102,10 @@ const Sidebar = () => {
           <NavLink to="/workbench" className={navClass}>
             <Wrench size={20} />
             <span>Workbench</span>
+          </NavLink>
+          <NavLink to="/waiting-on-parts" className={navClass}>
+            <Hourglass size={20} />
+            <span>Waiting on Parts</span>
           </NavLink>
           <NavLink to="/clients" className={navClass}>
             <Users size={20} />

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { getRepairs, updateRepair } from '@/lib/api';
-import { Clock, AlertTriangle, CheckCircle, Search, Loader } from 'lucide-react';
+import { Clock, AlertTriangle, CheckCircle, Search, Loader, Printer } from 'lucide-react';
+import { printWorkbenchList } from '@/lib/printer';
 import { Link } from 'react-router-dom';
 
 const StatusBadge = ({ status }) => {
@@ -76,7 +77,15 @@ const Workbench = () => {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">Repair Workbench</h2>
         <div className="flex items-center gap-3">
-          <select 
+          <button
+            onClick={() => printWorkbenchList(filteredTickets, { statusFilter, sortOrder, query: filter })}
+            className="flex items-center gap-2 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm transition-colors shadow-sm dark:shadow-none"
+            title="Print current list"
+          >
+            <Printer size={16} />
+            Print
+          </button>
+          <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 rounded-lg text-sm text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none shadow-sm dark:shadow-none cursor-pointer"
