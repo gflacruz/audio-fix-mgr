@@ -771,6 +771,7 @@ router.get("/:id", async (req, res) => {
       boxHeight: row.box_height,
       boxLength: row.box_length,
       boxWidth: row.box_width,
+      boxWeight: row.box_weight ? parseFloat(row.box_weight) : null,
       modelVersion: row.model_version,
       accessoriesIncluded: row.accessories_included,
       poNumber: row.po_number,
@@ -778,6 +779,7 @@ router.get("/:id", async (req, res) => {
       laborCost: parseFloat(row.labor_cost) || 0,
       returnShippingCost: parseFloat(row.return_shipping_cost) || 0,
       returnShippingCarrier: row.return_shipping_carrier,
+      returnTrackingNumber: row.return_tracking_number || null,
       notes: notesResult.rows.map((n) => ({
         id: n.id,
         text: n.text,
@@ -831,6 +833,7 @@ router.post("/", async (req, res) => {
       boxHeight,
       boxLength,
       boxWidth,
+      boxWeight,
       modelVersion,
       accessoriesIncluded,
       checkedInBy,
@@ -869,8 +872,8 @@ router.post("/", async (req, res) => {
 
     const result = await db.query(
       `INSERT INTO repairs
-       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, diagnostic_fee, rush_fee, on_site_fee, is_shipped_in, shipping_carrier, box_height, box_length, box_width, model_version, accessories_included, is_on_site, claim_number, checked_in_by, status, po_number, is_tax_exempt)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, diagnostic_fee, rush_fee, on_site_fee, is_shipped_in, shipping_carrier, box_height, box_length, box_width, box_weight, model_version, accessories_included, is_on_site, claim_number, checked_in_by, status, po_number, is_tax_exempt)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
        RETURNING *`,
       [
         clientId,
@@ -890,6 +893,7 @@ router.post("/", async (req, res) => {
         boxHeight || null,
         boxLength || null,
         boxWidth || null,
+        boxWeight || null,
         modelVersion || null,
         accessoriesIncluded || null,
         isOnSite || false,
@@ -941,6 +945,8 @@ router.patch("/:id", async (req, res) => {
       "boxHeight",
       "boxLength",
       "boxWidth",
+      "boxWeight",
+      "returnTrackingNumber",
       "workPerformed",
       "laborCost",
       "returnShippingCost",
@@ -1154,7 +1160,7 @@ router.post("/:id/parts", async (req, res) => {
       }
     } else {
       // Custom Part Logic
-      if (!name || !price) {
+      if (!name || price === undefined || price === null || price === '') {
         await client.query("ROLLBACK");
         return res
           .status(400)
@@ -1181,6 +1187,22 @@ router.post("/:id/parts", async (req, res) => {
     res.status(500).json({ error: error.message || "Internal server error" });
   } finally {
     client.release();
+  }
+});
+
+// PATCH /api/repairs/:id/parts/:linkId - Update repair part price
+router.patch("/:id/parts/:linkId", verifyToken, async (req, res) => {
+  try {
+    const { linkId } = req.params;
+    const { price } = req.body;
+    const result = await db.pool.query(
+      "UPDATE repair_parts SET unit_price = $1 WHERE id = $2 RETURNING *",
+      [parseFloat(price) || 0, linkId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: "Repair part not found" });
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

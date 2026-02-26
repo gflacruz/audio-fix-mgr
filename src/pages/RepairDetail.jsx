@@ -63,6 +63,21 @@ const RepairDetail = () => {
   const [showEstimateWizard, setShowEstimateWizard] = useState(false);
   const [showModelNoteAlert, setShowModelNoteAlert] = useState(false);
 
+  // ESC key handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      if (showInvoiceWizard) { setShowInvoiceWizard(false); return; }
+      if (showEstimateWizard) { setShowEstimateWizard(false); return; }
+      if (showModelNoteAlert) { setShowModelNoteAlert(false); return; }
+      if (notifications.emailModal.isOpen) { notifications.closeEmailModal(); return; }
+      navigate(-1);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate, showInvoiceWizard, showEstimateWizard, showModelNoteAlert,
+      notifications.emailModal.isOpen, notifications.closeEmailModal]);
+
   // Show model note alert when navigating from Intake
   useEffect(() => {
     if (location.state?.fromIntake && modelNote?.note?.trim()) {

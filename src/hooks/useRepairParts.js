@@ -78,7 +78,7 @@ export function useRepairParts(id, ticket, setTicket) {
 
   const handleCustomPartSubmit = useCallback(async (e) => {
     e.preventDefault();
-    if (!customPartData.name || !customPartData.price) {
+    if (!customPartData.name || customPartData.price === '') {
       alert("Name and Price are required.");
       return;
     }

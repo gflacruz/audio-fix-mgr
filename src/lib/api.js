@@ -225,11 +225,11 @@ export const getTechnicians = async () => {
 };
 
 // Parts / Inventory
-export const getParts = async (search = '', page = 1, limit = 50, category = '') => {
+export const getParts = async (search = '', page = 1, limit = 50, categories = []) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
   const params = new URLSearchParams();
   if (search) params.append('search', search);
-  if (category) params.append('category', category);
+  categories.forEach(cat => params.append('category', cat));
   params.append('page', page);
   params.append('limit', limit);
 
@@ -298,9 +298,17 @@ export const updatePart = async (id, partData) => {
   return response.json();
 };
 
-export const deletePart = async (id) => {
+export const getPartRepairs = async (id) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
-  return fetchJSON(`/parts/${id}`, {
+  return fetchJSON(`/parts/${id}/repairs`, {
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const deletePart = async (id, force = false) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  const url = force ? `/parts/${id}?force=true` : `/parts/${id}`;
+  return fetchJSON(url, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${user?.token}` }
   });
@@ -320,6 +328,15 @@ export const removeRepairPart = async (repairId, linkId) => {
   return fetchJSON(`/repairs/${repairId}/parts/${linkId}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const updateRepairPartPrice = async (repairId, linkId, price) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/repairs/${repairId}/parts/${linkId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ price }),
+    headers: { Authorization: `Bearer ${user?.token}` },
   });
 };
 

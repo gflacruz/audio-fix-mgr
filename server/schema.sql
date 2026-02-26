@@ -237,3 +237,7 @@ ALTER TABLE parts ADD COLUMN IF NOT EXISTS last_used_date_override DATE;
 -- Add senior_technician role support
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin', 'technician', 'senior_technician'));
+
+-- Add box weight and return tracking number to repairs
+ALTER TABLE repairs ADD COLUMN IF NOT EXISTS box_weight DECIMAL(8, 2) DEFAULT NULL;
+ALTER TABLE repairs ADD COLUMN IF NOT EXISTS return_tracking_number VARCHAR(100) DEFAULT NULL;

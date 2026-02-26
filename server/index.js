@@ -315,6 +315,8 @@ app.use('/api/sms', require('./routes/sms'));
     `);
     await db.query(`ALTER TABLE repairs ADD COLUMN IF NOT EXISTS parts_note TEXT`);
     await db.query(`ALTER TABLE repairs ADD COLUMN IF NOT EXISTS parts_last_checked TIMESTAMP`);
+    await db.query(`ALTER TABLE repairs ADD COLUMN IF NOT EXISTS box_weight DECIMAL(8, 2) DEFAULT NULL`);
+    await db.query(`ALTER TABLE repairs ADD COLUMN IF NOT EXISTS return_tracking_number VARCHAR(100) DEFAULT NULL`);
 
     // ── Part categories join table (replaces parts.category column) ───────────
     await db.query(`

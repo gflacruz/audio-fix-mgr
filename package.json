@@ -1,6 +1,6 @@
 {
   "name": "audio-fix-manager",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "description": "Audio Repair Shop Management System",
   "main": "electron/main.js",
   "scripts": {

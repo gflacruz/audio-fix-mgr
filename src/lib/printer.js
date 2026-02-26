@@ -225,13 +225,18 @@ export const printDiagnosticReceipt = async (ticket, client) => {
   printWindow.document.close();
 };
 
-export const printRepairInvoice = async (ticket, client) => {
+export const printRepairInvoice = async (ticket, client, options = {}) => {
   const logoDataUri = await getLogoDataUri();
   const printWindow = window.open("", "_blank");
 
-  // Calculate totals
-  const partsTotal =
-    ticket.parts?.reduce((sum, p) => sum + (p.total || 0), 0) || 0;
+  const { showCustomParts = true, showInventoryParts = false } = options;
+
+  const billableParts = ticket.parts?.filter(p => {
+    const isInventory = p.partId != null;
+    return isInventory ? showInventoryParts : showCustomParts;
+  }) || [];
+
+  const partsTotal = billableParts.reduce((sum, p) => sum + (p.total || 0), 0);
   const laborTotal = ticket.laborCost || 0;
   const shippingTotal = ticket.returnShippingCost || 0;
   const onSiteFee = parseFloat(ticket.onSiteFee) || 0;
@@ -247,11 +252,6 @@ export const printRepairInvoice = async (ticket, client) => {
   const amountDue = ticket.diagnosticFeeCollected
     ? Math.max(0, totalWithTax - diagnosticFee)
     : totalWithTax;
-
-  // Generate Parts Rows
-  // Filter: Only show "Custom Parts" (Billable items with price > 0). 
-  // Inventory parts tracked at $0.00 are hidden from the customer invoice.
-  const billableParts = ticket.parts?.filter(p => p.total > 0) || [];
 
   const partsRows =
     billableParts.length > 0

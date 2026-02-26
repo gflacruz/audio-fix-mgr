@@ -11,7 +11,9 @@ export default function ShipmentDetailsCard({ ticket, onSave }) {
       boxLength: ticket.boxLength || '',
       boxWidth: ticket.boxWidth || '',
       boxHeight: ticket.boxHeight || '',
-      returnShippingCarrier: ticket.returnShippingCarrier || ''
+      boxWeight: ticket.boxWeight || '',
+      returnShippingCarrier: ticket.returnShippingCarrier || '',
+      returnTrackingNumber: ticket.returnTrackingNumber || '',
     });
     setIsEditing(true);
   };
@@ -71,12 +73,33 @@ export default function ShipmentDetailsCard({ ticket, onSave }) {
             </div>
           </div>
           <div>
+            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Weight (lbs)</label>
+            <input
+              type="number"
+              value={tempShipment.boxWeight}
+              onChange={(e) => setTempShipment(prev => ({ ...prev, boxWeight: e.target.value }))}
+              placeholder="e.g. 12.5"
+              step="0.1"
+              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+            />
+          </div>
+          <div>
             <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Return Carrier</label>
             <input
               type="text"
               value={tempShipment.returnShippingCarrier}
               onChange={(e) => setTempShipment(prev => ({ ...prev, returnShippingCarrier: e.target.value }))}
               placeholder="e.g. UPS Ground"
+              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Return Tracking #</label>
+            <input
+              type="text"
+              value={tempShipment.returnTrackingNumber}
+              onChange={(e) => setTempShipment(prev => ({ ...prev, returnTrackingNumber: e.target.value }))}
+              placeholder="e.g. 1Z999AA10123456784"
               className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
             />
           </div>
@@ -97,10 +120,20 @@ export default function ShipmentDetailsCard({ ticket, onSave }) {
               {ticket.boxLength || '?'}L x {ticket.boxWidth || '?'}W x {ticket.boxHeight || '?'}H
             </div>
           </div>
+          <div>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Weight</label>
+            <div className="text-zinc-800 dark:text-zinc-200">{ticket.boxWeight ? `${ticket.boxWeight} lbs` : 'N/A'}</div>
+          </div>
           {ticket.returnShippingCarrier && (
             <div>
               <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Return Carrier</label>
               <div className="text-zinc-800 dark:text-zinc-200">{ticket.returnShippingCarrier}</div>
+            </div>
+          )}
+          {ticket.returnTrackingNumber && (
+            <div>
+              <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Return Tracking #</label>
+              <div className="text-zinc-800 dark:text-zinc-200 font-mono text-sm">{ticket.returnTrackingNumber}</div>
             </div>
           )}
         </div>

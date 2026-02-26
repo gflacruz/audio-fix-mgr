@@ -45,7 +45,8 @@ const formatPart = (row) => ({
 // GET /api/parts - List all parts (Searchable & Paginated)
 router.get('/', verifyToken, async (req, res) => {
   try {
-    const { search, page = 1, limit = 50, category } = req.query;
+    const { search, page = 1, limit = 50 } = req.query;
+    const categories = req.query.category ? [].concat(req.query.category) : [];
     const offset = (page - 1) * limit;
 
     let query = `
@@ -57,6 +58,8 @@ router.get('/', verifyToken, async (req, res) => {
              ) as aliases,
              (SELECT COALESCE(json_agg(pc.category ORDER BY pc.category), '[]')
               FROM part_categories pc WHERE pc.part_id = p.id) as categories,
+             (SELECT COALESCE(SUM(rp.quantity), 0) FROM repair_parts rp WHERE rp.part_id = p.id) as issued_lifetime,
+             (SELECT MAX(rp.created_at) FROM repair_parts rp WHERE rp.part_id = p.id) as last_used_date,
              COUNT(*) OVER() as full_count
       FROM parts p
       LEFT JOIN part_aliases pa ON p.id = pa.part_id
@@ -74,13 +77,13 @@ router.get('/', verifyToken, async (req, res) => {
         OR pa.alias ILIKE $${params.length + 1})`);
       params.push(`%${search}%`);
     }
-    if (category) {
+    categories.forEach((cat) => {
+      params.push(cat);
       whereClauses.push(`EXISTS (
         SELECT 1 FROM part_categories pc
-        WHERE pc.part_id = p.id AND pc.category ILIKE $${params.length + 1}
+        WHERE pc.part_id = p.id AND pc.category ILIKE $${params.length}
       )`);
-      params.push(category);
-    }
+    });
     if (whereClauses.length > 0) {
       query += ' WHERE ' + whereClauses.join(' AND ');
     }
@@ -442,10 +445,35 @@ router.patch('/:id', verifyToken, verifyAdmin, upload.single('image'), async (re
   }
 });
 
+// GET /api/parts/:id/repairs - List repairs using this part (Admin only)
+router.get('/:id/repairs', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query(`
+      SELECT rp.repair_id, rp.quantity,
+             c.name AS client_name, r.status
+      FROM repair_parts rp
+      JOIN repairs r ON r.id = rp.repair_id
+      JOIN clients c ON c.id = r.client_id
+      WHERE rp.part_id = $1
+      ORDER BY rp.repair_id DESC
+    `, [id]);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // DELETE /api/parts/:id - Delete part (Admin only)
 router.delete('/:id', verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const force = req.query.force === 'true';
+
+    if (force) {
+      await db.query('DELETE FROM repair_parts WHERE part_id = $1', [id]);
+    }
+
     await db.query('DELETE FROM parts WHERE id = $1', [id]);
     res.json({ message: 'Part deleted successfully' });
   } catch (error) {

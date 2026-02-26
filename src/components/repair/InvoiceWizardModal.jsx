@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { updateRepair, getRepair } from '@/lib/api';
-import { FileText, Plus, Trash2, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { updateRepair, getRepair, addCustomRepairPart, updateRepairPartPrice } from '@/lib/api';
+import { FileText, Plus, Trash2, X, Package, Tag } from 'lucide-react';
 
 export default function InvoiceWizardModal({
   isOpen,
@@ -24,12 +24,50 @@ export default function InvoiceWizardModal({
     workPerformed: ticket?.workPerformed || '',
     returnShippingCarrier: ticket?.returnShippingCarrier || '',
     returnShippingCost: ticket?.returnShippingCost || '',
+    returnTrackingNumber: ticket?.returnTrackingNumber || '',
     laborCost: ticket?.laborCost || ''
   });
+  const [partPrices, setPartPrices] = useState(() =>
+    Object.fromEntries((ticket?.parts || []).map(p => [p.id, p.price]))
+  );
+
+  // Sync partPrices when parts are added/removed (e.g. after Defaults button)
+  useEffect(() => {
+    setPartPrices(prev => {
+      const next = { ...prev };
+      (ticket?.parts || []).forEach(p => {
+        if (!(p.id in next)) next[p.id] = p.price;
+      });
+      return next;
+    });
+  }, [ticket?.parts]);
 
   if (!isOpen) return null;
 
-  const partsTotal = ticket?.parts?.reduce((sum, p) => sum + p.total, 0) || 0;
+  const partsTotal = ticket?.parts?.reduce((sum, p) =>
+    sum + (parseFloat(partPrices[p.id]) || 0) * p.quantity, 0) || 0;
+
+  const handlePartPriceBlur = async (part) => {
+    try {
+      await updateRepairPartPrice(repairId, part.id, partPrices[part.id]);
+      const updatedTicket = await getRepair(repairId);
+      setTicket(updatedTicket);
+    } catch (error) {
+      console.error('Failed to update part price:', error);
+    }
+  };
+
+  const handleAddDefaults = async () => {
+    try {
+      await addCustomRepairPart(repairId, { name: 'Flat Rate - Parts included in Repair Cost', price: 0, quantity: 1 });
+      await addCustomRepairPart(repairId, { name: 'Chemicals - Shop Materials, Chemicals, and Supplies', price: 0, quantity: 1 });
+      const updatedTicket = await getRepair(repairId);
+      setTicket(updatedTicket);
+    } catch (error) {
+      console.error('Failed to add default parts:', error);
+      alert('Failed to add default parts: ' + error.message);
+    }
+  };
 
   const handleInvoiceChange = (e) => {
     const { name, value } = e.target;
@@ -73,12 +111,14 @@ export default function InvoiceWizardModal({
       if (wizardStep === 3) {
         await updateRepair(repairId, {
           returnShippingCarrier: invoiceData.returnShippingCarrier,
-          returnShippingCost: parseFloat(invoiceData.returnShippingCost) || 0
+          returnShippingCost: parseFloat(invoiceData.returnShippingCost) || 0,
+          returnTrackingNumber: invoiceData.returnTrackingNumber || null,
         });
         setTicket(prev => ({
           ...prev,
           returnShippingCarrier: invoiceData.returnShippingCarrier,
-          returnShippingCost: parseFloat(invoiceData.returnShippingCost) || 0
+          returnShippingCost: parseFloat(invoiceData.returnShippingCost) || 0,
+          returnTrackingNumber: invoiceData.returnTrackingNumber || null,
         }));
         setWizardStep(4);
         return;
@@ -140,6 +180,13 @@ export default function InvoiceWizardModal({
                   >
                     <Plus size={14} /> Custom Item
                   </button>
+                  <button
+                    onClick={handleAddDefaults}
+                    className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 px-3 rounded border border-zinc-300 dark:border-zinc-700 transition-colors flex items-center gap-2 text-xs font-medium"
+                    title="Add default line items"
+                  >
+                    <Plus size={14} /> Defaults
+                  </button>
                 </div>
                 {partsSearch && (
                   <div className="max-h-40 overflow-y-auto space-y-1">
@@ -165,25 +212,35 @@ export default function InvoiceWizardModal({
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {ticket.parts?.map(part => (
                   <div key={part.id} className="flex justify-between items-center bg-zinc-100 dark:bg-zinc-800/50 p-3 rounded border border-zinc-300 dark:border-zinc-700">
-                    <span className="text-zinc-800 dark:text-zinc-200">{part.name} (x{part.quantity})</span>
+                    <span className="text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
+                      {part.partId
+                        ? <Package size={13} className="text-blue-500 shrink-0" title="Inventory part" />
+                        : <Tag size={13} className="text-amber-500 shrink-0" title="Custom item" />
+                      }
+                      {part.name} (x{part.quantity})
+                    </span>
                     <div className="flex items-center gap-3">
                       <div className="flex flex-col items-end">
-                        {part.total > 0 ? (
-                          <span className="text-zinc-700 dark:text-zinc-300 font-mono">${part.total.toFixed(2)}</span>
-                        ) : (
-                          <>
-                            {part.retailPrice > 0 && (
-                              <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                                Retail: ${part.retailPrice.toFixed(2)}
-                              </span>
-                            )}
-                            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-500">
-                              Cost: ${part.wholesalePrice ? part.wholesalePrice.toFixed(2) : '0.00'}
-                            </span>
-                          </>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">$</span>
+                          <input
+                            type="number"
+                            value={partPrices[part.id] ?? ''}
+                            onChange={(e) => setPartPrices(prev => ({ ...prev, [part.id]: e.target.value }))}
+                            onBlur={() => handlePartPriceBlur(part)}
+                            className="w-24 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded pl-6 pr-2 py-1 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        {part.retailPrice > 0 && (
+                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                            Retail: ${part.retailPrice.toFixed(2)}
+                          </span>
                         )}
                       </div>
                       <button
+                        tabIndex={-1}
                         onClick={() => handleRemovePart(part.id)}
                         className="text-zinc-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                       >
@@ -242,19 +299,30 @@ export default function InvoiceWizardModal({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">Shipping Cost Quote ($)</label>
-                  <div className="relative group">
-                    <span className="absolute left-3 top-2 text-zinc-500">$</span>
-                    <input
-                      type="number"
-                      name="returnShippingCost"
-                      value={invoiceData.returnShippingCost}
-                      onChange={handleInvoiceChange}
-                      onKeyDown={handleWizardKeyDown}
-                      placeholder="0.00"
-                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded pl-7 pr-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
-                    />
-                  </div>
+                  <label className="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">Return Tracking #</label>
+                  <input
+                    name="returnTrackingNumber"
+                    value={invoiceData.returnTrackingNumber}
+                    onChange={handleInvoiceChange}
+                    onKeyDown={handleWizardKeyDown}
+                    placeholder="e.g. 1Z999AA10123456784"
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">Shipping Cost Quote ($)</label>
+                <div className="relative group">
+                  <span className="absolute left-3 top-2 text-zinc-500">$</span>
+                  <input
+                    type="number"
+                    name="returnShippingCost"
+                    value={invoiceData.returnShippingCost}
+                    onChange={handleInvoiceChange}
+                    onKeyDown={handleWizardKeyDown}
+                    placeholder="0.00"
+                    className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded pl-7 pr-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                  />
                 </div>
               </div>
             </div>

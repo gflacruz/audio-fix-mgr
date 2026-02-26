@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft, Save, X, Edit2, Trash2, MapPin, Package, Upload,
-  Tag, TrendingUp, FileText, MessageSquare, Hash, Truck
+  Tag, TrendingUp, FileText, MessageSquare, Hash, Truck, AlertTriangle
 } from 'lucide-react';
-import { getPart, updatePart, deletePart, getPartCategories } from '@/lib/api';
+import { getPart, updatePart, deletePart, getPartRepairs, getPartCategories } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import Modal from '@/components/Modal';
 import CategoryTagInput from '@/components/CategoryTagInput';
@@ -21,6 +21,7 @@ const PartDetail = () => {
   const [saving, setSaving] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [inUseRepairs, setInUseRepairs] = useState(null); // null = not checked yet
 
   const [categoryOptions, setCategoryOptions] = useState([]);
 
@@ -46,6 +47,16 @@ const PartDetail = () => {
     image: null,
     previewUrl: null,
   });
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      if (showDeleteModal) { setShowDeleteModal(false); return; }
+      navigate('/inventory');
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate, showDeleteModal]);
 
   useEffect(() => {
     loadPart();
@@ -101,7 +112,21 @@ const PartDetail = () => {
 
   const handleDelete = async () => {
     try {
+      const repairs = await getPartRepairs(id);
+      if (repairs.length > 0) {
+        setInUseRepairs(repairs);
+        return;
+      }
       await deletePart(id);
+      navigate('/inventory');
+    } catch (err) {
+      alert('Failed to delete part: ' + err.message);
+    }
+  };
+
+  const handleForceDelete = async () => {
+    try {
+      await deletePart(id, true);
       navigate('/inventory');
     } catch (err) {
       alert('Failed to delete part: ' + err.message);
@@ -674,53 +699,122 @@ const PartDetail = () => {
       </div>
       <Modal
         isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
+        onClose={() => { setShowDeleteModal(false); setInUseRepairs(null); setDeleteConfirmText(''); }}
         title="Delete Part"
         footer={
-          <>
-            <button
-              type="button"
-              onClick={() => setShowDeleteModal(false)}
-              className="px-4 py-2 text-zinc-400 hover:text-white transition-colors text-sm"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={deleteConfirmText !== 'DELETE'}
-              onClick={handleDelete}
-              className="flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded text-sm font-semibold transition-colors"
-            >
-              <Trash2 size={15} /> Delete Part
-            </button>
-          </>
+          inUseRepairs !== null ? (
+            <>
+              <button
+                type="button"
+                onClick={() => { setShowDeleteModal(false); setInUseRepairs(null); setDeleteConfirmText(''); }}
+                className="px-4 py-2 text-zinc-400 hover:text-white transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleForceDelete}
+                className="flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 text-white rounded text-sm font-semibold transition-colors"
+              >
+                <Trash2 size={15} /> Force Delete
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => { setShowDeleteModal(false); setInUseRepairs(null); setDeleteConfirmText(''); }}
+                className="px-4 py-2 text-zinc-400 hover:text-white transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteConfirmText !== 'DELETE'}
+                onClick={handleDelete}
+                className="flex items-center gap-2 px-4 py-2 bg-red-700 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded text-sm font-semibold transition-colors"
+              >
+                <Trash2 size={15} /> Delete Part
+              </button>
+            </>
+          )
         }
       >
-        <div className="space-y-4">
-          <div className="flex items-start gap-3 p-3 bg-red-950/30 border border-red-900/50 rounded-lg">
-            <Trash2 size={18} className="text-red-400 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-white text-sm font-semibold">This action cannot be undone.</p>
-              <p className="text-zinc-400 text-sm mt-0.5">
-                <span className="text-white font-medium">{part.name}</span> will be permanently deleted from inventory.
-              </p>
+        {inUseRepairs !== null ? (
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 p-3 bg-amber-950/30 border border-amber-800/50 rounded-lg">
+              <AlertTriangle size={18} className="text-amber-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-white text-sm font-semibold">
+                  This part is attached to {inUseRepairs.length} repair{inUseRepairs.length !== 1 ? 's' : ''}
+                </p>
+                <p className="text-zinc-400 text-xs mt-0.5">
+                  Force Delete will remove this part record from all listed repairs before deleting.
+                </p>
+              </div>
+            </div>
+            <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+              {inUseRepairs.map((r) => {
+                const statusColors = {
+                  checked_in: 'bg-blue-900/40 text-blue-300 border-blue-800/50',
+                  diagnosing: 'bg-purple-900/40 text-purple-300 border-purple-800/50',
+                  repairing: 'bg-amber-900/40 text-amber-300 border-amber-800/50',
+                  parts: 'bg-orange-900/40 text-orange-300 border-orange-800/50',
+                  estimate: 'bg-yellow-900/40 text-yellow-300 border-yellow-800/50',
+                  ready: 'bg-emerald-900/40 text-emerald-300 border-emerald-800/50',
+                  closed: 'bg-zinc-800 text-zinc-400 border-zinc-700',
+                };
+                const badgeClass = statusColors[r.status] || 'bg-zinc-800 text-zinc-400 border-zinc-700';
+                return (
+                  <div key={r.repair_id} className="flex items-center justify-between gap-3 px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Link
+                        to={`/repairs/${r.repair_id}`}
+                        onClick={() => { setShowDeleteModal(false); setInUseRepairs(null); }}
+                        className="text-amber-400 hover:text-amber-300 text-sm font-mono font-semibold shrink-0 hover:underline"
+                      >
+                        #{r.repair_id}
+                      </Link>
+                      <span className="text-zinc-300 text-sm truncate">{r.client_name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-zinc-500 text-xs">qty {r.quantity}</span>
+                      <span className={`px-2 py-0.5 rounded text-xs border capitalize ${badgeClass}`}>
+                        {r.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-          <div>
-            <label className="block text-sm text-zinc-400 mb-2">
-              Type <span className="text-white font-bold">DELETE</span> to confirm
-            </label>
-            <input
-              type="text"
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && deleteConfirmText === 'DELETE' && handleDelete()}
-              placeholder="DELETE"
-              className="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-white focus:border-red-500 focus:outline-none text-sm"
-              autoFocus
-            />
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-start gap-3 p-3 bg-red-950/30 border border-red-900/50 rounded-lg">
+              <Trash2 size={18} className="text-red-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-white text-sm font-semibold">This action cannot be undone.</p>
+                <p className="text-zinc-400 text-sm mt-0.5">
+                  <span className="text-white font-medium">{part.name}</span> will be permanently deleted from inventory.
+                </p>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-zinc-400 mb-2">
+                Type <span className="text-white font-bold">DELETE</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && deleteConfirmText === 'DELETE' && handleDelete()}
+                placeholder="DELETE"
+                className="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-white focus:border-red-500 focus:outline-none text-sm"
+                autoFocus
+              />
+            </div>
           </div>
-        </div>
+        )}
       </Modal>
     </div>
   );

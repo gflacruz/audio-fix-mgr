@@ -5,9 +5,11 @@ import { CLOSED_STATUSES } from '@/lib/repairConstants';
 
 export default function DocumentsCard({ ticket, client, technicians, onTechnicianChange, onClose }) {
   const [showCloseModal, setShowCloseModal] = useState(false);
+  const [showCustomParts, setShowCustomParts] = useState(true);
+  const [showInventoryParts, setShowInventoryParts] = useState(false);
 
   const handlePrintInvoice = () => {
-    printRepairInvoice(ticket, client);
+    printRepairInvoice(ticket, client, { showCustomParts, showInventoryParts });
     if (!CLOSED_STATUSES.includes(ticket.status)) {
       setShowCloseModal(true);
     }
@@ -39,6 +41,26 @@ export default function DocumentsCard({ ticket, client, technicians, onTechnicia
             <Printer size={18} />
             Print Invoice
           </button>
+          <div className="pt-1 space-y-1.5">
+            <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showCustomParts}
+                onChange={e => setShowCustomParts(e.target.checked)}
+                className="accent-amber-500"
+              />
+              Display Custom Parts
+            </label>
+            <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showInventoryParts}
+                onChange={e => setShowInventoryParts(e.target.checked)}
+                className="accent-amber-500"
+              />
+              Display Inventory Parts
+            </label>
+          </div>
         </div>
       </div>
 

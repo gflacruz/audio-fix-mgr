@@ -112,6 +112,8 @@ export function useRepairUpdater(id, ticket, setTicket, user, showError) {
         boxLength: shipmentData.boxLength === '' ? null : parseInt(shipmentData.boxLength),
         boxWidth: shipmentData.boxWidth === '' ? null : parseInt(shipmentData.boxWidth),
         boxHeight: shipmentData.boxHeight === '' ? null : parseInt(shipmentData.boxHeight),
+        boxWeight: shipmentData.boxWeight === '' ? null : parseFloat(shipmentData.boxWeight),
+        returnTrackingNumber: shipmentData.returnTrackingNumber || null,
       };
       await updateRepair(id, sanitizedShipment);
       setTicket(prev => ({ ...prev, ...sanitizedShipment }));

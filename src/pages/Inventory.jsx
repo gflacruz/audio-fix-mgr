@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Package, Search, Plus, Edit, Trash2, X, Save, Upload, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getParts, createPart, updatePart, deletePart, getPartCategories } from '@/lib/api';
+import { Package, Search, Plus, Edit, Trash2, X, Save, Upload, Image as ImageIcon, MapPin, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { getParts, createPart, updatePart, deletePart, getPartRepairs, getPartCategories } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Modal from '@/components/Modal';
-import ComboSelect from '@/components/ComboSelect';
 import CategoryTagInput from '@/components/CategoryTagInput';
 
 const Inventory = () => {
@@ -12,7 +11,7 @@ const Inventory = () => {
   const navigate = useNavigate();
   const [parts, setParts] = useState([]);
   const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState([]);
   const [categoryOptions, setCategoryOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -29,7 +28,7 @@ const Inventory = () => {
 
   const [showModal, setShowModal] = useState(false);
   const [editingPart, setEditingPart] = useState(null);
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, partId: null });
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, partId: null, inUseRepairs: null });
 
   // Form State
   const [formData, setFormData] = useState({
@@ -48,7 +47,7 @@ const Inventory = () => {
 
   const loadParts = async (pageToLoad = 1) => {
     // If both search and category filter are empty, do not fetch parts
-    if (!search.trim() && !categoryFilter.trim()) {
+    if (!search.trim() && categoryFilter.length === 0) {
         setParts([]);
         setTotalPages(1);
         setLoading(false);
@@ -82,7 +81,7 @@ const Inventory = () => {
     }
 
     // If both search and category filter are empty, clear immediately
-    if (!search.trim() && !categoryFilter.trim()) {
+    if (!search.trim() && categoryFilter.length === 0) {
         loadParts(1);
         return;
     }
@@ -190,16 +189,31 @@ const Inventory = () => {
   const confirmDelete = async () => {
     if (!deleteModal.partId) return;
     try {
+      const repairs = await getPartRepairs(deleteModal.partId);
+      if (repairs.length > 0) {
+        setDeleteModal(prev => ({ ...prev, inUseRepairs: repairs }));
+        return;
+      }
       await deletePart(deleteModal.partId);
       loadParts(page);
-      setDeleteModal({ isOpen: false, partId: null });
+      setDeleteModal({ isOpen: false, partId: null, inUseRepairs: null });
     } catch (error) {
       alert('Failed to delete part: ' + error.message);
     }
   };
 
+  const forceDeletePart = async () => {
+    try {
+      await deletePart(deleteModal.partId, true);
+      loadParts(page);
+      setDeleteModal({ isOpen: false, partId: null, inUseRepairs: null });
+    } catch (error) {
+      alert('Failed to force delete part: ' + error.message);
+    }
+  };
+
   const handleDelete = (id) => {
-    setDeleteModal({ isOpen: true, partId: id });
+    setDeleteModal({ isOpen: true, partId: id, inUseRepairs: null });
   };
 
   return (
@@ -240,18 +254,14 @@ const Inventory = () => {
       {/* Category Filter */}
       <div className="mb-4 flex items-center gap-3">
         <span className="text-sm text-zinc-500 dark:text-zinc-400 shrink-0">Category:</span>
-        <div className="w-56">
-          <ComboSelect
-            value={categoryFilter}
-            options={['', ...categoryOptions]}
-            onChange={(val) => { setCategoryFilter(val); }}
+        <div className="flex-1 max-w-xl">
+          <CategoryTagInput
+            values={categoryFilter}
+            onChange={(cats) => setCategoryFilter(cats)}
+            options={categoryOptions}
+            placeholder="Filter by category..."
           />
         </div>
-        {categoryFilter && (
-          <button onClick={() => setCategoryFilter('')} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
-            <X size={14} />
-          </button>
-        )}
       </div>
 
       {/* Parts Table */}
@@ -275,7 +285,7 @@ const Inventory = () => {
             ) : parts.length === 0 ? (
               <tr>
                 <td colSpan="7" className="px-6 py-8 text-center text-zinc-500">
-                    {!search.trim() && !categoryFilter.trim() ? "Enter a search term or select a category to find parts." : "No parts found matching your search."}
+                    {!search.trim() && categoryFilter.length === 0 ? "Enter a search term or select a category to find parts." : "No parts found matching your search."}
                 </td>
               </tr>
             ) : (
@@ -565,36 +575,103 @@ const Inventory = () => {
       {/* Delete Confirmation Modal */}
       <Modal
         isOpen={deleteModal.isOpen}
-        onClose={() => setDeleteModal({ isOpen: false, partId: null })}
-        title="Confirm Delete"
+        onClose={() => setDeleteModal({ isOpen: false, partId: null, inUseRepairs: null })}
+        title="Delete Part"
         footer={
-          <>
-            <button 
-              onClick={() => setDeleteModal({ isOpen: false, partId: null })}
-              className="px-4 py-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={confirmDelete}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium"
-            >
-              Delete Part
-            </button>
-          </>
+          deleteModal.inUseRepairs !== null ? (
+            <>
+              <button
+                onClick={() => setDeleteModal({ isOpen: false, partId: null, inUseRepairs: null })}
+                className="px-4 py-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={forceDeletePart}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium"
+              >
+                <Trash2 size={15} /> Force Delete
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setDeleteModal({ isOpen: false, partId: null, inUseRepairs: null })}
+                className="px-4 py-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium"
+              >
+                Delete Part
+              </button>
+            </>
+          )
         }
       >
-        <div className="p-4 text-center">
-          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4 mx-auto">
-            <Trash2 className="text-red-600 dark:text-red-500" size={32} />
+        {deleteModal.inUseRepairs !== null ? (
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 p-3 bg-amber-950/30 border border-amber-800/50 rounded-lg">
+              <AlertTriangle size={18} className="text-amber-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-white text-sm font-semibold">
+                  This part is attached to {deleteModal.inUseRepairs.length} repair{deleteModal.inUseRepairs.length !== 1 ? 's' : ''}
+                </p>
+                <p className="text-zinc-400 text-xs mt-0.5">
+                  Force Delete will remove this part record from all listed repairs before deleting.
+                </p>
+              </div>
+            </div>
+            <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+              {deleteModal.inUseRepairs.map((r) => {
+                const statusColors = {
+                  checked_in: 'bg-blue-900/40 text-blue-300 border-blue-800/50',
+                  diagnosing: 'bg-purple-900/40 text-purple-300 border-purple-800/50',
+                  repairing: 'bg-amber-900/40 text-amber-300 border-amber-800/50',
+                  parts: 'bg-orange-900/40 text-orange-300 border-orange-800/50',
+                  estimate: 'bg-yellow-900/40 text-yellow-300 border-yellow-800/50',
+                  ready: 'bg-emerald-900/40 text-emerald-300 border-emerald-800/50',
+                  closed: 'bg-zinc-800 text-zinc-400 border-zinc-700',
+                };
+                const badgeClass = statusColors[r.status] || 'bg-zinc-800 text-zinc-400 border-zinc-700';
+                return (
+                  <div key={r.repair_id} className="flex items-center justify-between gap-3 px-3 py-2 bg-zinc-900 border border-zinc-800 rounded-lg">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Link
+                        to={`/repairs/${r.repair_id}`}
+                        onClick={() => setDeleteModal({ isOpen: false, partId: null, inUseRepairs: null })}
+                        className="text-amber-400 hover:text-amber-300 text-sm font-mono font-semibold shrink-0 hover:underline"
+                      >
+                        #{r.repair_id}
+                      </Link>
+                      <span className="text-zinc-300 text-sm truncate">{r.client_name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-zinc-500 text-xs">qty {r.quantity}</span>
+                      <span className={`px-2 py-0.5 rounded text-xs border capitalize ${badgeClass}`}>
+                        {r.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <p className="text-lg text-zinc-800 dark:text-zinc-200 mb-2">
-            Are you sure you want to delete this part?
-          </p>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            This action cannot be undone.
-          </p>
-        </div>
+        ) : (
+          <div className="p-4 text-center">
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4 mx-auto">
+              <Trash2 className="text-red-600 dark:text-red-500" size={32} />
+            </div>
+            <p className="text-lg text-zinc-800 dark:text-zinc-200 mb-2">
+              Are you sure you want to delete this part?
+            </p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              This action cannot be undone.
+            </p>
+          </div>
+        )}
       </Modal>
     </div>
   );

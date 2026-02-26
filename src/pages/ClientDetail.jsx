@@ -21,6 +21,16 @@ const ClientDetail = () => {
   const [optInSending, setOptInSending] = useState(false);
 
   useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      if (showDeleteModal) { setShowDeleteModal(false); return; }
+      navigate('/clients');
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate, showDeleteModal]);
+
+  useEffect(() => {
     loadData();
   }, [id]);
 

@@ -43,6 +43,7 @@ const Intake = () => {
     boxHeight: '',
     boxLength: '',
     boxWidth: '',
+    boxWeight: '',
     poNumber: '',
     isTaxExempt: false
   });
@@ -235,6 +236,7 @@ const Intake = () => {
         boxHeight: formData.isShippedIn ? formData.boxHeight : null,
         boxLength: formData.isShippedIn ? formData.boxLength : null,
         boxWidth: formData.isShippedIn ? formData.boxWidth : null,
+        boxWeight: formData.isShippedIn ? (formData.boxWeight || null) : null,
         checkedInBy: user?.name,
         poNumber: formData.poNumber || null,
         isTaxExempt: formData.isTaxExempt
@@ -449,6 +451,10 @@ const Intake = () => {
                     <input type="number" name="boxWidth" value={formData.boxWidth} onChange={handleChange} placeholder="Width" className={inputCls} />
                     <input type="number" name="boxHeight" value={formData.boxHeight} onChange={handleChange} placeholder="Height" className={inputCls} />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">Weight (lbs)</label>
+                  <input type="number" name="boxWeight" value={formData.boxWeight} onChange={handleChange} placeholder="e.g. 12.5" step="0.1" className={inputCls} />
                 </div>
               </div>
             )}
