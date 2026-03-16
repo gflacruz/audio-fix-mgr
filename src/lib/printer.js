@@ -259,7 +259,7 @@ export const printRepairInvoice = async (ticket, client, options = {}) => {
           .map(
             (part) => `
         <tr>
-          <td>${part.name} <span style="font-size: 12px; color: #666;">(x${part.quantity})</span></td>
+          <td>${part.name} <span style="font-size: 11px; color: #666;">(x${part.quantity})</span></td>
           <td style="text-align: right;">$${(part.total || 0).toFixed(2)}</td>
         </tr>
       `,
@@ -274,36 +274,36 @@ export const printRepairInvoice = async (ticket, client, options = {}) => {
       <title>Invoice #${ticket.claimNumber || ticket.id}</title>
       <style>
         *, *::before, *::after { box-sizing: border-box; }
-        @media print { 
-          @page { margin: 0.5cm; }
+        @media print {
+          @page { margin: 0.4cm; }
           body { -webkit-print-color-adjust: exact; }
         }
-        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 25px; max-width: 800px; margin: 0 auto; color: #333; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 12px; font-size: 12px; max-width: 800px; margin: 0 auto; color: #333; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 8px; }
         .header > div:nth-child(1) { flex: 1; }
         .header > div:nth-child(2) { text-align: right; flex: 1; }
         .shop-info { text-align: right; }
-        .shop-name { font-size: 22px; font-weight: bold; color: #000; margin-bottom: 5px; }
-        .doc-title { font-size: 16px; text-transform: uppercase; letter-spacing: 2px; color: #666; }
+        .shop-name { font-size: 18px; font-weight: bold; color: #000; margin-bottom: 2px; }
+        .doc-title { font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: #666; }
         .claim-box { display: inline-block; padding: 6px 24px; border: 2px solid #000; border-radius: 6px; }
         .claim-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #666; margin-bottom: 3px; }
         .claim-number { font-size: 22px; font-weight: 800; line-height: 1; color: #000; }
-        .info-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; margin-bottom: 20px; }
+        .info-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; margin-bottom: 10px; }
         .label { font-size: 11px; text-transform: uppercase; color: #888; margin-bottom: 2px; }
-        .value { font-size: 14px; font-weight: 500; }
-        .section-title { font-size: 13px; font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin-bottom: 10px; text-transform: uppercase; }
-        .table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .table th { text-align: left; padding: 8px; border-bottom: 2px solid #000; font-size: 12px; text-transform: uppercase; }
-        .table td { padding: 8px; border-bottom: 1px solid #eee; font-size: 13px; }
+        .value { font-size: 13px; font-weight: 500; }
+        .section-title { font-size: 11px; font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 5px; text-transform: uppercase; }
+        .table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .table th { text-align: left; padding: 5px 6px; border-bottom: 2px solid #000; font-size: 11px; text-transform: uppercase; }
+        .table td { padding: 4px 6px; border-bottom: 1px solid #eee; font-size: 12px; }
         .line-input { border-bottom: 1px solid #ccc; display: inline-block; width: 100px; }
-        .total-section { text-align: right; margin-top: 20px; }
-        .total-row { display: flex; justify-content: flex-end; margin-bottom: 5px; font-size: 13px; }
-        .total-label { width: 150px; text-align: right; padding-right: 20px; color: #666; }
-        .total-value { width: 120px; text-align: right; font-weight: 500; }
-        .grand-total { font-size: 16px; font-weight: bold; border-top: 2px solid #000; padding-top: 10px; margin-top: 10px; }
-        .notes-box { background: #f9f9f9; padding: 10px; border-radius: 4px; font-size: 13px; line-height: 1.4; margin-bottom: 20px; }
-        .footer { margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px; font-size: 11px; color: #888; }
-        .terms { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 11px; line-height: 1.5; color: #555; }
+        .total-section { text-align: right; margin-top: 8px; }
+        .total-row { display: flex; justify-content: flex-end; margin-bottom: 3px; font-size: 12px; }
+        .total-label { width: 140px; text-align: right; padding-right: 12px; color: #666; }
+        .total-value { width: 100px; text-align: right; font-weight: 500; }
+        .grand-total { font-size: 14px; font-weight: bold; border-top: 2px solid #000; padding-top: 6px; margin-top: 6px; }
+        .notes-box { background: #f9f9f9; padding: 6px 8px; border-radius: 4px; font-size: 12px; line-height: 1.25; margin-bottom: 0; }
+        .footer { margin-top: 8px; border-top: 1px solid #eee; padding-top: 6px; font-size: 10px; color: #888; }
+        .terms { margin-top: 10px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 10px; line-height: 1.3; color: #555; }
         .signature-line { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
         .sig-box { border-top: 1px solid #333; padding-top: 5px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
         @media print {
@@ -316,11 +316,11 @@ export const printRepairInvoice = async (ticket, client, options = {}) => {
     </head>
     <body>
       <div class="header">
-        <div><img src="${logoDataUri}" style="max-height: 90px; width: auto; max-width: 100%;" /></div>
+        <div><img src="${logoDataUri}" style="max-height: 60px; width: auto; max-width: 100%;" /></div>
         <div class="shop-info">
           <div class="shop-name">Sound Technology Inc</div>
-          <div style="font-size: 14px; color: #666; margin-bottom: 5px;">4508 Oak Fair Blvd.<br>Suite 104<br>Tampa, FL 33610</div>
-          <div style="font-size: 14px; color: #666; margin-bottom: 10px;">(813) 985-1120</div>
+          <div style="font-size: 12px; color: #666; margin-bottom: 2px;">4508 Oak Fair Blvd.<br>Suite 104<br>Tampa, FL 33610</div>
+          <div style="font-size: 12px; color: #666; margin-bottom: 4px;">(813) 985-1120</div>
           <div class="doc-title">Repair Invoice</div>
         </div>
       </div>
@@ -329,7 +329,7 @@ export const printRepairInvoice = async (ticket, client, options = {}) => {
         <div>
           <div class="label">Bill To</div>
           <div class="value">${client?.name || "N/A"}</div>
-          <div style="font-size: 14px; color: #666; margin-top: 4px;">
+          <div style="font-size: 12px; color: #666; margin-top: 2px;">
             ${client?.address || ""}<br>
             ${client?.city ? client.city + ", " : ""} ${client?.state || ""} ${client?.zip || ""}<br>
             ${formatPhone(client?.phone) || ""}
@@ -337,21 +337,21 @@ export const printRepairInvoice = async (ticket, client, options = {}) => {
         </div>
         <div style="text-align: center;">
           <div class="label">Claim Number</div>
-          <div class="value" style="font-size: 18px; font-weight: 800;">${ticket.claimNumber || ticket.id}</div>
+          <div class="value" style="font-size: 16px; font-weight: 800;">${ticket.claimNumber || ticket.id}</div>
         </div>
         <div style="text-align: right;">
           <div class="label">Invoice Date</div>
           <div class="value">${new Date().toLocaleDateString()}</div>
-          ${ticket.completedDate ? `<div class="label" style="margin-top: 8px;">Completed Date</div><div class="value">${new Date(ticket.completedDate).toLocaleDateString()}</div>` : ''}
-          ${ticket.poNumber ? `<div class="label" style="margin-top: 8px;">PO Number</div><div class="value">${ticket.poNumber}</div>` : ''}
-          ${ticket.checkedInBy ? `<div class="label" style="margin-top: 8px;">Checked In By</div><div class="value">${ticket.checkedInBy}</div>` : ''}
-          ${ticket.technician && ticket.technician !== 'Unassigned' ? `<div class="label" style="margin-top: 8px;">Technician</div><div class="value">${ticket.technician}</div>` : ''}
+          ${ticket.completedDate ? `<div class="label" style="margin-top: 4px;">Completed Date</div><div class="value">${new Date(ticket.completedDate).toLocaleDateString()}</div>` : ''}
+          ${ticket.poNumber ? `<div class="label" style="margin-top: 4px;">PO Number</div><div class="value">${ticket.poNumber}</div>` : ''}
+          ${ticket.checkedInBy ? `<div class="label" style="margin-top: 4px;">Checked In By</div><div class="value">${ticket.checkedInBy}</div>` : ''}
+          ${ticket.technician && ticket.technician !== 'Unassigned' ? `<div class="label" style="margin-top: 4px;">Technician</div><div class="value">${ticket.technician}</div>` : ''}
         </div>
       </div>
 
-      <div style="margin-bottom: 30px;">
+      <div style="margin-bottom: 10px;">
         <div class="section-title">Unit Information</div>
-        <div style="display: flex; gap: 40px;">
+        <div style="display: flex; gap: 20px;">
           <div>
             <div class="label">Brand/Model</div>
             <div class="value">${ticket.brand} ${ticket.model}</div>
@@ -367,7 +367,7 @@ export const printRepairInvoice = async (ticket, client, options = {}) => {
         </div>
       </div>
 
-      <div style="margin-bottom: 30px;">
+      <div style="margin-bottom: 10px;">
         <div class="section-title">Service Notes</div>
         <div class="notes-box">
           <strong>Reported Issue:</strong> ${ticket.issue}<br><br>
@@ -386,13 +386,13 @@ export const printRepairInvoice = async (ticket, client, options = {}) => {
         <tbody>
           <!-- Parts -->
           <tr>
-            <td colspan="2" style="background: #f0f0f0; font-weight: bold; font-size: 12px; padding: 8px 12px;">PARTS & MATERIALS</td>
+            <td colspan="2" style="background: #f0f0f0; font-weight: bold; font-size: 11px; padding: 4px 8px;">PARTS & MATERIALS</td>
           </tr>
           ${partsRows}
           
           <!-- Labor -->
           <tr>
-            <td colspan="2" style="background: #f0f0f0; font-weight: bold; font-size: 12px; padding: 8px 12px;">LABOR & SERVICES</td>
+            <td colspan="2" style="background: #f0f0f0; font-weight: bold; font-size: 11px; padding: 4px 8px;">LABOR & SERVICES</td>
           </tr>
           <tr>
             <td>Labor Charges</td>

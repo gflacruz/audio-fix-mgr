@@ -283,6 +283,23 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// GET /api/clients/:id/sms-messages
+router.get('/:id/sms-messages', verifyToken, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, direction, body, message_type, from_number, to_number, created_at
+       FROM sms_messages
+       WHERE client_id = $1
+       ORDER BY created_at DESC`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching client SMS messages:', err);
+    res.status(500).json({ error: 'Failed to fetch SMS messages' });
+  }
+});
+
 // POST /api/clients/:id/send-opt-in - Send SMS opt-in message
 router.post('/:id/send-opt-in', verifyToken, async (req, res) => {
   try {
@@ -316,16 +333,79 @@ router.post('/:id/send-opt-in', verifyToken, async (req, res) => {
     const cleanPhone = phoneNumber.replace(/\D/g, '');
     const formattedPhone = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
 
-    await twilioClient.messages.create({
-      body: `Hello ${client.name.split(' ')[0]}, this is Sound Technology Inc. Reply Yes or Y to opt in for text notifications about your repair. Msg & data rates may apply. Reply STOP to unsubscribe.`,
+    const optInBody = `Hello ${client.name.split(' ')[0]}, this is Sound Technology Inc. Reply Yes or Y to opt in for text notifications about your repair. Msg & data rates may apply. Reply STOP to unsubscribe.`;
+
+    const optInMsg = await twilioClient.messages.create({
+      body: optInBody,
       from: process.env.TWILIO_PHONE_NUMBER,
       to: formattedPhone
     });
+
+    // Log to sms_messages
+    await db.query(
+      `INSERT INTO sms_messages (message_sid, direction, from_number, to_number, body, client_id, message_type)
+       VALUES ($1, 'outbound', $2, $3, $4, $5, 'opt_in')`,
+      [optInMsg.sid, process.env.TWILIO_PHONE_NUMBER, formattedPhone, optInBody, id]
+    );
 
     res.json({ message: 'Opt-in text sent' });
   } catch (error) {
     console.error('Error sending opt-in text:', error);
     res.status(500).json({ error: 'Failed to send opt-in text: ' + error.message });
+  }
+});
+
+// POST /api/clients/:id/send-text - Send a custom text to the client
+router.post('/:id/send-text', verifyToken, async (req, res) => {
+  try {
+    if (!twilioClient) {
+      return res.status(500).json({ error: 'Twilio not configured on server' });
+    }
+
+    const { id } = req.params;
+    const { body } = req.body;
+
+    if (!body || !body.trim()) {
+      return res.status(400).json({ error: 'Message body is required' });
+    }
+
+    const clientResult = await db.query('SELECT * FROM clients WHERE id = $1', [id]);
+    if (clientResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Client not found' });
+    }
+
+    // Get primary phone (same pattern as send-opt-in)
+    const phonesRes = await db.query(
+      'SELECT phone_number FROM client_phones WHERE client_id = $1 AND is_primary = true',
+      [id]
+    );
+    let phoneNumber = clientResult.rows[0].phone;
+    if (phonesRes.rows.length > 0) phoneNumber = phonesRes.rows[0].phone_number;
+
+    if (!phoneNumber) {
+      return res.status(400).json({ error: 'Client has no phone number' });
+    }
+
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    const formattedPhone = cleanPhone.length === 10 ? `+1${cleanPhone}` : `+${cleanPhone}`;
+
+    const message = await twilioClient.messages.create({
+      body: body.trim(),
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: formattedPhone
+    });
+
+    // Log to sms_messages
+    await db.query(
+      `INSERT INTO sms_messages (message_sid, direction, from_number, to_number, body, client_id, message_type)
+       VALUES ($1, 'outbound', $2, $3, $4, $5, 'general')`,
+      [message.sid, process.env.TWILIO_PHONE_NUMBER, formattedPhone, body.trim(), id]
+    );
+
+    res.json({ message: 'Text sent' });
+  } catch (error) {
+    console.error('Error sending text:', error);
+    res.status(500).json({ error: 'Failed to send text: ' + error.message });
   }
 });
 

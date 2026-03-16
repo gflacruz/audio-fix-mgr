@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { addAwaitedPart, removeAwaitedPart, updatePartsFields } from '@/lib/api';
+import { addAwaitedPart, removeAwaitedPart, updatePartsFields, markAwaitedPartOrdered } from '@/lib/api';
 
 const EMPTY_FORM = { name: '', partNumber: '', notes: '' };
 
@@ -88,6 +88,21 @@ export const useAwaitedParts = (setRepairs) => {
     }
   }, [noteTemp, patchRepair]);
 
+  const handleMarkOrdered = useCallback(async (repairId, partId) => {
+    try {
+      const updated = await markAwaitedPartOrdered(repairId, partId);
+      setRepairs((prev) =>
+        prev.map((r) =>
+          r.id === repairId
+            ? { ...r, awaitedParts: r.awaitedParts.map((p) => p.id === partId ? updated : p) }
+            : r
+        )
+      );
+    } catch (err) {
+      console.error('Failed to mark part ordered:', err);
+    }
+  }, [setRepairs]);
+
   const handleMarkCheckedToday = useCallback(async (repairId) => {
     const now = new Date().toISOString();
     try {
@@ -114,6 +129,7 @@ export const useAwaitedParts = (setRepairs) => {
     toggleExpand,
     handleAddPart,
     handleRemovePart,
+    handleMarkOrdered,
     beginEditNote,
     handleSaveNote,
     handleMarkCheckedToday,

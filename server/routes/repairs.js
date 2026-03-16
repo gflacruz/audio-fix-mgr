@@ -619,7 +619,7 @@ router.get("/waiting-on-parts", async (req, res) => {
 
     const repairIds = repairs.map((r) => r.id);
     const awaitedResult = await db.query(
-      `SELECT id, repair_id, name, part_number, notes, created_at
+      `SELECT id, repair_id, name, part_number, notes, ordered_at, created_at
        FROM repair_awaited_parts
        WHERE repair_id = ANY($1)
        ORDER BY created_at ASC`,
@@ -637,6 +637,7 @@ router.get("/waiting-on-parts", async (req, res) => {
         name: row.name,
         partNumber: row.part_number,
         notes: row.notes,
+        orderedAt: row.ordered_at,
         createdAt: row.created_at,
       });
     }
@@ -1604,11 +1605,22 @@ router.post("/:id/text-pickup", verifyToken, async (req, res) => {
     );
     const { amountDue } = calculateTotals(repair, partsRes.rows);
 
-    await twilioClient.messages.create({
-      body: `Hello ${repair.client_name}, STI here. Your ${repair.brand} ${repair.model} is ready! Total: $${amountDue.toFixed(2)}. M-F 10-6.`,
+    const pickupBody = `Hello ${repair.client_name}, STI here. Your ${repair.brand} ${repair.model} is ready! Total: $${amountDue.toFixed(2)}. M-F 10-6.`;
+
+    const pickupMsg = await twilioClient.messages.create({
+      body: pickupBody,
       from: process.env.TWILIO_PHONE_NUMBER,
       to: formattedPhone
     });
+
+    // Log to sms_messages
+    const twilioFrom = (process.env.TWILIO_PHONE_NUMBER || '').replace(/\D/g, '');
+    const twilioFromNorm = twilioFrom.length === 11 && twilioFrom.startsWith('1') ? twilioFrom.substring(1) : twilioFrom;
+    await db.query(
+      `INSERT INTO sms_messages (message_sid, direction, from_number, to_number, body, client_id, repair_id, message_type)
+       VALUES ($1, 'outbound', $2, $3, $4, $5, $6, 'pickup')`,
+      [pickupMsg.sid, twilioFromNorm, cleanPhone, pickupBody, repair.client_id, id]
+    );
 
     res.json({ message: "Pickup text sent" });
   } catch (error) {
@@ -1654,6 +1666,10 @@ router.post("/:id/awaited-parts", verifyToken, verifyAtLeastSeniorTech, async (r
        RETURNING id, repair_id, name, part_number, notes, created_at`,
       [req.params.id, name.trim(), partNumber?.trim() || null, notes?.trim() || null]
     );
+    await db.query(
+      `UPDATE repairs SET status = 'parts' WHERE id = $1 AND status NOT IN ('closed', 'disposed', 'salvaged')`,
+      [req.params.id]
+    );
     const r = result.rows[0];
     res.status(201).json({
       id: r.id,
@@ -1682,6 +1698,26 @@ router.delete("/:id/awaited-parts/:awaitedPartId", verifyToken, verifyAtLeastSen
     res.json({ success: true });
   } catch (error) {
     console.error("Error removing awaited part:", error);
+    res.status(500).json({ error: error.message || "Internal server error" });
+  }
+});
+
+// PATCH /api/repairs/:id/awaited-parts/:awaitedPartId/mark-ordered
+router.patch("/:id/awaited-parts/:awaitedPartId/mark-ordered", verifyToken, verifyAtLeastSeniorTech, async (req, res) => {
+  try {
+    const result = await db.query(
+      `UPDATE repair_awaited_parts
+       SET ordered_at = NOW()
+       WHERE id = $1 AND repair_id = $2
+       RETURNING id, repair_id, name, part_number, notes, ordered_at, created_at`,
+      [req.params.awaitedPartId, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: "Awaited part not found" });
+    const r = result.rows[0];
+    res.json({ id: r.id, repairId: r.repair_id, name: r.name, partNumber: r.part_number,
+               notes: r.notes, orderedAt: r.ordered_at, createdAt: r.created_at });
+  } catch (error) {
+    console.error("Error marking part ordered:", error);
     res.status(500).json({ error: error.message || "Internal server error" });
   }
 });

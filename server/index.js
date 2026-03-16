@@ -313,6 +313,7 @@ app.use('/api/sms', require('./routes/sms'));
       CREATE INDEX IF NOT EXISTS idx_repair_awaited_parts_repair_id
         ON repair_awaited_parts(repair_id)
     `);
+    await db.query(`ALTER TABLE repair_awaited_parts ADD COLUMN IF NOT EXISTS ordered_at TIMESTAMP`);
     await db.query(`ALTER TABLE repairs ADD COLUMN IF NOT EXISTS parts_note TEXT`);
     await db.query(`ALTER TABLE repairs ADD COLUMN IF NOT EXISTS parts_last_checked TIMESTAMP`);
     await db.query(`ALTER TABLE repairs ADD COLUMN IF NOT EXISTS box_weight DECIMAL(8, 2) DEFAULT NULL`);

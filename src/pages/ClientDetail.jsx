@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getClient, updateClient, getRepairs, deleteClient, sendOptInText } from '@/lib/api';
+import { getClient, updateClient, getRepairs, deleteClient, sendOptInText, getClientSmsMessages, sendClientText } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import Modal from '@/components/Modal';
 import { CLOSED_STATUSES } from '@/lib/repairConstants';
-import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy, Plus, Trash2, Building2, MessageSquare, AlertTriangle, StickyNote, Send, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy, Plus, Trash2, Building2, MessageSquare, AlertTriangle, StickyNote, Send, CheckCircle2, XCircle, Pencil } from 'lucide-react';
 
 const ClientDetail = () => {
   const { id } = useParams();
@@ -19,26 +19,49 @@ const ClientDetail = () => {
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [smsOptedIn, setSmsOptedIn] = useState(false);
   const [optInSending, setOptInSending] = useState(false);
+  const [smsMessages, setSmsMessages] = useState([]);
+  const [showDraftModal, setShowDraftModal] = useState(false);
+  const [draftText, setDraftText] = useState('');
+  const [draftSending, setDraftSending] = useState(false);
+  const smsBottomRef = useRef(null);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key !== 'Escape') return;
+      if (showDraftModal) { setShowDraftModal(false); setDraftText(''); return; }
       if (showDeleteModal) { setShowDeleteModal(false); return; }
       navigate('/clients');
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, showDeleteModal]);
+  }, [navigate, showDeleteModal, showDraftModal]);
 
   useEffect(() => {
     loadData();
   }, [id]);
 
+  useEffect(() => {
+    smsBottomRef.current?.scrollIntoView({ behavior: 'instant' });
+  }, [smsMessages]);
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const messages = await getClientSmsMessages(id);
+        setSmsMessages(messages);
+      } catch {
+        // silently ignore poll errors
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [id]);
+
   const loadData = async () => {
     try {
-      const [foundClient, clientTickets] = await Promise.all([
+      const [foundClient, clientTickets, messages] = await Promise.all([
         getClient(id),
-        getRepairs({ clientId: id })
+        getRepairs({ clientId: id }),
+        getClientSmsMessages(id).catch(() => [])
       ]);
       // Sort: Non-closed first, then by date (newest first)
       const sortedTickets = clientTickets.sort((a, b) => {
@@ -65,7 +88,7 @@ const ClientDetail = () => {
       setClient(data);
       setFormData(data);
       setSmsOptedIn(data.smsOptedIn || false);
-
+      setSmsMessages(messages);
       setTickets(sortedTickets);
     } catch (error) {
       console.error("Failed to load client data:", error);
@@ -144,6 +167,21 @@ const ClientDetail = () => {
       console.error('Failed to send opt-in text:', err);
     }
     setOptInSending(false);
+  };
+
+  const handleSendDraft = async () => {
+    if (!draftText.trim()) return;
+    setDraftSending(true);
+    try {
+      await sendClientText(id, draftText);
+      setShowDraftModal(false);
+      setDraftText('');
+      const messages = await getClientSmsMessages(id);
+      setSmsMessages(messages);
+    } catch (err) {
+      console.error('Failed to send text:', err);
+    }
+    setDraftSending(false);
   };
 
   const copyToClipboard = (text) => {
@@ -514,8 +552,8 @@ const ClientDetail = () => {
           </div>
         </div>
 
-        {/* Right Column: Repair History */}
-        <div className="col-span-2">
+        {/* Right Column: Repair History + SMS */}
+        <div className="col-span-2 flex flex-col gap-8">
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm dark:shadow-none">
             <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center">
               <h3 className="text-zinc-900 dark:text-white font-bold flex items-center gap-2">
@@ -569,8 +607,123 @@ const ClientDetail = () => {
               )}
             </div>
           </div>
+
+          {/* SMS Message Thread */}
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm dark:shadow-none">
+            <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center">
+              <h3 className="text-zinc-900 dark:text-white font-bold flex items-center gap-2">
+                <MessageSquare size={20} className="text-amber-500" />
+                SMS Messages
+                {smsOptedIn ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-500">
+                    <CheckCircle2 size={14} /> Opted In
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-red-500 dark:text-red-400">
+                    <XCircle size={14} /> Not Opted In
+                  </span>
+                )}
+              </h3>
+              <span className="bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-2 py-1 rounded text-xs font-medium">
+                {smsMessages.length}
+              </span>
+            </div>
+            <div className="p-4 max-h-96 overflow-y-auto flex flex-col gap-3">
+              {smsMessages.length === 0 ? (
+                <div className="py-8 text-center text-zinc-500 text-sm">No messages yet.</div>
+              ) : (
+                [...smsMessages].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).map(msg => {
+                  const isOutbound = msg.direction === 'outbound' || msg.direction === 'outbound-api';
+                  const ts = new Date(msg.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+                  const typeBadge = msg.message_type && msg.message_type !== 'general' ? msg.message_type : null;
+                  return (
+                    <div key={msg.id} className={`flex flex-col max-w-[75%] ${isOutbound ? 'self-end items-end' : 'self-start items-start'}`}>
+                      <div className={`px-3 py-2 rounded-xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
+                        isOutbound
+                          ? 'bg-amber-50 dark:bg-amber-500/10 text-zinc-900 dark:text-zinc-100 rounded-br-sm'
+                          : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-bl-sm'
+                      }`}>
+                        {msg.body}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        {typeBadge && (
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full uppercase tracking-wide ${
+                            typeBadge === 'estimate' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400' :
+                            typeBadge === 'opt_in'  ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' :
+                            typeBadge === 'opt_out' ? 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400' :
+                            'bg-zinc-100 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400'
+                          }`}>
+                            {typeBadge.replace('_', ' ')}
+                          </span>
+                        )}
+                        <span className="text-xs text-zinc-400">{ts}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={smsBottomRef} />
+            </div>
+            <div className="px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 flex justify-end">
+              <button
+                onClick={() => setShowDraftModal(true)}
+                disabled={!smsOptedIn}
+                title={!smsOptedIn ? 'Client must be opted in to receive texts' : undefined}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  smsOptedIn
+                    ? 'bg-amber-500 hover:bg-amber-400 text-white'
+                    : 'bg-zinc-200 dark:bg-zinc-700 text-zinc-400 opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <Pencil size={13} /> Draft Text
+              </button>
+            </div>
+          </div>
         </div>
       </div>
+      <Modal
+        isOpen={showDraftModal}
+        onClose={() => { setShowDraftModal(false); setDraftText(''); }}
+        title="Draft Text Message"
+        maxWidth="max-w-lg"
+        footer={
+          <>
+            <button
+              onClick={() => { setShowDraftModal(false); setDraftText(''); }}
+              className="px-4 py-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSendDraft}
+              disabled={!draftText.trim() || draftSending}
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center gap-2"
+            >
+              <Send size={15} />
+              {draftSending ? 'Sending...' : 'Send'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          {(() => {
+            const primaryPhone = client?.phones?.find(p => p.isPrimary)?.number || client?.phone;
+            return primaryPhone ? (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Sending to: <span className="text-zinc-900 dark:text-zinc-200 font-medium">{formatPhoneNumber(primaryPhone)}</span>
+              </p>
+            ) : null;
+          })()}
+          <textarea
+            value={draftText}
+            onChange={(e) => setDraftText(e.target.value)}
+            rows={4}
+            placeholder="Type your message..."
+            autoFocus
+            className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg p-3 text-zinc-900 dark:text-white text-sm focus:border-amber-500 outline-none resize-none"
+          />
+        </div>
+      </Modal>
       <Modal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}

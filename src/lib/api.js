@@ -421,6 +421,22 @@ export const sendOptInText = async (clientId) => {
   });
 };
 
+export const getClientSmsMessages = async (clientId) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/clients/${clientId}/sms-messages`, {
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
+export const sendClientText = async (clientId, body) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/clients/${clientId}/send-text`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+    headers: { Authorization: `Bearer ${user?.token}` }
+  });
+};
+
 // Waiting on Parts
 export const getWaitingOnPartsRepairs = () => fetchJSON('/repairs/waiting-on-parts');
 
@@ -439,6 +455,14 @@ export const removeAwaitedPart = (repairId, awaitedPartId) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
   return fetchJSON(`/repairs/${repairId}/awaited-parts/${awaitedPartId}`, {
     method: 'DELETE',
+    headers: { Authorization: `Bearer ${user?.token}` },
+  });
+};
+
+export const markAwaitedPartOrdered = (repairId, awaitedPartId) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON(`/repairs/${repairId}/awaited-parts/${awaitedPartId}/mark-ordered`, {
+    method: 'PATCH',
     headers: { Authorization: `Bearer ${user?.token}` },
   });
 };

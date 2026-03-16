@@ -129,8 +129,11 @@ CREATE TABLE IF NOT EXISTS repair_awaited_parts (
   name        VARCHAR(255) NOT NULL,
   part_number VARCHAR(100),
   notes       TEXT,
+  ordered_at  TIMESTAMP,
   created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE repair_awaited_parts ADD COLUMN IF NOT EXISTS ordered_at TIMESTAMP;
 
 CREATE INDEX IF NOT EXISTS idx_repair_awaited_parts_repair_id
   ON repair_awaited_parts(repair_id);

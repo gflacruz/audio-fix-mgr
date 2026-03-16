@@ -1,6 +1,6 @@
 import React from 'react';
 import Modal from '@/components/Modal';
-import { Package, Tag, Plus, Trash2, X } from 'lucide-react';
+import { Package, Tag, Plus, Trash2, X, PackagePlus, ChevronLeft } from 'lucide-react';
 
 export default function RepairPartsSection({
   ticket,
@@ -8,8 +8,8 @@ export default function RepairPartsSection({
   setPartsSearch,
   partsList,
   handlePartsSearchKeyDown,
-  isAddingPart,
-  setIsAddingPart,
+  addModalStep,
+  setAddModalStep,
   selectedPartForAdd,
   addQuantity,
   setAddQuantity,
@@ -25,6 +25,14 @@ export default function RepairPartsSection({
   setDeletePartModal,
   handleRemovePart,
   confirmDeletePart,
+  awaitedParts,
+  awaitedPartForm,
+  setAwaitedPartForm,
+  awaitedPartSaving,
+  handleAddAwaitedPart,
+  handleRemoveAwaitedPart,
+  handleMarkAwaitedOrdered,
+  isAtLeastSeniorTech,
 }) {
   return (
     <>
@@ -34,56 +42,12 @@ export default function RepairPartsSection({
             <Package size={18} /> Parts & Materials
           </h3>
           <button
-            onClick={() => setIsAddingPart(!isAddingPart)}
+            onClick={() => setAddModalStep('select')}
             className="text-xs bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 px-3 py-1.5 rounded flex items-center gap-2 transition-colors border border-zinc-300 dark:border-zinc-700"
           >
             <Plus size={14} /> Add Part
           </button>
         </div>
-
-        {isAddingPart && (
-          <div className="mb-4 bg-zinc-50 dark:bg-zinc-950 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800">
-            <div className="flex gap-2 mb-2">
-              <input
-                type="text"
-                autoFocus
-                placeholder="Search parts inventory... (Press Enter)"
-                value={partsSearch}
-                onChange={(e) => setPartsSearch(e.target.value)}
-                onKeyDown={handlePartsSearchKeyDown}
-                className="flex-1 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
-              />
-              <button
-                onClick={() => { setIsAddingPart(false); setPartsSearch(''); }}
-                className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-500 hover:text-red-500 dark:text-zinc-400 dark:hover:text-red-400 px-3 rounded transition-colors"
-                title="Cancel Adding Part"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="max-h-40 overflow-y-auto space-y-1">
-              {partsList.map(part => (
-                <div
-                  key={part.id}
-                  onClick={() => initiateAddPart(part)}
-                  className="flex justify-between items-center p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded cursor-pointer text-sm"
-                >
-                  <div>
-                    <span className="text-zinc-700 dark:text-zinc-300 block">{part.name}</span>
-                    <span className={`text-xs ${part.quantityInStock > 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-red-600 dark:text-red-500'}`}>
-                      In Stock: {part.quantityInStock}
-                    </span>
-                  </div>
-                  <span className="text-zinc-400 dark:text-zinc-500 text-xs mr-2">${part.retailPrice.toFixed(2)}</span>
-                  <span className="text-emerald-600 dark:text-emerald-500">$0.00</span>
-                </div>
-              ))}
-              {partsList.length === 0 && partsSearch && (
-                <div className="text-zinc-500 text-xs text-center py-2">No parts found.</div>
-              )}
-            </div>
-          </div>
-        )}
 
         <div className="space-y-2">
           {ticket.parts && ticket.parts.length > 0 ? (
@@ -129,11 +93,231 @@ export default function RepairPartsSection({
             </div>
           )}
         </div>
+
+        {awaitedParts && awaitedParts.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+            <div className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
+              Awaited Parts ({awaitedParts.length})
+            </div>
+            <div className="space-y-2">
+              {awaitedParts.map((part) => (
+                <div key={part.id} className="flex items-start gap-3 bg-zinc-50 dark:bg-zinc-950/50 p-3 rounded border border-zinc-200 dark:border-zinc-800/50">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-zinc-800 dark:text-zinc-200">{part.name}</div>
+                    {part.partNumber && (
+                      <div className="text-xs text-zinc-500 font-mono">P/N: {part.partNumber}</div>
+                    )}
+                    {part.notes && (
+                      <div className="text-xs text-zinc-500">{part.notes}</div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {isAtLeastSeniorTech && (
+                      part.orderedAt ? (
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium whitespace-nowrap">
+                          Ordered {new Date(part.orderedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleMarkAwaitedOrdered(part.id)}
+                          className="text-zinc-400 hover:text-amber-500 dark:hover:text-amber-400 transition-colors"
+                          title="Mark as ordered"
+                        >
+                          <Package size={14} />
+                        </button>
+                      )
+                    )}
+                    <button
+                      onClick={() => handleRemoveAwaitedPart(part.id)}
+                      className="text-zinc-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                      title="Remove awaited part"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Unified Add Part Modal */}
+      {addModalStep !== null && (
+        <div
+          className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[60]"
+          onClick={() => setAddModalStep(null)}
+        >
+          <div
+            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-2xl w-full max-w-sm overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Select screen */}
+            {addModalStep === 'select' && (
+              <>
+                <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-950">
+                  <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Add Part</h3>
+                  <button onClick={() => setAddModalStep(null)} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="p-2">
+                  <button
+                    onClick={() => setAddModalStep('inventory')}
+                    className="w-full flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left"
+                  >
+                    <Package size={20} className="text-blue-500 shrink-0" />
+                    <div>
+                      <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Inventory Part</div>
+                      <div className="text-xs text-zinc-500">Search parts from stock</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => { setAddModalStep(null); setShowCustomPartModal(true); }}
+                    className="w-full flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left"
+                  >
+                    <Tag size={20} className="text-amber-500 shrink-0" />
+                    <div>
+                      <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Custom Item</div>
+                      <div className="text-xs text-zinc-500">Add a one-off part or charge</div>
+                    </div>
+                  </button>
+                  {isAtLeastSeniorTech && (
+                    <button
+                      onClick={() => setAddModalStep('awaited')}
+                      className="w-full flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left"
+                    >
+                      <PackagePlus size={20} className="text-purple-500 shrink-0" />
+                      <div>
+                        <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Awaited Part</div>
+                        <div className="text-xs text-zinc-500">Track a part that needs to be ordered</div>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Inventory search screen */}
+            {addModalStep === 'inventory' && (
+              <>
+                <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-3 bg-zinc-50 dark:bg-zinc-950">
+                  <button onClick={() => setAddModalStep('select')} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                    <ChevronLeft size={20} />
+                  </button>
+                  <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex-1">Inventory Part</h3>
+                  <button onClick={() => setAddModalStep(null)} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="p-4">
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Search parts inventory... (Press Enter)"
+                      value={partsSearch}
+                      onChange={(e) => setPartsSearch(e.target.value)}
+                      onKeyDown={handlePartsSearchKeyDown}
+                      className="flex-1 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded px-3 py-2 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+                    />
+                  </div>
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {partsList.map(part => (
+                      <div
+                        key={part.id}
+                        onClick={() => initiateAddPart(part)}
+                        className="flex justify-between items-center p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded cursor-pointer text-sm"
+                      >
+                        <div>
+                          <span className="text-zinc-700 dark:text-zinc-300 block">{part.name}</span>
+                          <span className={`text-xs ${part.quantityInStock > 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-red-600 dark:text-red-500'}`}>
+                            In Stock: {part.quantityInStock}
+                          </span>
+                        </div>
+                        <span className="text-zinc-400 dark:text-zinc-500 text-xs mr-2">${part.retailPrice.toFixed(2)}</span>
+                        <span className="text-emerald-600 dark:text-emerald-500">$0.00</span>
+                      </div>
+                    ))}
+                    {partsList.length === 0 && partsSearch && (
+                      <div className="text-zinc-500 text-xs text-center py-2">No parts found.</div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Awaited part form screen */}
+            {addModalStep === 'awaited' && (
+              <>
+                <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-3 bg-zinc-50 dark:bg-zinc-950">
+                  <button onClick={() => setAddModalStep('select')} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                    <ChevronLeft size={20} />
+                  </button>
+                  <h3 className="text-lg font-bold text-zinc-900 dark:text-white flex-1">Awaited Part</h3>
+                  <button onClick={() => setAddModalStep(null)} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">Part Name <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      autoFocus
+                      value={awaitedPartForm.name}
+                      onChange={(e) => setAwaitedPartForm(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
+                      placeholder="e.g. Output Transformer"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">Part Number</label>
+                    <input
+                      type="text"
+                      value={awaitedPartForm.partNumber}
+                      onChange={(e) => setAwaitedPartForm(prev => ({ ...prev, partNumber: e.target.value }))}
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none font-mono"
+                      placeholder="e.g. OT-123"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">Notes</label>
+                    <input
+                      type="text"
+                      value={awaitedPartForm.notes}
+                      onChange={(e) => setAwaitedPartForm(prev => ({ ...prev, notes: e.target.value }))}
+                      className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
+                      placeholder="Optional notes"
+                    />
+                  </div>
+                  <div className="pt-2 flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setAddModalStep(null)}
+                      className="px-4 py-2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddAwaitedPart}
+                      disabled={!awaitedPartForm.name.trim() || awaitedPartSaving}
+                      className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium"
+                    >
+                      {awaitedPartSaving ? 'Adding...' : 'Add Part'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Add Part Quantity Modal */}
       {selectedPartForAdd && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[60]">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-[70]">
           <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-2xl w-full max-w-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-950">
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Add Part</h3>

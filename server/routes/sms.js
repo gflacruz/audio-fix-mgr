@@ -254,6 +254,7 @@ router.post('/incoming', validateTwilioSignature, async (req, res) => {
     const messageSid = req.body.MessageSid || '';
 
     const normalizedPhone = normalizePhone(from);
+    const normalizedTo = normalizePhone(req.body.To || '');
     const keyword = body.toUpperCase();
 
     // Look up client
@@ -262,6 +263,7 @@ router.post('/incoming', validateTwilioSignature, async (req, res) => {
 
     // Classify and process
     let messageType = 'general';
+    let outboundReplyBody = null;
 
     if (OPT_OUT_KEYWORDS.has(keyword)) {
       messageType = 'opt_out';
@@ -272,25 +274,29 @@ router.post('/incoming', validateTwilioSignature, async (req, res) => {
       const approved = await tryApproveEstimate(clientId, normalizedPhone);
       if (approved) {
         messageType = 'estimate_approval';
-        twiml.message(`Thank you! Your repair for ${approved.brand} ${approved.model} has been approved for $${approved.total.toFixed(2)} and we will begin working on it. We will notify you when it is ready for pickup.`);
+        outboundReplyBody = `Thank you! Your repair for ${approved.brand} ${approved.model} has been approved for $${approved.total.toFixed(2)} and we will begin working on it. We will notify you when it is ready for pickup.`;
+        twiml.message(outboundReplyBody);
       }
 
     } else if (keyword === 'DENY' && clientId) {
       const denied = await tryDenyEstimate(clientId, normalizedPhone);
       if (denied) {
         messageType = 'estimate_denial';
-        twiml.message(`Understood. We will notify you when your ${denied.brand} ${denied.model} is ready for pickup. Please call us at 813-985-1120 if you have any questions.`);
+        outboundReplyBody = `Understood. We will notify you when your ${denied.brand} ${denied.model} is ready for pickup. Please call us at 813-985-1120 if you have any questions.`;
+        twiml.message(outboundReplyBody);
       }
 
     } else if ((keyword === 'YES' || keyword === 'Y') && clientId) {
       messageType = 'opt_in';
       await handleOptIn(clientId);
-      twiml.message('You have been opted in for text notifications from Sound Technology Inc. Reply STOP to unsubscribe.');
+      outboundReplyBody = 'You have been opted in for text notifications from Sound Technology Inc. Reply STOP to unsubscribe.';
+      twiml.message(outboundReplyBody);
 
     } else if (OPT_IN_KEYWORDS.has(keyword)) {
       messageType = 'opt_in';
       await handleOptIn(clientId);
-      twiml.message('You have been opted in for text notifications from Sound Technology Inc. Reply STOP to unsubscribe.');
+      outboundReplyBody = 'You have been opted in for text notifications from Sound Technology Inc. Reply STOP to unsubscribe.';
+      twiml.message(outboundReplyBody);
 
     }
     // else: messageType stays 'general', no reply
@@ -300,12 +306,26 @@ router.post('/incoming', validateTwilioSignature, async (req, res) => {
       messageSid,
       direction: 'inbound',
       fromNumber: normalizedPhone,
-      toNumber: normalizePhone(req.body.To || ''),
+      toNumber: normalizedTo,
       body,
       clientId,
       repairId: null,
       messageType,
     });
+
+    // Log automated outbound TwiML reply if one was sent
+    if (outboundReplyBody) {
+      await logSmsMessage({
+        messageSid: crypto.randomUUID(),
+        direction: 'outbound',
+        fromNumber: normalizedTo,
+        toNumber: normalizedPhone,
+        body: outboundReplyBody,
+        clientId,
+        repairId: null,
+        messageType,
+      });
+    }
 
     // Notify staff of every inbound SMS
     try {

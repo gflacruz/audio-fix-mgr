@@ -209,7 +209,7 @@ const RepairDetail = () => {
           <UnitSpecsCard ticket={ticket} onSave={updater.handleSaveSpecs} />
           <EditableTextSection title="Reported Issue" value={ticket.issue} onSave={updater.handleSaveIssue} icon={AlertCircle} />
           <EditableTextSection title="Work Performed" value={ticket.workPerformed} onSave={updater.saveWorkPerformed} icon={CheckCircle2} showWhenEmpty={false} readOnly={!isAtLeastSeniorTech} />
-          <RepairPartsSection ticket={ticket} {...parts} />
+          <RepairPartsSection ticket={ticket} {...parts} isAtLeastSeniorTech={isAtLeastSeniorTech} />
           <ModelNotesCard
             brand={ticket.brand}
             model={ticket.model}
