@@ -111,6 +111,12 @@ const RepairDetail = () => {
           <div className="flex items-center gap-4 text-zinc-500 dark:text-zinc-400 mb-2">
             <span className="flex items-center gap-1"><User size={16} /> {client?.name}</span>
             {ticket.unitType && <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs">{ticket.unitType}</span>}
+            {ticket.updated_at && (
+              <span className="flex items-center gap-1 text-xs" title="Last updated">
+                <Clock size={13} />
+                {new Date(ticket.updated_at).toLocaleString([], { month: 'numeric', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-x-6 gap-y-2 text-zinc-500 dark:text-zinc-400 mb-3 overflow-x-auto no-scrollbar">

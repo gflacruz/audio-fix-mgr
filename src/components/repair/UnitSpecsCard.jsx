@@ -40,7 +40,7 @@ export default function UnitSpecsCard({ ticket, onSave }) {
 
       {isEditing ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-5 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Unit Type</label>
               <ComboSelect
@@ -88,19 +88,6 @@ export default function UnitSpecsCard({ ticket, onSave }) {
                 <option value="warranty">Warranty</option>
               </select>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 pt-2">
-            <div>
-              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Accessories Included</label>
-              <input
-                type="text"
-                value={tempSpecs.accessoriesIncluded}
-                onChange={(e) => setTempSpecs(prev => ({ ...prev, accessoriesIncluded: e.target.value }))}
-                placeholder="e.g. Power Cord, Remote, Original Box"
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
-              />
-            </div>
             <div>
               <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">PO #</label>
               <input
@@ -108,6 +95,16 @@ export default function UnitSpecsCard({ ticket, onSave }) {
                 value={tempSpecs.poNumber}
                 onChange={(e) => setTempSpecs(prev => ({ ...prev, poNumber: e.target.value }))}
                 placeholder="Purchase Order #"
+                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
+              />
+            </div>
+            <div className="col-span-3">
+              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Accessories Included</label>
+              <input
+                type="text"
+                value={tempSpecs.accessoriesIncluded}
+                onChange={(e) => setTempSpecs(prev => ({ ...prev, accessoriesIncluded: e.target.value }))}
+                placeholder="e.g. Power Cord, Remote, Original Box"
                 className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
               />
             </div>
@@ -120,7 +117,7 @@ export default function UnitSpecsCard({ ticket, onSave }) {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-5 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Unit Type</label>
               <div className="text-zinc-800 dark:text-zinc-200">{ticket.unitType || 'N/A'}</div>
@@ -146,24 +143,24 @@ export default function UnitSpecsCard({ ticket, onSave }) {
                 {ticket.priority}
               </div>
             </div>
+            {ticket.poNumber && (
+              <div>
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 block">PO #</label>
+                <div className="text-zinc-800 dark:text-zinc-200">{ticket.poNumber}</div>
+              </div>
+            )}
+            {ticket.accessoriesIncluded && (
+              <div className="col-span-3">
+                <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Accessories</label>
+                <div className="text-zinc-800 dark:text-zinc-200">{ticket.accessoriesIncluded}</div>
+              </div>
+            )}
           </div>
 
           {ticket.modelVersion && (
             <div>
               <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Model Version</label>
               <div className="text-zinc-800 dark:text-zinc-200">{ticket.modelVersion}</div>
-            </div>
-          )}
-          {ticket.accessoriesIncluded && (
-            <div>
-              <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Accessories</label>
-              <div className="text-zinc-800 dark:text-zinc-200">{ticket.accessoriesIncluded}</div>
-            </div>
-          )}
-          {ticket.poNumber && (
-            <div>
-              <label className="text-xs text-zinc-500 dark:text-zinc-400 block">PO #</label>
-              <div className="text-zinc-800 dark:text-zinc-200">{ticket.poNumber}</div>
             </div>
           )}
         </div>

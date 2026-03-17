@@ -4,6 +4,7 @@ import { LayoutDashboard, PenTool, Wrench, Users, Search, UserCog, LogOut, Shiel
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { createSuggestion } from '@/lib/api';
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 import pkg from '../../package.json';
 
 const Sidebar = () => {
@@ -11,6 +12,7 @@ const Sidebar = () => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [showSuggestionModal, setShowSuggestionModal] = useState(false);
+  useBarcodeScanner();
 
   useEffect(() => {
     const handleKeyDown = (e) => {

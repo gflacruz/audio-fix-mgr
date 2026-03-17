@@ -1,4 +1,5 @@
 import logoUrl from '@/assets/logo.png';
+import JsBarcode from 'jsbarcode';
 
 // Convert logo to base64 data URI so it embeds directly in print popup HTML
 let cachedLogoDataUri = null;
@@ -70,8 +71,26 @@ const formatPhone = (phone) => {
   return phone;
 };
 
+const generateBarcodeDataUri = (value) => {
+  try {
+    const canvas = document.createElement('canvas');
+    JsBarcode(canvas, String(value), {
+      format: 'CODE128',
+      width: 2,
+      height: 60,
+      displayValue: false,
+      margin: 0,
+    });
+    return canvas.toDataURL('image/png');
+  } catch (e) {
+    console.warn('Barcode generation failed', e);
+    return null;
+  }
+};
+
 export const printDiagnosticReceipt = async (ticket, client) => {
   const logoDataUri = await getLogoDataUri();
+  const barcodeDataUri = generateBarcodeDataUri(ticket.id);
   const printWindow = window.open("", "_blank");
 
   // Use depositAmount (new field) or diagnosticFee (legacy) or default to 89.00
@@ -114,6 +133,9 @@ export const printDiagnosticReceipt = async (ticket, client) => {
         .terms { margin-top: 30px; padding-top: 15px; border-top: 1px solid #ddd; font-size: 11px; line-height: 1.5; color: #555; }
         .signature-line { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
         .sig-box { border-top: 1px solid #333; padding-top: 5px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+        .barcode-section { margin-top: 24px; padding-top: 16px; border-top: 1px dashed #ccc; text-align: center; }
+        .barcode-label { font-size: 10px; color: #999; margin-top: 6px; text-transform: uppercase; letter-spacing: 1px; }
+        .barcode-id { font-size: 12px; font-weight: bold; color: #333; font-family: 'Courier New', monospace; margin-top: 2px; }
         @media print {
           body {
             width: 100% !important;
@@ -210,6 +232,13 @@ export const printDiagnosticReceipt = async (ticket, client) => {
         <div class="sig-box">Customer Signature</div>
 
       </div>
+
+      ${barcodeDataUri ? `
+      <div class="barcode-section">
+        <img src="${barcodeDataUri}" style="max-width: 260px; height: auto; display: block; margin: 0 auto;" />
+        <div class="barcode-label">Scan to open repair record</div>
+        <div class="barcode-id">ID: ${ticket.id}</div>
+      </div>` : ''}
 
       <div class="footer">
         <p>Thank you for your business!</p>
@@ -328,7 +357,10 @@ export const printRepairInvoice = async (ticket, client, options = {}) => {
       <div class="info-grid">
         <div>
           <div class="label">Bill To</div>
-          <div class="value">${client?.name || "N/A"}</div>
+          ${client?.companyName
+            ? `<div class="value">${client.companyName}</div><div style="font-size: 12px; color: #555; margin-top: 1px;">${client?.name || ''}</div>`
+            : `<div class="value">${client?.name || 'N/A'}</div>`
+          }
           <div style="font-size: 12px; color: #666; margin-top: 2px;">
             ${client?.address || ""}<br>
             ${client?.city ? client.city + ", " : ""} ${client?.state || ""} ${client?.zip || ""}<br>
