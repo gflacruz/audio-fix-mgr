@@ -552,6 +552,16 @@ export const deleteEstimate = async (id) => {
   });
 };
 
+// AI
+export const askAIDiagnose = async ({ brand, model, issue }) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON('/ai/diagnose', {
+    method: 'POST',
+    body: JSON.stringify({ brand, model, issue }),
+    headers: { Authorization: `Bearer ${user?.token}` },
+  });
+};
+
 // Legacy Fallback (To fail loud if used)
 export const getDB = async () => {
   console.error("Deprecated: getDB() called. Please use granular API functions.");

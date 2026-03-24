@@ -35,6 +35,7 @@ app.use('/api/parts', require('./routes/parts'));
 app.use('/api/suggestions', require('./routes/suggestions'));
 app.use('/api/estimates', require('./routes/estimates'));
 app.use('/api/sms', require('./routes/sms'));
+app.use('/api/ai', require('./routes/ai'));
 
 
 // Run migrations — ensures all tables, columns, indexes, and triggers exist

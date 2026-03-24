@@ -236,8 +236,6 @@ export const printDiagnosticReceipt = async (ticket, client) => {
       ${barcodeDataUri ? `
       <div class="barcode-section">
         <img src="${barcodeDataUri}" style="max-width: 260px; height: auto; display: block; margin: 0 auto;" />
-        <div class="barcode-label">Scan to open repair record</div>
-        <div class="barcode-id">ID: ${ticket.id}</div>
       </div>` : ''}
 
       <div class="footer">

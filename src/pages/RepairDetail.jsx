@@ -4,6 +4,7 @@ import { ArrowLeft, Clock, User, CheckCircle2, MessageSquare, Mail, Send, FileTe
 import { useAuth } from '@/context/AuthContext';
 import { useError } from '@/context/ErrorContext';
 import { CLOSED_STATUSES } from '@/lib/repairConstants';
+import { askAIDiagnose } from '@/lib/api';
 
 // Hooks
 import { useRepairData } from '@/hooks/useRepairData';
@@ -213,7 +214,7 @@ const RepairDetail = () => {
         {/* Left Column: Details */}
         <div className="col-span-2 space-y-6">
           <UnitSpecsCard ticket={ticket} onSave={updater.handleSaveSpecs} />
-          <EditableTextSection title="Reported Issue" value={ticket.issue} onSave={updater.handleSaveIssue} icon={AlertCircle} />
+          <EditableTextSection title="Reported Issue" value={ticket.issue} onSave={updater.handleSaveIssue} icon={AlertCircle} onAskAI={() => askAIDiagnose({ brand: ticket.brand, model: ticket.model, issue: ticket.issue })} />
           <EditableTextSection title="Work Performed" value={ticket.workPerformed} onSave={updater.saveWorkPerformed} icon={CheckCircle2} showWhenEmpty={false} readOnly={!isAtLeastSeniorTech} />
           <RepairPartsSection ticket={ticket} {...parts} isAtLeastSeniorTech={isAtLeastSeniorTech} />
           <ModelNotesCard
