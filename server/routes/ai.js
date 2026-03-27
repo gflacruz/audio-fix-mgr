@@ -17,7 +17,7 @@ router.post('/diagnose', verifyToken, async (req, res) => {
     const { default: fetch } = await import('node-fetch'); // ESM-only, needs dynamic import
 
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -26,8 +26,10 @@ router.post('/diagnose', verifyToken, async (req, res) => {
     );
 
     if (!geminiRes.ok) {
-      console.error('Gemini API error:', await geminiRes.json().catch(() => ({})));
-      return res.status(502).json({ error: 'AI service returned an error. Please try again.' });
+      const errBody = await geminiRes.json().catch(() => ({}));
+      const detail = errBody?.error?.message || geminiRes.statusText;
+      console.error('Gemini API error:', errBody);
+      return res.status(502).json({ error: `Gemini error (${geminiRes.status}): ${detail}` });
     }
 
     const data = await geminiRes.json();

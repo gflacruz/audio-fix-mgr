@@ -552,6 +552,16 @@ export const deleteEstimate = async (id) => {
   });
 };
 
+// Payments
+export const chargeTerminal = async ({ amount, currency = 'USD', repairId }) => {
+  const user = JSON.parse(localStorage.getItem('audio_fix_user'));
+  return fetchJSON('/payments/terminal', {
+    method: 'POST',
+    body: JSON.stringify({ amount, currency, repairId }),
+    headers: { Authorization: `Bearer ${user?.token}` },
+  });
+};
+
 // AI
 export const askAIDiagnose = async ({ brand, model, issue }) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));

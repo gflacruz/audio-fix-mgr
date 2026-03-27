@@ -711,7 +711,7 @@ router.get("/:id", async (req, res) => {
 
     // Fetch Parts
     const partsResult = await db.query(
-      `SELECT rp.*, p.name as inventory_name, p.retail_price as current_retail, p.wholesale_price as current_wholesale
+      `SELECT rp.*, p.name as inventory_name, p.retail_price as current_retail, p.wholesale_price as current_wholesale, p.nomenclature as part_nomenclature
        FROM repair_parts rp
        LEFT JOIN parts p ON rp.part_id = p.id
        WHERE rp.repair_id = $1
@@ -791,6 +791,7 @@ router.get("/:id", async (req, res) => {
         id: p.id, // repair_part link id
         partId: p.part_id,
         name: p.name || p.inventory_name,
+        nomenclature: p.part_nomenclature || null,
         quantity: p.quantity,
         price: parseFloat(p.unit_price),
         retailPrice: parseFloat(p.current_retail) || 0,

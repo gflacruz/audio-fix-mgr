@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, PenTool, Wrench, Users, Search, UserCog, LogOut, Shield, Package, DollarSign, MessageSquarePlus, BarChart3, X, Sun, Moon, Hourglass } from 'lucide-react';
+import { LayoutDashboard, PenTool, Wrench, Users, Search, UserCog, LogOut, Shield, Package, DollarSign, CreditCard, MessageSquarePlus, BarChart3, X, Sun, Moon, Hourglass } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { createSuggestion } from '@/lib/api';
@@ -112,6 +112,10 @@ const Sidebar = () => {
           <NavLink to="/clients" className={navClass}>
             <Users size={20} />
             <span>Clients</span>
+          </NavLink>
+          <NavLink to="/pos" className={navClass}>
+            <CreditCard size={20} />
+            <span>Point of Sale</span>
           </NavLink>
           
           {isAdmin && (

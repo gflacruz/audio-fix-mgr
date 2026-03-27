@@ -22,6 +22,7 @@ import PayrollHistory from './pages/PayrollHistory';
 import Suggestions from './pages/Suggestions';
 import Reports from './pages/Reports';
 import WaitingOnParts from './pages/WaitingOnParts';
+import POS from './pages/POS';
 
 function App() {
   return (
@@ -50,6 +51,7 @@ function App() {
             <Route path="/payroll/history" element={<PayrollHistory />} />
             <Route path="/admin" element={<AdminUsers />} />
             <Route path="/suggestions" element={<Suggestions />} />
+            <Route path="/pos" element={<POS />} />
           </Route>
           </Routes>
           </Router>

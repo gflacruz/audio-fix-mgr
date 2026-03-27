@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Clock, User, CheckCircle2, MessageSquare, Mail, Send, FileText, DollarSign, ClipboardCheck, StickyNote, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -86,6 +86,14 @@ const RepairDetail = () => {
       window.history.replaceState({}, document.title);
     }
   }, [location.state?.fromIntake, modelNote]);
+
+  const handleStatusChangeWithNotify = useCallback(async (newStatus) => {
+    const ok = await updater.handleStatusChange(newStatus);
+    if (ok && newStatus === 'ready' &&
+        (client?.primaryNotification === 'Email' || client?.primaryNotification === 'Text')) {
+      notifications.handleSendPickupEmail();
+    }
+  }, [updater, client, notifications]);
 
   if (loading) return <div className="p-8 text-zinc-500">Loading...</div>;
   if (!ticket) return <div className="p-8 text-zinc-500">Ticket not found.</div>;
@@ -233,7 +241,7 @@ const RepairDetail = () => {
           <RepairStatusCard
             ticket={ticket}
             technicians={technicians}
-            onStatusChange={updater.handleStatusChange}
+            onStatusChange={handleStatusChangeWithNotify}
             onTechnicianChange={updater.handleTechnicianChange}
           />
 
@@ -258,7 +266,7 @@ const RepairDetail = () => {
             </button>
           )}
 
-          <CostSummaryCard ticket={ticket} />
+          <CostSummaryCard ticket={ticket} isAtLeastSeniorTech={isAtLeastSeniorTech} repairId={id} />
 
           {isAtLeastSeniorTech && (
             <button

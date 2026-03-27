@@ -29,7 +29,14 @@ export function useBarcodeScanner() {
           elapsed < SCANNER_THRESHOLD_MS
         ) {
           e.preventDefault();
-          navigate(`/repair/${scanned}`);
+          const scanEvent = new CustomEvent('barcode-scan', {
+            detail: { id: scanned },
+            cancelable: true,
+          });
+          const cancelled = !window.dispatchEvent(scanEvent);
+          if (!cancelled) {
+            navigate(`/repair/${scanned}`);
+          }
         }
         return;
       }

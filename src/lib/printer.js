@@ -162,6 +162,8 @@ export const printDiagnosticReceipt = async (ticket, client) => {
           <div style="font-size: 14px; color: #666; margin-top: 4px;">
             ${formatPhone(client?.phone) || ""}<br>
             ${client?.email || ""}
+            ${client?.address ? `<br>${client.address}` : ""}
+            ${(client?.city || client?.state || client?.zip) ? `<br>${[client?.city, client?.state, client?.zip].filter(Boolean).join(", ")}` : ""}
           </div>
         </div>
         <div style="text-align: center;">
@@ -187,6 +189,7 @@ export const printDiagnosticReceipt = async (ticket, client) => {
         </div>
       </div>
 
+      ${ticket.diagnosticFeeCollected ? `
       <table class="table">
         <thead>
           <tr>
@@ -217,12 +220,10 @@ export const printDiagnosticReceipt = async (ticket, client) => {
             <span>$${feeAmount.toFixed(2)}</span>
           </div>
           <div style="margin-top: 20px; text-align: right;">
-            <span class="status-badge ${ticket.diagnosticFeeCollected ? "paid" : "unpaid"}">
-              ${ticket.diagnosticFeeCollected ? "PAID IN FULL" : "PAYMENT DUE"}
-            </span>
+            <span class="status-badge paid">PAID IN FULL</span>
           </div>
         </div>
-      </div>
+      </div>` : ''}
 
       <div class="terms">
         ST will call with a repair estimate. I understand there is a non refundable $89.00 diagnostic/estimate fee on all equipment left for service. Not responsible for FIRE/THEFT. Equipment left more than 15 days after completion incur a $10/day storage fee. After 6 months unit are sold or disposed of.
@@ -286,7 +287,10 @@ export const printRepairInvoice = async (ticket, client, options = {}) => {
           .map(
             (part) => `
         <tr>
-          <td>${part.name} <span style="font-size: 11px; color: #666;">(x${part.quantity})</span></td>
+          <td>
+            ${part.name}${part.partId && part.nomenclature ? ` - <span style="font-size: 12px;">${part.nomenclature}</span>` : ''}
+            <span style="font-size: 11px; color: #666;"> (x${part.quantity})</span>
+          </td>
           <td style="text-align: right;">$${(part.total || 0).toFixed(2)}</td>
         </tr>
       `,

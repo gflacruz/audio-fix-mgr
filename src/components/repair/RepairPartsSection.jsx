@@ -59,7 +59,12 @@ export default function RepairPartsSection({
                     : <Tag size={16} className="text-amber-500 shrink-0" title="Custom item" />
                   }
                   <div>
-                    <div className="text-sm text-zinc-800 dark:text-zinc-200">{part.name}</div>
+                    <div className="text-sm text-zinc-800 dark:text-zinc-200">
+                      {part.name}
+                      {part.partId && part.nomenclature && (
+                        <span className="ml-2 text-xs text-zinc-500 font-mono">{part.nomenclature}</span>
+                      )}
+                    </div>
                     <div className="text-xs text-zinc-500">Qty: {part.quantity} × ${part.price.toFixed(2)}</div>
                   </div>
                 </div>

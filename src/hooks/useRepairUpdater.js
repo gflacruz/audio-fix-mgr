@@ -34,8 +34,10 @@ export function useRepairUpdater(id, ticket, setTicket, user, showError) {
         }
         return newState;
       });
+      return true;
     } catch (error) {
       console.error("Failed to update status:", error);
+      return false;
     }
   }, [id, setTicket]);
 

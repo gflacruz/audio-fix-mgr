@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getClients, getClient, createClient, updateClient, createRepair, sendOptInText } from '@/lib/api';
+import { getClients, getClient, createClient, updateClient, createRepair, sendOptInText, chargeTerminal } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { Save, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -50,6 +50,8 @@ const Intake = () => {
 
   const [showFeeModal, setShowFeeModal] = useState(false);
   const [customFee, setCustomFee] = useState(89);
+  const [feeCharging, setFeeCharging] = useState(false);
+  const [feeChargeResult, setFeeChargeResult] = useState(null); // 'success' | 'error' | null
   const [clientSmsOptedIn, setClientSmsOptedIn] = useState(false);
   const [showOptInModal, setShowOptInModal] = useState(false);
   const [optInRepairId, setOptInRepairId] = useState(null);
@@ -176,6 +178,7 @@ const Intake = () => {
 
   const createTicket = async (feeCollected, feeAmount = 0) => {
     setShowFeeModal(false);
+    setFeeChargeResult(null);
     try {
       let clientId;
       let clientName = formData.clientName;
@@ -604,20 +607,46 @@ const Intake = () => {
               <input
                 type="number"
                 value={customFee}
-                onChange={(e) => setCustomFee(parseFloat(e.target.value) || 0)}
+                onChange={(e) => { setCustomFee(parseFloat(e.target.value) || 0); setFeeChargeResult(null); }}
                 className={inputCls}
               />
             </div>
+            {feeChargeResult === 'success' && (
+              <p className="text-green-600 dark:text-green-400 text-sm mb-4">Payment approved! Click "Yes, Fee Collected" to continue.</p>
+            )}
+            {feeChargeResult === 'error' && (
+              <p className="text-red-500 text-sm mb-4">Charge failed. Please try again or collect manually.</p>
+            )}
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => createTicket(false, 0)}
-                className="px-4 py-2 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                disabled={feeCharging}
+                className="px-4 py-2 rounded-lg text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
               >
                 No, Not Collected
               </button>
               <button
+                onClick={async () => {
+                  setFeeCharging(true);
+                  setFeeChargeResult(null);
+                  try {
+                    await chargeTerminal({ amount: customFee });
+                    setFeeChargeResult('success');
+                  } catch {
+                    setFeeChargeResult('error');
+                  } finally {
+                    setFeeCharging(false);
+                  }
+                }}
+                disabled={feeCharging}
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors disabled:opacity-50"
+              >
+                {feeCharging ? 'Charging...' : 'Charge Terminal'}
+              </button>
+              <button
                 onClick={() => createTicket(true, customFee)}
-                className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white font-medium transition-colors"
+                disabled={feeCharging}
+                className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white font-medium transition-colors disabled:opacity-50"
               >
                 Yes, Fee Collected
               </button>
