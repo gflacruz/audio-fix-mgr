@@ -1,6 +1,6 @@
 import React from 'react';
 import Modal from '@/components/Modal';
-import { Package, Tag, Plus, Trash2, X, PackagePlus, ChevronLeft } from 'lucide-react';
+import { Package, Tag, Plus, Trash2, X, PackagePlus, ChevronLeft, PackageCheck } from 'lucide-react';
 
 export default function RepairPartsSection({
   ticket,
@@ -32,6 +32,7 @@ export default function RepairPartsSection({
   handleAddAwaitedPart,
   handleRemoveAwaitedPart,
   handleMarkAwaitedOrdered,
+  handleMarkAwaitedArrived,
   isAtLeastSeniorTech,
 }) {
   return (
@@ -65,6 +66,12 @@ export default function RepairPartsSection({
                         <span className="ml-2 text-xs text-zinc-500 font-mono">{part.nomenclature}</span>
                       )}
                     </div>
+                    {!part.partId && part.partNumber && (
+                      <div className="text-xs text-zinc-500 font-mono">P/N: {part.partNumber}</div>
+                    )}
+                    {!part.partId && part.notes && (
+                      <div className="text-xs text-zinc-500">{part.notes}</div>
+                    )}
                     <div className="text-xs text-zinc-500">Qty: {part.quantity} × ${part.price.toFixed(2)}</div>
                   </div>
                 </div>
@@ -119,9 +126,18 @@ export default function RepairPartsSection({
                   <div className="flex items-center gap-2 shrink-0">
                     {isAtLeastSeniorTech && (
                       part.orderedAt ? (
-                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium whitespace-nowrap">
-                          Ordered {new Date(part.orderedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </span>
+                        <>
+                          <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium whitespace-nowrap">
+                            Ordered {new Date(part.orderedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                          <button
+                            onClick={() => handleMarkAwaitedArrived(part)}
+                            className="text-zinc-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
+                            title="Mark as arrived"
+                          >
+                            <PackageCheck size={14} />
+                          </button>
+                        </>
                       ) : (
                         <button
                           onClick={() => handleMarkAwaitedOrdered(part.id)}
@@ -399,18 +415,38 @@ export default function RepairPartsSection({
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">Part Number</label>
+                <input
+                  type="text"
+                  value={customPartData.partNumber}
+                  onChange={(e) => setCustomPartData(prev => ({ ...prev, partNumber: e.target.value }))}
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none font-mono"
+                  placeholder="e.g. ABC-1234"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">Description</label>
+                <input
+                  type="text"
+                  value={customPartData.notes}
+                  onChange={(e) => setCustomPartData(prev => ({ ...prev, notes: e.target.value }))}
+                  className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
+                  placeholder="Optional description or notes"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">Price ($)</label>
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     value={customPartData.price}
                     onChange={(e) => setCustomPartData(prev => ({ ...prev, price: e.target.value }))}
                     className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-zinc-900 dark:text-white focus:border-amber-500 focus:outline-none"
                     placeholder="0.00"
-                    required
                   />
                 </div>
                 <div>

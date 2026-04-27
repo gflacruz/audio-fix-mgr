@@ -118,6 +118,8 @@ CREATE TABLE IF NOT EXISTS repair_parts (
   repair_id INTEGER REFERENCES repairs(id) ON DELETE CASCADE,
   part_id INTEGER REFERENCES parts(id),
   name VARCHAR(255),
+  part_number VARCHAR(100),
+  notes TEXT,
   quantity INTEGER DEFAULT 1,
   unit_price DECIMAL(10, 2) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -244,3 +246,24 @@ ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin', 'tech
 -- Add box weight and return tracking number to repairs
 ALTER TABLE repairs ADD COLUMN IF NOT EXISTS box_weight DECIMAL(8, 2) DEFAULT NULL;
 ALTER TABLE repairs ADD COLUMN IF NOT EXISTS return_tracking_number VARCHAR(100) DEFAULT NULL;
+
+-- Add recall link: allows a repair to reference the original repair it is a recall of
+ALTER TABLE repairs ADD COLUMN IF NOT EXISTS recalled_from_id INTEGER REFERENCES repairs(id) ON DELETE SET NULL;
+
+-- Add updated_at tracking to parts
+ALTER TABLE parts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+UPDATE parts SET updated_at = created_at WHERE updated_at IS NULL;
+
+CREATE OR REPLACE FUNCTION update_parts_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+DROP TRIGGER IF EXISTS update_parts_updated_at ON parts;
+CREATE TRIGGER update_parts_updated_at
+BEFORE UPDATE ON parts
+FOR EACH ROW
+EXECUTE PROCEDURE update_parts_updated_at_column();

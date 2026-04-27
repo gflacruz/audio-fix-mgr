@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getClient, updateClient, getRepairs, deleteClient, sendOptInText, getClientSmsMessages, sendClientText } from '@/lib/api';
+import { getClient, updateClient, getRepairs, deleteClient, sendOptInText, getClientSmsMessages, sendClientText, getClients, mergeClients } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import Modal from '@/components/Modal';
 import { CLOSED_STATUSES } from '@/lib/repairConstants';
-import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy, Plus, Trash2, Building2, MessageSquare, AlertTriangle, StickyNote, Send, CheckCircle2, XCircle, Pencil } from 'lucide-react';
+import { ArrowLeft, Save, Mail, Phone, MapPin, Wrench, Copy, Plus, Trash2, Building2, MessageSquare, AlertTriangle, StickyNote, Send, CheckCircle2, XCircle, Pencil, Merge } from 'lucide-react';
 
 const ClientDetail = () => {
   const { id } = useParams();
@@ -24,24 +24,36 @@ const ClientDetail = () => {
   const [draftText, setDraftText] = useState('');
   const [draftSending, setDraftSending] = useState(false);
   const smsBottomRef = useRef(null);
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [mergeSearch, setMergeSearch] = useState('');
+  const [mergeCandidates, setMergeCandidates] = useState([]);
+  const [mergeTarget, setMergeTarget] = useState(null);
+  const [mergingId, setMergingId] = useState(null);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key !== 'Escape') return;
       if (showDraftModal) { setShowDraftModal(false); setDraftText(''); return; }
       if (showDeleteModal) { setShowDeleteModal(false); return; }
+      if (showMergeModal) { setShowMergeModal(false); setMergeTarget(null); return; }
       navigate('/clients');
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, showDeleteModal, showDraftModal]);
+  }, [navigate, showDeleteModal, showDraftModal, showMergeModal]);
 
   useEffect(() => {
     loadData();
   }, [id]);
 
+  const prevMessageCountRef = useRef(0);
+
   useEffect(() => {
-    smsBottomRef.current?.scrollIntoView({ behavior: 'instant' });
+    const isNewMessage = smsMessages.length > prevMessageCountRef.current;
+    prevMessageCountRef.current = smsMessages.length;
+    if (isNewMessage) {
+      smsBottomRef.current?.scrollIntoView({ behavior: 'instant' });
+    }
   }, [smsMessages]);
 
   useEffect(() => {
@@ -158,6 +170,37 @@ const ClientDetail = () => {
     });
   };
 
+  const openMergeModal = async () => {
+    setMergeSearch(client.name);
+    setMergeTarget(null);
+    const results = await getClients(client.name);
+    setMergeCandidates(results.filter(c => String(c.id) !== String(id)));
+    setShowMergeModal(true);
+  };
+
+  const handleMergeSearch = async (value) => {
+    setMergeSearch(value);
+    setMergeTarget(null);
+    if (value.trim().length < 2) { setMergeCandidates([]); return; }
+    const results = await getClients(value);
+    setMergeCandidates(results.filter(c => String(c.id) !== String(id)));
+  };
+
+  const handleMergeConfirm = async () => {
+    if (!mergeTarget) return;
+    setMergingId(mergeTarget.id);
+    try {
+      await mergeClients(id, mergeTarget.id);
+      setShowMergeModal(false);
+      setMergeTarget(null);
+      loadData();
+    } catch (err) {
+      console.error('Merge failed:', err);
+      alert('Merge failed: ' + err.message);
+    }
+    setMergingId(null);
+  };
+
   const handleSendOptIn = async () => {
     setOptInSending(true);
     try {
@@ -229,15 +272,23 @@ const ClientDetail = () => {
         </div>
         <div className="flex gap-3">
           {isAdmin && (
-            <button
-              onClick={() => {
-                setDeleteConfirm('');
-                setShowDeleteModal(true);
-              }}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-900/50"
-            >
-              <Trash2 size={18} /> <span className="hidden sm:inline">Delete</span>
-            </button>
+            <>
+              <button
+                onClick={openMergeModal}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-900/50"
+              >
+                <Merge size={18} /> <span className="hidden sm:inline">Merge Duplicate</span>
+              </button>
+              <button
+                onClick={() => {
+                  setDeleteConfirm('');
+                  setShowDeleteModal(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-900/50"
+              >
+                <Trash2 size={18} /> <span className="hidden sm:inline">Delete</span>
+              </button>
+            </>
           )}
           <button
             onClick={() => isEditing ? document.getElementById('client-form').requestSubmit() : setIsEditing(true)}
@@ -722,6 +773,68 @@ const ClientDetail = () => {
             autoFocus
             className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded-lg p-3 text-zinc-900 dark:text-white text-sm focus:border-amber-500 outline-none resize-none"
           />
+        </div>
+      </Modal>
+      <Modal
+        isOpen={showMergeModal}
+        onClose={() => { setShowMergeModal(false); setMergeTarget(null); }}
+        title="Merge Duplicate Client"
+        maxWidth="max-w-lg"
+        footer={
+          <>
+            <button
+              onClick={() => { setShowMergeModal(false); setMergeTarget(null); }}
+              className="px-4 py-2 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleMergeConfirm}
+              disabled={!mergeTarget || !!mergingId}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center gap-2"
+            >
+              <Merge size={15} />
+              {mergingId ? 'Merging...' : 'Merge Into This Client'}
+            </button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-blue-800 dark:text-blue-300 text-sm border border-blue-100 dark:border-blue-900/50">
+            All repairs, SMS messages, and phone numbers from the selected duplicate will be moved to <strong>{client?.name}</strong>. The duplicate will be deleted.
+          </div>
+          <div>
+            <label className="text-xs text-zinc-500 mb-1 block">Search for duplicate</label>
+            <input
+              value={mergeSearch}
+              onChange={e => handleMergeSearch(e.target.value)}
+              placeholder="Search by name..."
+              className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded p-2 text-zinc-900 dark:text-white text-sm focus:border-amber-500 outline-none"
+            />
+          </div>
+          {mergeCandidates.length > 0 ? (
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {mergeCandidates.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => setMergeTarget(c)}
+                  className={`w-full text-left px-3 py-2 rounded-lg border transition-colors text-sm ${
+                    mergeTarget?.id === c.id
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                      : 'border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-200'
+                  }`}
+                >
+                  <div className="font-medium">{c.name}</div>
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                    {c.companyName ? `${c.companyName} · ` : ''}
+                    {c.phone || (c.phones?.[0]?.number) || 'No phone'} · ID #{c.id}
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-zinc-500 text-center py-4">No other clients found.</div>
+          )}
         </div>
       </Modal>
       <Modal

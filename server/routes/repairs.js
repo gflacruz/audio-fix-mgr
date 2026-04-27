@@ -672,13 +672,14 @@ router.get("/:id", async (req, res) => {
 
     // Fetch Repair + Client info
     const repairQuery = `
-      SELECT r.*, 
+      SELECT r.*,
              c.name as client_name, c.company_name as client_company, c.phone as client_phone, c.email as client_email,
              c.address as client_address, c.city as client_city, c.state as client_state, c.zip as client_zip,
-             c.primary_notification, c.remarks as client_remarks
-      FROM repairs r 
-
-      JOIN clients c ON r.client_id = c.id 
+             c.primary_notification, c.remarks as client_remarks,
+             orig.claim_number as recalled_from_claim_number
+      FROM repairs r
+      JOIN clients c ON r.client_id = c.id
+      LEFT JOIN repairs orig ON orig.id = r.recalled_from_id
       WHERE r.id = $1
     `;
 
@@ -781,6 +782,8 @@ router.get("/:id", async (req, res) => {
       returnShippingCost: parseFloat(row.return_shipping_cost) || 0,
       returnShippingCarrier: row.return_shipping_carrier,
       returnTrackingNumber: row.return_tracking_number || null,
+      recalledFromId: row.recalled_from_id || null,
+      recalledFromClaimNumber: row.recalled_from_claim_number || null,
       notes: notesResult.rows.map((n) => ({
         id: n.id,
         text: n.text,
@@ -792,6 +795,8 @@ router.get("/:id", async (req, res) => {
         partId: p.part_id,
         name: p.name || p.inventory_name,
         nomenclature: p.part_nomenclature || null,
+        partNumber: p.part_number || null,
+        notes: p.notes || null,
         quantity: p.quantity,
         price: parseFloat(p.unit_price),
         retailPrice: parseFloat(p.current_retail) || 0,
@@ -842,6 +847,7 @@ router.post("/", async (req, res) => {
       status,
       poNumber,
       isTaxExempt,
+      recalledFromId,
     } = req.body;
 
     if (!clientId || !brand || !model || !issue) {
@@ -874,8 +880,8 @@ router.post("/", async (req, res) => {
 
     const result = await db.query(
       `INSERT INTO repairs
-       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, diagnostic_fee, rush_fee, on_site_fee, is_shipped_in, shipping_carrier, box_height, box_length, box_width, box_weight, model_version, accessories_included, is_on_site, claim_number, checked_in_by, status, po_number, is_tax_exempt)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+       (client_id, brand, model, serial, unit_type, issue, priority, technician, diagnostic_fee_collected, diagnostic_fee, rush_fee, on_site_fee, is_shipped_in, shipping_carrier, box_height, box_length, box_width, box_weight, model_version, accessories_included, is_on_site, claim_number, checked_in_by, status, po_number, is_tax_exempt, recalled_from_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
        RETURNING *`,
       [
         clientId,
@@ -903,7 +909,8 @@ router.post("/", async (req, res) => {
         checkedInBy || null,
         status || 'queued',
         poNumber || null,
-        isTaxExempt || false
+        isTaxExempt || false,
+        recalledFromId || null
       ],
     );
 
@@ -960,6 +967,7 @@ router.patch("/:id", async (req, res) => {
       "poNumber",
       "partsNote",
       "partsLastChecked",
+      "recalledFromId",
     ];
 
     // Auto-update dates based on status changes
@@ -1115,7 +1123,7 @@ router.post("/:id/parts", async (req, res) => {
   const client = await db.pool.connect();
   try {
     const { id } = req.params;
-    const { partId, quantity, name, price } = req.body;
+    const { partId, quantity, name, price, partNumber, notes } = req.body;
     const qty = quantity || 1;
 
     await client.query("BEGIN");
@@ -1174,11 +1182,13 @@ router.post("/:id/parts", async (req, res) => {
     }
 
     // Add to repair
+    const finalPartNumber = finalPartId ? null : (partNumber?.trim() || null);
+    const finalNotes = finalPartId ? null : (notes?.trim() || null);
     const result = await client.query(
-      `INSERT INTO repair_parts (repair_id, part_id, quantity, unit_price, name)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO repair_parts (repair_id, part_id, quantity, unit_price, name, part_number, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [id, finalPartId, qty, finalPrice, finalName],
+      [id, finalPartId, qty, finalPrice, finalName, finalPartNumber, finalNotes],
     );
 
     await client.query("COMMIT");
@@ -1634,7 +1644,7 @@ router.post("/:id/text-pickup", verifyToken, async (req, res) => {
 router.get("/:id/awaited-parts", async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT id, repair_id, name, part_number, notes, created_at
+      `SELECT id, repair_id, name, part_number, notes, ordered_at, created_at
        FROM repair_awaited_parts
        WHERE repair_id = $1
        ORDER BY created_at ASC`,
@@ -1646,6 +1656,7 @@ router.get("/:id/awaited-parts", async (req, res) => {
       name: r.name,
       partNumber: r.part_number,
       notes: r.notes,
+      orderedAt: r.ordered_at,
       createdAt: r.created_at,
     })));
   } catch (error) {

@@ -263,6 +263,9 @@ app.use('/api/payments', require('./routes/payments'));
     await db.query(`ALTER TABLE repairs ADD COLUMN IF NOT EXISTS payout_batch_id UUID`);
     await db.query(`ALTER TABLE repairs ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
     await db.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS sms_opted_in BOOLEAN DEFAULT FALSE`);
+    await db.query(`ALTER TABLE repairs ADD COLUMN IF NOT EXISTS recalled_from_id INTEGER REFERENCES repairs(id) ON DELETE SET NULL`);
+    await db.query(`ALTER TABLE repair_parts ADD COLUMN IF NOT EXISTS part_number VARCHAR(100)`);
+    await db.query(`ALTER TABLE repair_parts ADD COLUMN IF NOT EXISTS notes TEXT`);
 
     // ── Trigger: estimates.updated_at ─────────────────────────────────────────
     await db.query(`

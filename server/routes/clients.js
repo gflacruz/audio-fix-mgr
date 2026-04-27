@@ -283,6 +283,82 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// POST /api/clients/:id/merge/:sourceId - Merge sourceId into id (keeps id, deletes sourceId)
+router.post('/:id/merge/:sourceId', async (req, res) => {
+  const { id, sourceId } = req.params;
+  if (id === sourceId) return res.status(400).json({ error: 'Cannot merge a client with itself' });
+
+  try {
+    // Verify both clients exist
+    const [targetRes, sourceRes] = await Promise.all([
+      db.query('SELECT * FROM clients WHERE id = $1', [id]),
+      db.query('SELECT * FROM clients WHERE id = $1', [sourceId]),
+    ]);
+    if (targetRes.rows.length === 0) return res.status(404).json({ error: 'Target client not found' });
+    if (sourceRes.rows.length === 0) return res.status(404).json({ error: 'Source client not found' });
+
+    const target = targetRes.rows[0];
+    const source = sourceRes.rows[0];
+
+    // Re-assign all repairs from source → target
+    await db.query('UPDATE repairs SET client_id = $1 WHERE client_id = $2', [id, sourceId]);
+
+    // Re-assign all sms_messages from source → target
+    await db.query('UPDATE sms_messages SET client_id = $1 WHERE client_id = $2', [id, sourceId]);
+
+    // Merge phone numbers (add source phones not already on target)
+    const targetPhones = await db.query('SELECT phone_number FROM client_phones WHERE client_id = $1', [id]);
+    const targetNums = new Set(targetPhones.rows.map(r => r.phone_number.replace(/\D/g, '')));
+
+    const sourcePhones = await db.query('SELECT * FROM client_phones WHERE client_id = $1', [sourceId]);
+    for (const p of sourcePhones.rows) {
+      const clean = p.phone_number.replace(/\D/g, '');
+      if (!targetNums.has(clean)) {
+        await db.query(
+          `INSERT INTO client_phones (client_id, phone_number, type, extension, is_primary)
+           VALUES ($1, $2, $3, $4, false)`,
+          [id, p.phone_number, p.type, p.extension]
+        );
+      }
+    }
+
+    // Fill in any missing fields on target from source
+    const fills = {};
+    if (!target.email && source.email) fills.email = source.email;
+    if (!target.address && source.address) fills.address = source.address;
+    if (!target.city && source.city) fills.city = source.city;
+    if (!target.state && source.state) fills.state = source.state;
+    if (!target.zip && source.zip) fills.zip = source.zip;
+    if (!target.company_name && source.company_name) fills.company_name = source.company_name;
+    if (!target.remarks && source.remarks) fills.remarks = source.remarks;
+
+    if (Object.keys(fills).length > 0) {
+      const setClauses = Object.keys(fills).map((k, i) => `${k} = $${i + 2}`).join(', ');
+      await db.query(
+        `UPDATE clients SET ${setClauses} WHERE id = $1`,
+        [id, ...Object.values(fills)]
+      );
+    }
+
+    // Delete source client (phones cascade)
+    await db.query('DELETE FROM clients WHERE id = $1', [sourceId]);
+
+    // Return updated target client
+    const updatedClient = await db.query('SELECT * FROM clients WHERE id = $1', [id]);
+    const updatedPhones = await db.query(
+      'SELECT * FROM client_phones WHERE client_id = $1 ORDER BY is_primary DESC, id ASC', [id]
+    );
+    const phones = updatedPhones.rows.map(p => ({
+      number: p.phone_number, type: p.type, extension: p.extension, isPrimary: p.is_primary
+    }));
+
+    res.json(formatClient(updatedClient.rows[0], phones));
+  } catch (error) {
+    console.error('Error merging clients:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
 // GET /api/clients/:id/sms-messages
 router.get('/:id/sms-messages', verifyToken, async (req, res) => {
   try {

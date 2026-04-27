@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getEstimate, updateEstimate, deleteEstimate } from '@/lib/api';
-import { ArrowLeft, Save, Trash2, Edit2, X, CheckCircle2, DollarSign, FileText, List, User, Calendar } from 'lucide-react';
+import { getEstimate, updateEstimate, deleteEstimate, getRepair } from '@/lib/api';
+import { ArrowLeft, Save, Trash2, Edit2, X, CheckCircle2, DollarSign, FileText, List, User, Calendar, Printer } from 'lucide-react';
 import Modal from '@/components/Modal';
 import { useAuth } from '@/context/AuthContext';
 import { useError } from '@/context/ErrorContext';
+import { printEstimateQuote } from '@/lib/printer';
 
 const EstimateDetail = () => {
   const { repairId, estimateId } = useParams();
@@ -13,6 +14,8 @@ const EstimateDetail = () => {
   const { showError } = useError();
   
   const [estimate, setEstimate] = useState(null);
+  const [repair, setRepair] = useState(null);
+  const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -30,8 +33,13 @@ const EstimateDetail = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const data = await getEstimate(estimateId);
+        const [data, repairData] = await Promise.all([
+          getEstimate(estimateId),
+          getRepair(repairId),
+        ]);
         setEstimate(data);
+        setRepair(repairData);
+        setClient(repairData.client);
         setFormData({
           diagnosticNotes: data.diagnosticNotes || '',
           workPerformed: data.workPerformed || '',
@@ -47,7 +55,7 @@ const EstimateDetail = () => {
       }
     };
     loadData();
-  }, [estimateId, showError]);
+  }, [estimateId, repairId, showError]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -73,6 +81,11 @@ const EstimateDetail = () => {
 
   const handleDelete = () => {
     setShowDeleteModal(true);
+  };
+
+  const handlePrintQuote = () => {
+    if (!repair || !estimate) return;
+    printEstimateQuote(estimate, repair, client);
   };
 
   const confirmDelete = async () => {
@@ -126,7 +139,13 @@ const EstimateDetail = () => {
         <div className="flex gap-3">
            {!isEditing ? (
              <>
-               <button 
+               <button
+                 onClick={handlePrintQuote}
+                 className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+               >
+                 <Printer size={16} /> Print Quote
+               </button>
+               <button
                  onClick={() => setIsEditing(true)}
                  className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
                >

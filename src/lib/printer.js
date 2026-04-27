@@ -510,6 +510,219 @@ export const printRepairInvoice = async (ticket, client, options = {}) => {
   printWindow.document.close();
 };
 
+export const printEstimateQuote = async (estimate, repair, client) => {
+  const logoDataUri = await getLogoDataUri();
+  const barcodeDataUri = generateBarcodeDataUri(repair.claimNumber || repair.id);
+  const printWindow = window.open("", "_blank");
+
+  const laborCost = parseFloat(estimate.laborCost) || 0;
+  const partsCost = parseFloat(estimate.partsCost) || 0;
+  const subtotal = parseFloat(estimate.totalCost) || (laborCost + partsCost);
+  const tax = subtotal * 0.075;
+  const totalCost = subtotal + tax;
+  const diagFee = repair.depositAmount ? parseFloat(repair.depositAmount) : (repair.diagnosticFee > 0 ? parseFloat(repair.diagnosticFee) : 89.00);
+  const depositCollected = !!repair.diagnosticFeeCollected;
+  const amountDue = depositCollected ? Math.max(0, totalCost - diagFee) : totalCost;
+  const printDate = new Date().toLocaleDateString();
+
+  const statusColors = {
+    approved: 'background:#dcfce7;color:#166534;',
+    declined: 'background:#fee2e2;color:#991b1b;',
+    pending:  'background:#f4f4f5;color:#52525b;',
+  };
+  const badgeStyle = statusColors[estimate.status] || statusColors.pending;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Service Estimate — EST-${estimate.id}</title>
+      <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        @media print {
+          @page { margin: 0.4cm; }
+          body { -webkit-print-color-adjust: exact; }
+        }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 12px; font-size: 12px; max-width: 800px; margin: 0 auto; color: #333; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 8px; }
+        .header > div:nth-child(1) { flex: 1; }
+        .header > div:nth-child(2) { text-align: right; flex: 1; }
+        .shop-info { text-align: right; }
+        .shop-name { font-size: 18px; font-weight: bold; color: #000; margin-bottom: 2px; }
+        .doc-title { font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: #666; }
+        .info-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; margin-bottom: 10px; }
+        .label { font-size: 11px; text-transform: uppercase; color: #888; margin-bottom: 2px; }
+        .value { font-size: 13px; font-weight: 500; }
+        .section-title { font-size: 11px; font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 2px; margin-bottom: 5px; text-transform: uppercase; }
+        .table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .table th { text-align: left; padding: 5px 6px; border-bottom: 2px solid #000; font-size: 11px; text-transform: uppercase; }
+        .table td { padding: 4px 6px; border-bottom: 1px solid #eee; font-size: 12px; }
+        .total-section { text-align: right; margin-top: 8px; }
+        .total-row { display: flex; justify-content: flex-end; margin-bottom: 3px; font-size: 12px; }
+        .total-label { width: 160px; text-align: right; padding-right: 12px; color: #666; }
+        .total-value { width: 100px; text-align: right; font-weight: 500; }
+        .grand-total { font-size: 14px; font-weight: bold; border-top: 2px solid #000; padding-top: 6px; margin-top: 6px; }
+        .notes-box { background: #f9f9f9; padding: 6px 8px; border-radius: 4px; font-size: 12px; line-height: 1.4; margin-bottom: 10px; }
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .footer { margin-top: 8px; border-top: 1px solid #eee; padding-top: 6px; font-size: 10px; color: #888; }
+        .terms { margin-top: 10px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 10px; line-height: 1.3; color: #555; }
+        .signature-line { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
+        .sig-box { border-top: 1px solid #333; padding-top: 5px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+        .barcode-section { margin-top: 16px; padding-top: 12px; border-top: 1px dashed #ccc; text-align: center; }
+        .barcode-label { font-size: 10px; color: #999; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+        @media print {
+          body { width: 100% !important; max-width: none !important; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div><img src="${logoDataUri}" style="max-height: 60px; width: auto; max-width: 100%;" /></div>
+        <div class="shop-info">
+          <div class="shop-name">Sound Technology Inc</div>
+          <div style="font-size: 12px; color: #666; margin-bottom: 2px;">4508 Oak Fair Blvd.<br>Suite 104<br>Tampa, FL 33610</div>
+          <div style="font-size: 12px; color: #666; margin-bottom: 4px;">(813) 985-1120</div>
+          <div class="doc-title">Service Estimate</div>
+        </div>
+      </div>
+
+      <div class="info-grid">
+        <div>
+          <div class="label">Client Information</div>
+          ${client?.companyName
+            ? `<div class="value">${client.companyName}</div><div style="font-size: 12px; color: #555; margin-top: 1px;">${client?.name || ''}</div>`
+            : `<div class="value">${client?.name || 'N/A'}</div>`
+          }
+          <div style="font-size: 12px; color: #666; margin-top: 2px;">
+            ${client?.address ? client.address + '<br>' : ''}
+            ${client?.city ? client.city + ', ' : ''}${client?.state || ''} ${client?.zip || ''}<br>
+            ${formatPhone(client?.phone) || ''}
+            ${client?.email ? '<br>' + client.email : ''}
+          </div>
+        </div>
+        <div style="text-align: center;">
+          <div class="value" style="font-size: 18px; font-weight: 800; letter-spacing: 1px;">Estimate Quote</div>
+        </div>
+        <div style="text-align: right;">
+          <div class="label">Date</div>
+          <div class="value">${printDate}</div>
+          ${repair.claimNumber ? `<div class="label" style="margin-top: 4px;">Claim #</div><div class="value">${repair.claimNumber}</div>` : ''}
+          ${estimate.createdTechnician ? `<div class="label" style="margin-top: 4px;">Technician</div><div class="value">${estimate.createdTechnician}</div>` : ''}
+        </div>
+      </div>
+
+      <div style="margin-bottom: 10px;">
+        <div class="section-title">Unit Information</div>
+        <div style="display: flex; gap: 20px;">
+          <div>
+            <div class="label">Brand/Model</div>
+            <div class="value">${repair.brand || ''} ${repair.model || ''}</div>
+          </div>
+          <div>
+            <div class="label">Serial Number</div>
+            <div class="value">${repair.serial || 'N/A'}</div>
+          </div>
+          <div>
+            <div class="label">Type</div>
+            <div class="value">${repair.unitType || 'N/A'}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="notes-box" style="margin-bottom: 10px;">
+        <strong>Reported Issue:</strong> ${repair.issue || 'N/A'}
+      </div>
+
+      <div style="margin-bottom: 10px;">
+        <div class="section-title">Diagnostic Findings</div>
+        <div class="notes-box" style="white-space: pre-wrap;">${estimate.diagnosticNotes || 'No findings documented.'}</div>
+      </div>
+
+      <div style="margin-bottom: 10px;">
+        <div class="section-title">Scope of Work</div>
+        <div class="notes-box" style="white-space: pre-wrap;">${estimate.workPerformed || 'Not specified.'}</div>
+      </div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th style="width: 60%;">Description</th>
+            <th style="text-align: right;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Labor Charges</td>
+            <td style="text-align: right;">$${laborCost.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td>Parts &amp; Materials</td>
+            <td style="text-align: right;">$${partsCost.toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="total-section">
+        <div class="total-row">
+          <div class="total-label">Subtotal</div>
+          <div class="total-value">$${subtotal.toFixed(2)}</div>
+        </div>
+        <div class="total-row">
+          <div class="total-label">Sales Tax (7.5%)</div>
+          <div class="total-value">$${tax.toFixed(2)}</div>
+        </div>
+        <div class="total-row grand-total">
+          <div class="total-label" style="color: #000;">Total Estimate</div>
+          <div class="total-value">$${totalCost.toFixed(2)}</div>
+        </div>
+        ${depositCollected ? `
+        <div class="total-row" style="color: #166534;">
+          <div class="total-label">Less Prepaid Deposit</div>
+          <div class="total-value">-$${diagFee.toFixed(2)}</div>
+        </div>
+        <div class="total-row" style="font-size: 13px; font-weight: bold;">
+          <div class="total-label" style="color: #000;">Balance Due Upon Completion</div>
+          <div class="total-value">$${amountDue.toFixed(2)}</div>
+        </div>` : ''}
+        <div style="margin-top: 10px; text-align: right;">
+          <span class="status-badge" style="${badgeStyle}">${(estimate.status || 'pending').toUpperCase()}</span>
+        </div>
+      </div>
+
+      ${estimate.status === 'approved'
+        ? `<div style="margin-top: 16px; padding: 10px 14px; background: #dcfce7; border: 1px solid #86efac; border-radius: 6px; font-size: 12px; color: #166534; line-height: 1.5;">
+        <strong>This estimate was approved on ${estimate.approvedDate ? new Date(estimate.approvedDate).toLocaleDateString() : 'N/A'}.</strong>
+      </div>`
+        : `<div style="margin-top: 16px; padding: 10px 14px; background: #f0f7ff; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 12px; color: #1e3a5f; line-height: 1.5;">
+        <strong>To approve this estimate and proceed with your repair,</strong> please contact us at
+        <strong>(813) 985-1120</strong> or email us at <strong>service@soundtechnologyinc.com</strong>.
+      </div>`
+      }
+
+      <div class="terms">
+        This estimate is valid for 30 days from the date issued. Prices are subject to change if additional issues are discovered during the repair process.
+      </div>
+
+      ${barcodeDataUri ? `
+      <div class="barcode-section">
+        <img src="${barcodeDataUri}" style="max-width: 260px; height: auto; display: block; margin: 0 auto;" />
+        <div class="barcode-label">Claim ${repair.claimNumber || repair.id}</div>
+      </div>` : ''}
+
+      <div class="footer">
+        <p>Sound Technology Inc • (813) 985-1120 • www.soundtechnologyinc.com</p>
+      </div>
+      <script>
+        window.onload = function() { window.print(); }
+      <\/script>
+    </body>
+    </html>
+  `;
+
+  printWindow.document.write(html);
+  printWindow.document.close();
+};
+
 export function printWorkbenchList(tickets, { statusFilter, sortOrder, query } = {}) {
   const printWindow = window.open("", "_blank");
   const date = new Date().toLocaleDateString();

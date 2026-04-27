@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getClients, getClient, createClient, updateClient, createRepair, sendOptInText, chargeTerminal } from '@/lib/api';
+import { getClients, getClient, createClient, updateClient, createRepair, sendOptInText, chargeTerminal, getRepairs } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
-import { Save, Plus, Trash2 } from 'lucide-react';
+import { Save, Plus, Trash2, Link } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import ComboSelect from '@/components/ComboSelect';
-import { UNIT_TYPES } from '@/lib/repairConstants';
+import { UNIT_TYPES, CLOSED_STATUSES } from '@/lib/repairConstants';
 
 const inputCls = "w-full bg-zinc-50 dark:bg-zinc-950 focus:bg-zinc-100 dark:focus:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded px-3 py-2 text-zinc-900 dark:text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 dark:focus:border-zinc-400 dark:focus:ring-zinc-400 focus:outline-none transition-colors";
 const selectCls = inputCls;
@@ -47,6 +47,11 @@ const Intake = () => {
     poNumber: '',
     isTaxExempt: false
   });
+
+  const [resolvedClientId, setResolvedClientId] = useState(null);
+  const [recalledFromId, setRecalledFromId] = useState(null);
+  const [pastRepairs, setPastRepairs] = useState([]);
+  const [pastRepairsLoading, setPastRepairsLoading] = useState(false);
 
   const [showFeeModal, setShowFeeModal] = useState(false);
   const [customFee, setCustomFee] = useState(89);
@@ -102,12 +107,30 @@ const Intake = () => {
             isTaxExempt: fullClient.taxExempt || false,
           }));
           setClientSmsOptedIn(fullClient.smsOptedIn || false);
+          setResolvedClientId(client.id);
+        } else {
+          setResolvedClientId(null);
+          setPastRepairs([]);
         }
       } catch (error) {
         console.error("Error looking up client:", error);
       }
     }
   };
+
+  useEffect(() => {
+    if (formData.priority === 'recall' && resolvedClientId) {
+      setPastRepairsLoading(true);
+      getRepairs({ clientId: resolvedClientId, includeClosed: true })
+        .then(repairs => {
+          setPastRepairs(repairs.filter(r => CLOSED_STATUSES.includes(r.status)));
+        })
+        .catch(err => console.error('Error fetching past repairs:', err))
+        .finally(() => setPastRepairsLoading(false));
+    } else {
+      setPastRepairs([]);
+    }
+  }, [formData.priority, resolvedClientId]);
 
   const handlePhoneChange = (index, field, value) => {
     const newPhones = [...formData.phones];
@@ -242,7 +265,8 @@ const Intake = () => {
         boxWeight: formData.isShippedIn ? (formData.boxWeight || null) : null,
         checkedInBy: user?.name,
         poNumber: formData.poNumber || null,
-        isTaxExempt: formData.isTaxExempt
+        isTaxExempt: formData.isTaxExempt,
+        recalledFromId: recalledFromId || null
       };
 
       const ticket = await createRepair(repairData);
@@ -526,9 +550,13 @@ const Intake = () => {
               <div>
                 <label className="block text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">Priority</label>
                 <ComboSelect
-                  value={formData.priority === 'normal' ? 'Normal' : formData.priority === 'rush' ? 'Rush (+Fee)' : 'Warranty'}
-                  options={['Normal', 'Rush (+Fee)', 'Warranty']}
-                  onChange={(val) => setFormData(prev => ({ ...prev, priority: val === 'Normal' ? 'normal' : val === 'Rush (+Fee)' ? 'rush' : 'warranty' }))}
+                  value={formData.priority === 'normal' ? 'Normal' : formData.priority === 'rush' ? 'Rush (+Fee)' : formData.priority === 'recall' ? 'Recall' : 'Warranty'}
+                  options={['Normal', 'Rush (+Fee)', 'Warranty', 'Recall']}
+                  onChange={(val) => {
+                    const mapped = val === 'Normal' ? 'normal' : val === 'Rush (+Fee)' ? 'rush' : val === 'Recall' ? 'recall' : 'warranty';
+                    setFormData(prev => ({ ...prev, priority: mapped }));
+                    if (mapped !== 'recall') { setRecalledFromId(null); }
+                  }}
                 />
               </div>
               <div>
@@ -537,6 +565,60 @@ const Intake = () => {
                   className={inputCls} />
               </div>
             </div>
+
+            {/* Recall — Past Repair Picker */}
+            {formData.priority === 'recall' && (
+              <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700/50 rounded-lg space-y-3">
+                <h4 className="text-xs font-semibold text-orange-700 dark:text-orange-400 uppercase tracking-wider">Link Original Repair</h4>
+                {!resolvedClientId ? (
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">Enter a client phone number above to load their repair history.</p>
+                ) : pastRepairsLoading ? (
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">Loading past repairs...</p>
+                ) : pastRepairs.length === 0 ? (
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">No closed repairs found for this client.</p>
+                ) : (
+                  <div className="space-y-2 max-h-52 overflow-y-auto">
+                    {pastRepairs.map(r => (
+                      <div
+                        key={r.id}
+                        className={`flex items-center justify-between gap-3 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                          recalledFromId === r.id
+                            ? 'bg-orange-100 dark:bg-orange-800/40 border-orange-400 dark:border-orange-500'
+                            : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700'
+                        }`}
+                      >
+                        <span className="text-zinc-700 dark:text-zinc-300 truncate">
+                          <span className="font-medium text-orange-700 dark:text-orange-400">#{r.claimNumber || r.id}</span>
+                          {' — '}{r.brand} {r.model}
+                          {r.closedDate && <span className="text-zinc-400 dark:text-zinc-500 ml-1">({new Date(r.closedDate).toLocaleDateString()})</span>}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRecalledFromId(r.id);
+                            setFormData(prev => ({
+                              ...prev,
+                              brand: r.brand || prev.brand,
+                              model: r.model || prev.model,
+                              serial: r.serial || prev.serial,
+                              modelVersion: r.modelVersion || prev.modelVersion,
+                            }));
+                          }}
+                          className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors ${
+                            recalledFromId === r.id
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-orange-100 dark:hover:bg-orange-800/30 hover:text-orange-700 dark:hover:text-orange-400'
+                          }`}
+                        >
+                          <Link size={12} />
+                          {recalledFromId === r.id ? 'Linked' : 'Link'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

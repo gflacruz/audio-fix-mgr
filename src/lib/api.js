@@ -92,6 +92,10 @@ export const deleteClient = async (id) => {
   });
 };
 
+export const mergeClients = async (targetId, sourceId) => {
+  return fetchJSON(`/clients/${targetId}/merge/${sourceId}`, { method: 'POST' });
+};
+
 // Repairs
 export const getRepairs = async (options = {}) => {
   const params = new URLSearchParams();
@@ -340,11 +344,11 @@ export const updateRepairPartPrice = async (repairId, linkId, price) => {
   });
 };
 
-export const addCustomRepairPart = async (repairId, { name, price, quantity = 1 }) => {
+export const addCustomRepairPart = async (repairId, { name, price, quantity = 1, partNumber, notes }) => {
   const user = JSON.parse(localStorage.getItem('audio_fix_user'));
   return fetchJSON(`/repairs/${repairId}/parts`, {
     method: 'POST',
-    body: JSON.stringify({ name, price, quantity }),
+    body: JSON.stringify({ name, price, quantity, partNumber, notes }),
     headers: { Authorization: `Bearer ${user?.token}` }
   });
 };

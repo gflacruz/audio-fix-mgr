@@ -13,7 +13,6 @@ export default function UnitSpecsCard({ ticket, onSave }) {
       brand: ticket.brand || '',
       model: ticket.model || '',
       serial: ticket.serial || '',
-      priority: ticket.priority || 'normal',
       accessoriesIncluded: ticket.accessoriesIncluded || '',
       poNumber: ticket.poNumber || ''
     });
@@ -77,18 +76,6 @@ export default function UnitSpecsCard({ ticket, onSave }) {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Priority</label>
-              <select
-                value={tempSpecs.priority}
-                onChange={(e) => setTempSpecs(prev => ({ ...prev, priority: e.target.value }))}
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 rounded px-2 py-1.5 text-sm text-zinc-900 dark:text-white focus:border-amber-500 outline-none"
-              >
-                <option value="normal">Normal</option>
-                <option value="rush">Rush</option>
-                <option value="warranty">Warranty</option>
-              </select>
-            </div>
-            <div>
               <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">PO #</label>
               <input
                 type="text"
@@ -133,15 +120,6 @@ export default function UnitSpecsCard({ ticket, onSave }) {
             <div className="min-w-0">
               <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Serial Number</label>
               <div className="text-zinc-800 dark:text-zinc-200 font-mono break-all">{ticket.serial || 'N/A'}</div>
-            </div>
-            <div>
-              <label className="text-xs text-zinc-500 dark:text-zinc-400 block">Priority</label>
-              <div className={`inline-block px-2 py-1 rounded text-xs font-bold uppercase ${
-                ticket.priority === 'rush' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-500' :
-                ticket.priority === 'warranty' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-500' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
-              }`}>
-                {ticket.priority}
-              </div>
             </div>
             {ticket.poNumber && (
               <div>

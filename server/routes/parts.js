@@ -39,7 +39,8 @@ const formatPart = (row) => ({
   remarks: row.remarks,
   // Calculated fields with manual override support
   issuedLifetime: row.issued_lifetime_override != null ? parseInt(row.issued_lifetime_override) : (row.issued_lifetime ? parseInt(row.issued_lifetime) : 0),
-  lastUsedDate: row.last_used_date_override || row.last_used_date || null
+  lastUsedDate: row.last_used_date_override || row.last_used_date || null,
+  updatedAt: row.updated_at || null,
 });
 
 // GET /api/parts - List all parts (Searchable & Paginated)

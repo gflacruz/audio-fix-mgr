@@ -11,7 +11,7 @@ export function useRepairParts(id, ticket, setTicket) {
   const [selectedPartForAdd, setSelectedPartForAdd] = useState(null);
   const [addQuantity, setAddQuantity] = useState(1);
   const [showCustomPartModal, setShowCustomPartModal] = useState(false);
-  const [customPartData, setCustomPartData] = useState({ name: '', price: '', quantity: 1 });
+  const [customPartData, setCustomPartData] = useState({ name: '', price: '', quantity: 1, partNumber: '', notes: '' });
   const [deletePartModal, setDeletePartModal] = useState({ isOpen: false, linkId: null });
   const [awaitedParts, setAwaitedParts] = useState([]);
   const [awaitedPartForm, setAwaitedPartForm] = useState({ name: '', partNumber: '', notes: '' });
@@ -89,28 +89,31 @@ export function useRepairParts(id, ticket, setTicket) {
     setAddQuantity(1);
   }, []);
 
-  const handleCustomPartSubmit = useCallback(async (e) => {
+  const handleCustomPartSubmit = async (e) => {
     e.preventDefault();
-    if (!customPartData.name || customPartData.price === '') {
+    const parsedPrice = parseFloat(String(customPartData.price).trim());
+    if (!customPartData.name || isNaN(parsedPrice)) {
       alert("Name and Price are required.");
       return;
     }
     try {
       await addCustomRepairPart(id, {
         name: customPartData.name,
-        price: parseFloat(customPartData.price),
-        quantity: parseInt(customPartData.quantity, 10) || 1
+        price: parsedPrice,
+        quantity: parseInt(customPartData.quantity, 10) || 1,
+        partNumber: customPartData.partNumber || undefined,
+        notes: customPartData.notes || undefined,
       });
       const updatedTicket = await getRepair(id);
       setTicket(updatedTicket);
       setShowCustomPartModal(false);
-      setCustomPartData({ name: '', price: '', quantity: 1 });
+      setCustomPartData({ name: '', price: '', quantity: 1, partNumber: '', notes: '' });
       setAddModalStep(null);
     } catch (error) {
       console.error("Failed to add custom part:", error);
       alert("Failed to add custom part: " + error.message);
     }
-  }, [id, customPartData, setTicket]);
+  };
 
   const handleRemovePart = useCallback((linkId) => {
     setDeletePartModal({ isOpen: true, linkId });
@@ -184,6 +187,34 @@ export function useRepairParts(id, ticket, setTicket) {
     }
   }, [id, user, setTicket]);
 
+  const handleMarkAwaitedArrived = useCallback(async (awaitedPart) => {
+    try {
+      const arrivedDate = new Date().toLocaleString('en-US', {
+        month: 'short', day: 'numeric', year: 'numeric',
+        hour: 'numeric', minute: '2-digit',
+      });
+      await addRepairNote(id, {
+        text: `Part arrived - ${awaitedPart.name}${awaitedPart.partNumber ? ` / ${awaitedPart.partNumber}` : ''} (${arrivedDate})`,
+        author: user?.name || 'Unknown',
+      });
+      await removeAwaitedPart(id, awaitedPart.id);
+      setAwaitedParts((prev) => prev.filter((p) => p.id !== awaitedPart.id));
+      setCustomPartData({
+        name: awaitedPart.name || '',
+        price: '0',
+        quantity: 1,
+        partNumber: awaitedPart.partNumber || '',
+        notes: awaitedPart.notes || '',
+      });
+      setShowCustomPartModal(true);
+      const updatedTicket = await getRepair(id);
+      setTicket(updatedTicket);
+    } catch (err) {
+      console.error('Failed to mark awaited part as arrived:', err);
+      alert('Failed to mark part as arrived: ' + err.message);
+    }
+  }, [id, user, setTicket]);
+
   return {
     partsSearch,
     setPartsSearch,
@@ -214,5 +245,6 @@ export function useRepairParts(id, ticket, setTicket) {
     handleAddAwaitedPart,
     handleRemoveAwaitedPart,
     handleMarkAwaitedOrdered,
+    handleMarkAwaitedArrived,
   };
 }

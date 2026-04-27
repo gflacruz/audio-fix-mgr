@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Clock, User, CheckCircle2, MessageSquare, Mail, Send, FileText, DollarSign, ClipboardCheck, StickyNote, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Clock, User, CheckCircle2, MessageSquare, Mail, Send, FileText, DollarSign, ClipboardCheck, StickyNote, AlertCircle, History, Pencil, Link } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useError } from '@/context/ErrorContext';
 import { CLOSED_STATUSES } from '@/lib/repairConstants';
-import { askAIDiagnose } from '@/lib/api';
+import { askAIDiagnose, getRepairs } from '@/lib/api';
 
 // Hooks
 import { useRepairData } from '@/hooks/useRepairData';
@@ -64,6 +64,14 @@ const RepairDetail = () => {
   const [showEstimateWizard, setShowEstimateWizard] = useState(false);
   const [showModelNoteAlert, setShowModelNoteAlert] = useState(false);
 
+  // Priority edit modal
+  const [showPriorityModal, setShowPriorityModal] = useState(false);
+  const [pendingPriority, setPendingPriority] = useState(null);
+  const [pendingRecalledFromId, setPendingRecalledFromId] = useState(null);
+  const [pendingRecalledClaimNumber, setPendingRecalledClaimNumber] = useState(null);
+  const [pastRepairs, setPastRepairs] = useState([]);
+  const [pastRepairsLoading, setPastRepairsLoading] = useState(false);
+
   // ESC key handler
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -71,12 +79,13 @@ const RepairDetail = () => {
       if (showInvoiceWizard) { setShowInvoiceWizard(false); return; }
       if (showEstimateWizard) { setShowEstimateWizard(false); return; }
       if (showModelNoteAlert) { setShowModelNoteAlert(false); return; }
+      if (showPriorityModal) { setShowPriorityModal(false); return; }
       if (notifications.emailModal.isOpen) { notifications.closeEmailModal(); return; }
       navigate(-1);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, showInvoiceWizard, showEstimateWizard, showModelNoteAlert,
+  }, [navigate, showInvoiceWizard, showEstimateWizard, showModelNoteAlert, showPriorityModal,
       notifications.emailModal.isOpen, notifications.closeEmailModal]);
 
   // Show model note alert when navigating from Intake
@@ -86,6 +95,28 @@ const RepairDetail = () => {
       window.history.replaceState({}, document.title);
     }
   }, [location.state?.fromIntake, modelNote]);
+
+  const openPriorityModal = useCallback(() => {
+    setPendingPriority(ticket.priority || 'normal');
+    setPendingRecalledFromId(ticket.recalledFromId || null);
+    setPendingRecalledClaimNumber(ticket.recalledFromClaimNumber || null);
+    setPastRepairs([]);
+    setShowPriorityModal(true);
+  }, [ticket]);
+
+  useEffect(() => {
+    if (!showPriorityModal || pendingPriority !== 'recall' || !ticket?.clientId) return;
+    setPastRepairsLoading(true);
+    getRepairs({ clientId: ticket.clientId, includeClosed: true })
+      .then(repairs => setPastRepairs(repairs.filter(r => CLOSED_STATUSES.includes(r.status) && r.id !== ticket.id)))
+      .catch(err => console.error('Error fetching past repairs:', err))
+      .finally(() => setPastRepairsLoading(false));
+  }, [showPriorityModal, pendingPriority, ticket?.clientId, ticket?.id]);
+
+  const handleSavePriority = useCallback(async () => {
+    const ok = await updater.handlePriorityChange(pendingPriority, pendingRecalledFromId, pendingRecalledClaimNumber);
+    if (ok) setShowPriorityModal(false);
+  }, [updater, pendingPriority, pendingRecalledFromId, pendingRecalledClaimNumber]);
 
   const handleStatusChangeWithNotify = useCallback(async (newStatus) => {
     const ok = await updater.handleStatusChange(newStatus);
@@ -153,7 +184,7 @@ const RepairDetail = () => {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {ticket.isShippedIn && (
               <span className="inline-flex items-center justify-center px-3 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300 text-sm rounded-full border border-purple-200 dark:border-purple-800/50 font-medium">
                 Shipped In
@@ -174,6 +205,30 @@ const RepairDetail = () => {
                 Warranty
               </span>
             )}
+            {ticket.priority === 'recall' && !ticket.recalledFromId && (
+              <span className="inline-flex items-center justify-center px-3 py-1 bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300 text-sm rounded-full border border-orange-200 dark:border-orange-700/50 font-medium">
+                Recall
+              </span>
+            )}
+            {ticket.recalledFromId && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300 text-sm rounded-full border border-orange-200 dark:border-orange-700/50 font-medium">
+                <History size={14} />
+                Recall of{' '}
+                <button
+                  onClick={() => navigate(`/repair/${ticket.recalledFromId}`)}
+                  className="underline underline-offset-2 hover:text-orange-600 dark:hover:text-orange-200 transition-colors"
+                >
+                  #{ticket.recalledFromClaimNumber || ticket.recalledFromId}
+                </button>
+              </span>
+            )}
+            <button
+              onClick={openPriorityModal}
+              title="Edit priority"
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+            >
+              <Pencil size={12} /> Priority
+            </button>
           </div>
         </div>
 
@@ -343,6 +398,138 @@ const RepairDetail = () => {
         technicianName={user?.name || 'Technician'}
         onEstimateCreated={loadEstimates}
       />
+
+      {/* Priority Edit Modal */}
+      <Modal
+        isOpen={showPriorityModal}
+        onClose={() => setShowPriorityModal(false)}
+        title="Edit Priority"
+        footer={
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => setShowPriorityModal(false)}
+              className="px-4 py-2 text-sm rounded border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSavePriority}
+              disabled={pendingPriority === 'recall' && !pendingRecalledFromId}
+              className="px-4 py-2 text-sm rounded bg-amber-600 hover:bg-amber-700 text-white font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Save
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {/* Priority selector */}
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { value: 'normal', label: 'Normal', color: 'zinc' },
+              { value: 'rush', label: 'Rush', color: 'red' },
+              { value: 'warranty', label: 'Warranty', color: 'emerald' },
+              { value: 'recall', label: 'Recall', color: 'orange' },
+            ].map(({ value, label, color }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  setPendingPriority(value);
+                  if (value !== 'recall') {
+                    setPendingRecalledFromId(null);
+                    setPendingRecalledClaimNumber(null);
+                  }
+                }}
+                className={`px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                  pendingPriority === value
+                    ? color === 'zinc'
+                      ? 'bg-zinc-200 dark:bg-zinc-700 border-zinc-400 dark:border-zinc-500 text-zinc-900 dark:text-white'
+                      : color === 'red'
+                        ? 'bg-red-100 dark:bg-red-900/50 border-red-400 dark:border-red-600 text-red-800 dark:text-red-300'
+                        : color === 'emerald'
+                          ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-400 dark:border-emerald-600 text-emerald-800 dark:text-emerald-300'
+                          : 'bg-orange-100 dark:bg-orange-900/40 border-orange-400 dark:border-orange-600 text-orange-800 dark:text-orange-300'
+                    : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-500'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Recall: past repair linker */}
+          {pendingPriority === 'recall' && (
+            <div className="border border-orange-200 dark:border-orange-700/50 rounded-lg overflow-hidden">
+              <div className="px-3 py-2 bg-orange-50 dark:bg-orange-900/20 border-b border-orange-200 dark:border-orange-700/50">
+                <h4 className="text-xs font-semibold text-orange-700 dark:text-orange-400 uppercase tracking-wider">
+                  Link Original Repair
+                </h4>
+                {pendingRecalledFromId && (
+                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-0.5">
+                    Linked: #{pendingRecalledClaimNumber || pendingRecalledFromId}
+                    <button
+                      type="button"
+                      onClick={() => { setPendingRecalledFromId(null); setPendingRecalledClaimNumber(null); }}
+                      className="ml-2 underline hover:no-underline"
+                    >
+                      clear
+                    </button>
+                  </p>
+                )}
+              </div>
+
+              <div className="max-h-60 overflow-y-auto">
+                {pastRepairsLoading ? (
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 px-3 py-3">Loading past repairs...</p>
+                ) : pastRepairs.length === 0 ? (
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 px-3 py-3">No closed repairs found for this client.</p>
+                ) : (
+                  <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {pastRepairs.map(r => (
+                      <div
+                        key={r.id}
+                        className={`flex items-center justify-between gap-3 px-3 py-2 text-sm transition-colors ${
+                          pendingRecalledFromId === r.id
+                            ? 'bg-orange-50 dark:bg-orange-900/20'
+                            : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
+                        }`}
+                      >
+                        <span className="text-zinc-700 dark:text-zinc-300 truncate">
+                          <span className="font-medium text-orange-700 dark:text-orange-400">
+                            #{r.claimNumber || r.id}
+                          </span>
+                          {' — '}{r.brand} {r.model}
+                          {r.closedDate && (
+                            <span className="text-zinc-400 dark:text-zinc-500 ml-1">
+                              ({new Date(r.closedDate).toLocaleDateString()})
+                            </span>
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingRecalledFromId(r.id);
+                            setPendingRecalledClaimNumber(r.claimNumber || String(r.id));
+                          }}
+                          className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors ${
+                            pendingRecalledFromId === r.id
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-orange-100 dark:hover:bg-orange-800/30 hover:text-orange-700 dark:hover:text-orange-400'
+                          }`}
+                        >
+                          <Link size={12} />
+                          {pendingRecalledFromId === r.id ? 'Linked' : 'Link'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
 
       <Modal
         isOpen={showModelNoteAlert}

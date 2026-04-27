@@ -212,6 +212,26 @@ export function useRepairUpdater(id, ticket, setTicket, user, showError) {
     }
   }, [id, setTicket]);
 
+  const handlePriorityChange = useCallback(async (newPriority, recalledFromId, recalledFromClaimNumber) => {
+    try {
+      const updates = {
+        priority: newPriority,
+        recalledFromId: newPriority === 'recall' ? (recalledFromId || null) : null,
+      };
+      await updateRepair(id, updates);
+      setTicket(prev => ({
+        ...prev,
+        priority: newPriority,
+        recalledFromId: updates.recalledFromId,
+        recalledFromClaimNumber: newPriority === 'recall' ? (recalledFromClaimNumber || null) : null,
+      }));
+      return true;
+    } catch (error) {
+      console.error("Failed to update priority:", error);
+      return false;
+    }
+  }, [id, setTicket]);
+
   const confirmCloseClaim = useCallback(async () => {
     try {
       const now = new Date().toISOString();
@@ -247,5 +267,6 @@ export function useRepairUpdater(id, ticket, setTicket, user, showError) {
     handleSaveOnSiteFee,
     saveWorkPerformed,
     confirmCloseClaim,
+    handlePriorityChange,
   };
 }

@@ -267,6 +267,13 @@ const PartDetail = () => {
                     {isOutOfStock ? 'OUT OF STOCK' : isLowStock ? 'LOW STOCK' : 'IN STOCK'}
                   </span>
                 )}
+
+                {/* Last updated timestamp — view only */}
+                {!isEditing && part.updatedAt && (
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                    Updated {new Date(part.updatedAt).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })} EST
+                  </span>
+                )}
               </div>
             </div>
 
